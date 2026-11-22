@@ -16,6 +16,7 @@ AgentSpace is a local workspace for direct writing and clear collaboration with 
 
 - [Product brief](product-brief.md): the focused promise and first-release scope.
 - [Requirements](PRD.md): interview-origin scenarios and concrete acceptance targets.
+- [Product review](PRODUCT_REVIEW.md): completeness, focus and concrete open usability work.
 - [Interaction design](UX.md): writing, review, navigation and recovery behavior.
 - [Design system](design-system.md): visual and interaction rules.
 - [Delivery evidence](DELIVERY.md): phase outcomes and delivery status.

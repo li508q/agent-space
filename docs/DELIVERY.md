@@ -35,7 +35,9 @@ Independent review reports remain local in `.coordination/reviews/` and are excl
 
 ## Current milestone
 
-The focused 0.1.0 implementation is complete. It gives people direct local writing, project/record/asset organization, inspectable agent context, reviewable changes, guarded history and portable local data. No provider account is required for direct use. A monthly review is a validation example, not a built-in routine or role engine.
+The focused 0.1.0 engineering implementation and repository delivery are complete. They provide direct local writing, project/record/asset organization, inspectable agent context, reviewable changes, guarded history and portable local data. No provider account is required for direct use. A monthly review is a validation example, not a built-in routine or role engine.
+
+A subsequent [product review](PRODUCT_REVIEW.md) found open usability work in project accumulation, direct correction from a reading path, durable change discovery, knowledge-review filtering and contextual agent setup. The product remains focused, but technical checks do not establish that the original pains are fully resolved. These corrections have not shipped; the review gives concrete acceptance criteria before calling the human workflow complete.
 
 The integrated Core/contract/UI-state/desktop-unit/real protocol gate passed 115/115, with strict TypeScript and zero-warning lint. Independent reviews found and corrected a navigation race, mixed-revision import pagination and acquisition of a changed backup. Their actual failing boundaries were reproduced before correction and passed afterward. These safeguards support control over human work; they are not claims of semantic truth or arbitrary external-file coordination.
 

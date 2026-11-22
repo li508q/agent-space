@@ -8,6 +8,18 @@ The user explicitly requested phased delivery under the main session. Read `.age
 
 The user has explicitly delegated decisions within the focused brief to the coordinator. Do not ask the user to select routine product, architecture, or implementation options. Give a reasoned recommendation and evidence to the coordinator; the coordinator owns the phase decision and next assignment.
 
+## Explain each decision before acting
+
+Before deciding a feature, scope change or implementation task, state in plain language:
+
+1. The reported scenario or explicit need it serves.
+2. The current behavior and observed gap.
+3. The exact behavior to change and the affected entry point or capability.
+4. The scope boundary and data/access rules that must remain true.
+5. The observable result that will establish completion.
+
+Phrases such as "improve the experience", "complete the loop" or "make it AI Native" are not sufficient task definitions. Keep implemented, technically verified and validated with actual users separate. Test counts and a narrowed PRD cannot by themselves establish that the original pains have been solved. Evaluate completeness and focus independently; close core workflow gaps before adding a new product area.
+
 ## Scope and quality
 
 - Follow `docs/product-brief.md`. Turn the user's actual pains into working flows, not a broad platform or a mock interface.
