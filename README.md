@@ -6,7 +6,7 @@ A local personal workspace for writing, connected context, and human–agent col
 
 ## Delivery status
 
-AgentSpace is in staged development. The transactional core now supports direct writing, scoped proposals, review, version history and guarded recovery. Core and five-language foundation checks pass. Native desktop and real product MCP/CLI integration are the current stage; there is no runnable desktop application or published install package yet.
+AgentSpace is in staged development. The local desktop now runs from source: write directly, connect a scoped MCP client, inspect a proposal and its cited version, then accept or reject it. Real Electron checks cover persistence, later-edit protection and interrupted-response recovery. Project organization, records, import and backup are the next stage; an install package is not published yet.
 
 ## Product direction
 
@@ -38,9 +38,9 @@ Use the Node version in `.nvmrc`, then run:
 ```sh
 npm ci
 npm run check
-npx tsx --test tests/ui/i18n.test.ts
+npm run dev
 ```
 
-These check the current core and localization foundation, not a completed desktop flow. See [test evidence](docs/TESTING.md) for the exact boundaries.
+`dev` builds and opens the local desktop. See [desktop setup](docs/DESKTOP.md), [agent configuration](docs/AGENT_PROTOCOL.md) and [test evidence](docs/TESTING.md) for the implemented subset and exact verification boundaries.
 
 [MIT license](LICENSE).

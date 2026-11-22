@@ -65,6 +65,9 @@ export interface DesktopApi extends DesktopCoreBridge {
   ): Promise<Result<AgentLaunchConfiguration>>;
   onMenuCommand(listener: (command: MenuCommand) => void): Unsubscribe;
   onCloseRequested(listener: (request: CloseRequest) => void): Unsubscribe;
+  // A native Keep open/Retry/error can invalidate a pending close while the
+  // renderer is still waiting for composition or persistence to settle.
+  onCloseCancelled(listener: (request: CloseRequest) => void): Unsubscribe;
   respondToClose(
     request: z.infer<typeof CloseResponseSchema>,
   ): Promise<Result<{ closed: boolean }>>;

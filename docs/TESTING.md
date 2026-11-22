@@ -1,6 +1,6 @@
 # Test strategy and evidence
 
-Status: 3A/3B product-core checks executed, 2026-11-23. Native UI, actual product MCP/CLI and complete PRD acceptance remain pending. Tests trace to the reported/stated scenarios SC-01–SC-09 and targets AS-01–AS-15 in [PRD.md](PRD.md). Races and response loss are engineering risk cases, not invented interview events.
+Status: product core, actual product stdio, native boundary and human–agent vertical-loop checks executed, 2026-11-23. Full feature, five-language layout and packaged release acceptance remain pending. Tests trace to the reported/stated scenarios SC-01–SC-09 and targets AS-01–AS-15 in [PRD.md](PRD.md). Races and response loss are engineering risk cases, not invented interview events.
 
 ## Current commands and evidence
 
@@ -9,10 +9,14 @@ npm ci
 npm run check
 npm run test:core
 npm run build:core
+npm run build
+npm run test:protocol
+npm run test:desktop:agent
+npm run test:desktop
 npm run format:check
 ```
 
-`check` runs strict TypeScript, ESLint with zero allowed warnings, a real ESM/declaration core build, six boundary-schema tests and twelve product-core integration groups. The core subset is in `tests/core/`; the concurrency worker imports `dist/core/index.js` in independently spawned Node processes. Tests use private temporary file-backed spaces and synthetic material. No browser, protocol mock or phase 2 probe substitutes for these core checks. Node 22 emits its documented experimental SQLite warning; that is distinct from lint warnings.
+`check` runs strict TypeScript, ESLint with zero allowed warnings, real core/agent builds and the contract, core, editor, localization, desktop unit and real standalone protocol suites. The core subset includes six boundary-schema tests and twelve integration groups; its concurrency worker imports `dist/core/index.js` in independently spawned Node processes. Tests use private temporary file-backed spaces and synthetic material. No browser, protocol mock or phase 2 probe substitutes for these core checks. Node 22 emits its documented experimental SQLite warning; that is distinct from lint warnings.
 
 | Actual core check              | Observed result                                                                                                                                                                                                                                                                                                                                                                                             |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -30,13 +34,35 @@ These observations establish only the checked core boundary. Suppressing a direc
 
 The coordinator independently repeated the complete 18-group check and format check. A separate `npx tsx --test tests/ui/i18n.test.ts` passes ten localization-foundation checks: exact five-language key/placeholder parity, strict lookup, authored-text preservation, counts, date/instant distinctions and clock-range validation, stable error coverage and initial language choice. This is not native layout, IME or full translated-product acceptance.
 
+## Native desktop and agent boundary
+
+`npm run build` compiles the actual Electron main/preload and React entry, plus the independent core and restricted adapter. The stable desktop entry is `dist/desktop/main.cjs`; [DESKTOP.md](DESKTOP.md) describes its boundary and launch options. GUI tests use private `AGENTSPACE_USER_DATA` profiles and must run serially without another native QA process competing for focus.
+
+| Executed subset         | Observed result and limit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Desktop units           | Six groups pass: private preferences/installation identity, real A→B→A bindings, resource traversal/origin denial, nonce cancellation, bounded platform inputs/five-language native copy and generated launch parameters.                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Native agent modes      | Two groups pass using real Electron processes: CLI reads multilingual content; concurrent legacy/modern MCP clients share one space and preserve a pending proposal. Agent modes do not initialize desktop preferences or acquire the desktop window lock. These are development executable checks, not a moved application bundle or model host.                                                                                                                                                                                                                                                                                          |
+| Native boundary smoke   | One group passes against the actual React UI: sandbox/isolation/no renderer Node, exact API/sender/schema, denied resources/network, real example/save, canceled chooser, private preference/data reopen, generated configuration auth without fabricated activity, five-language native menus/zoom and async clipboard failure. A real eight-second fallback blocks late ready and emits the old nonce cancellation; an intentionally crashed renderer leaves the window open with native recovery choices. OS dialogs/clipboard/link dispatch are substituted; forced process termination is test cleanup, not the product close policy. |
+| Cross-layer bridge      | The independent `tests/acceptance/native-bridge.e2e.ts` run passes: actual preload/Core, generated Electron MCP launch, same-space proposal adoption, A→B→A, normal exit and reopen. Direct API calls establish integration, not editor/review button UX.                                                                                                                                                                                                                                                                                                                                                                                  |
+| Native commands/history | Named New, Save, Search and Settings menu callbacks operate the real UI. Actual CodeMirror Undo/Redo keyboard shortcuts pass. The automated session cannot reliably establish macOS's native first responder; this test does not claim a foreground Cocoa Undo/Redo menu-role click.                                                                                                                                                                                                                                                                                                                                                       |
+
+Independent native acceptance also passes through visible controls:
+
+- `tests/acceptance/native-workbench.e2e.ts`: direct save; scoped grant creation and copied executable configuration; actual SDK read/proposal; configured client label before/after acceptance; declared purpose/reason/diff; pinned-source reading and restored focus; acceptance; later human correction; refused historical undo; Review navigation; rejection after grant revocation.
+- `tests/acceptance/native-response-loss.e2e.ts`: a test-only main-process wrapper loses one response after the real IPC handler commits. The real preload returns structured `OPERATION_UNKNOWN`; the UI recovers the same operation key before saving newer visible input at the next revision. No production fault hook is exposed.
+- `tests/acceptance/native-composition.e2e.ts`: Chromium input protocol drives actual CodeMirror composition. Uncommitted CJK is not autosaved; the real eight-second native Keep-open fallback invalidates the old close; a later close waits for composition, persists the committed text, exits normally and reopens. This is not a physical OS input-method check.
+
+Run these after `npm run build` with `npx tsx --test --test-concurrency=1 tests/acceptance/*.e2e.ts`. Full five-locale layout/zoom, foreground OS menu roles and relocated application packaging remain separate. No signed or moved macOS artifact is claimed by this milestone.
+
 ## Earlier runtime feasibility
 
 Phase 2 separately ran actual macOS arm64 Node 22.22.3 / SQLite 3.51.3 and Electron 45.4.1 / bundled Node 24.22.3 / SQLite 3.54.1 probes. Both supported the selected `DatabaseSync`, WAL/FULL/foreign-key settings, FTS5 and online backup; backed-up rows/integrity matched on reopen. Ten five-language search fixtures per runtime demonstrated the short-trigram limitation and literal fallback with unchanged originals.
 
-An official split SDK 2.4.0 stdio client/server probe exercised legacy and pinned `2026-07-28` modern openings, nested Unicode and strict unknown-field rejection. It exposed a labeled probe tool, not a product space or proposal. These earlier ignored probe artifacts are not product-core, native UI, packaging or real-host acceptance evidence. This stage's production core was tested on system Node; native Electron integration remains the next assignment.
+An official split SDK 2.4.0 stdio client/server probe exercised legacy and pinned `2026-07-28` modern openings, nested Unicode and strict unknown-field rejection. It exposed a labeled probe tool, not a product space or proposal. These earlier ignored probe artifacts are distinct from the later product-core, actual protocol and native runtime checks above; they do not establish packaging or model-host acceptance.
 
 ## Acceptance mapping
+
+The table records the original core baseline. The native/protocol subsets above add integration evidence; complete user-facing acceptance still requires the remaining checks.
 
 | PRD ID | Current evidence                                                                  | Still required                                                                              |
 | ------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
