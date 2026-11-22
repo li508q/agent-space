@@ -6,38 +6,37 @@ import type { ObjectRef } from '../../contracts/schema.js';
 import { bound } from '../state/binding.js';
 import { formatCount, t, titleText } from '../i18n/index.js';
 import { ErrorNotice, useLocale } from '../ui.js';
+import { IncomingLinks } from './IncomingLinks.js';
 
-type LinkedRow = { item: ObjectSummary; uses: ObjectRef[] };
-export function LinkedMaterial({
-  api,
-  session,
-  objectId,
-  mode,
-  refresh,
-  onOpen,
-}: {
+type Props = {
   api: DesktopApi;
   session: SpaceSession;
   objectId: string;
   mode: 'project' | 'asset';
   refresh: number;
-  onOpen: (reference: ObjectRef, trigger?: string) => void;
-}) {
-  const locale = useLocale();
-  const [rows, setRows] = useState<LinkedRow[]>([]),
+  onOpen: (ref: ObjectRef, trigger?: string) => void;
+};
+export function LinkedMaterial(props: Props) {
+  return props.mode === 'asset' ? (
+    <IncomingLinks {...props} assetOnly />
+  ) : (
+    <ProjectMaterial {...props} />
+  );
+}
+function ProjectMaterial({ api, session, objectId, refresh, onOpen }: Props) {
+  const locale = useLocale(),
+    gate = useRef(0);
+  const [rows, setRows] = useState<ObjectSummary[]>([]),
     [next, setNext] = useState<string | null>(null);
-  const [checked, setChecked] = useState(0),
-    [loading, setLoading] = useState(true);
-  const [error, setError] = useState<ErrorCode | null>(null);
-  const [scanError, setScanError] = useState<ErrorCode | null>(null);
-  const gate = useRef(0);
+  const [loading, setLoading] = useState(true),
+    [error, setError] = useState<ErrorCode | null>(null);
   async function load(cursor?: string) {
     const ticket = ++gate.current;
     setLoading(true);
     const result = await api
       .query(
         bound(session, {
-          filter: mode === 'project' ? { projectId: objectId } : {},
+          filter: { projectId: objectId },
           limit: 20,
           maxBytes: 32_768,
           ...(cursor ? { cursor } : {}),
@@ -45,117 +44,44 @@ export function LinkedMaterial({
       )
       .catch(() => null);
     if (ticket !== gate.current) return;
-    if (!result?.ok) {
-      setError(result && !result.ok ? result.error.code : 'OPERATION_UNKNOWN');
-      setLoading(false);
-      return;
-    }
-    let entries: LinkedRow[] = result.value.items.map((item) => ({ item, uses: [] }));
-    let inspected = entries.length,
-      readError: ErrorCode | null = null;
-    if (mode === 'asset') {
-      const views = await Promise.all(
-        result.value.items.map((item) =>
-          api
-            .readObject(
-              bound(session, {
-                objectId: item.ref.objectId,
-                revision: item.ref.revision,
-              }),
-            )
-            .catch(() => null),
-        ),
-      );
-      if (ticket !== gate.current) return;
-      entries = [];
-      inspected = 0;
-      for (let i = 0; i < views.length; i++) {
-        const view = views[i];
-        if (view?.ok) {
-          inspected++;
-          const uses = view.value.object.content.relations
-            .filter(
-              (relation) => relation.predicate === 'uses' && relation.target.objectId === objectId,
-            )
-            .map((relation) => relation.target);
-          if (uses.length) entries.push({ item: result.value.items[i]!, uses });
-        } else readError = view && !view.ok ? view.error.code : 'OPERATION_UNKNOWN';
-      }
-    }
-    setRows((old) =>
-      cursor
-        ? [
-            ...old,
-            ...entries.filter(
-              (entry) => !old.some((row) => row.item.ref.objectId === entry.item.ref.objectId),
-            ),
-          ]
-        : entries,
-    );
-    setChecked((old) => (cursor ? old + inspected : inspected));
-    setNext(result.value.nextCursor);
-    setError(null);
-    setScanError((old) => (cursor ? (old ?? readError) : readError));
     setLoading(false);
+    if (result?.ok) {
+      setRows((old) => (cursor ? [...old, ...result.value.items] : result.value.items));
+      setNext(result.value.nextCursor);
+      setError(null);
+    } else setError(result && !result.ok ? result.error.code : 'OPERATION_UNKNOWN');
   }
   useEffect(() => {
     void load();
     return () => {
       gate.current++;
     };
-  }, [session.bindingId, objectId, mode, refresh]);
+  }, [session.bindingId, objectId, refresh]);
   return (
-    <section className="linked-material" data-testid={`${mode}-material`}>
-      <h2>{t(locale, mode === 'project' ? 'project.material' : 'org.relatedUses')}</h2>
-      {!loading && (
-        <p className="secondary">
-          {mode === 'asset'
-            ? t(locale, next || error || scanError ? 'org.checkedScope' : 'org.completeScope', {
-                count: checked,
-              })
-            : formatCount(locale, 'items', rows.length)}
-        </p>
-      )}
+    <section className="linked-material" data-testid="project-material">
+      <h2>{t(locale, 'project.material')}</h2>
+      <p className="secondary">{formatCount(locale, 'items', rows.length)}</p>
       <ErrorNotice
-        code={error ?? scanError}
+        code={error}
         onRetry={() => {
           void load();
         }}
       />
-      {rows.map(({ item, uses }) => (
+      {rows.map((item) => (
         <div className="linked-material-row" key={item.ref.objectId}>
           <button
             className="text-button"
             id={`linked-${objectId}-${item.ref.objectId}`}
-            onClick={() =>
-              onOpen(
-                { mode: 'current', objectId: item.ref.objectId },
-                `linked-${objectId}-${item.ref.objectId}`,
-              )
-            }
+            onClick={() => onOpen(item.ref, `linked-${objectId}-${item.ref.objectId}`)}
           >
             {titleText(locale, item.title, item.kind)}
           </button>
-          <small>
-            {item.kind === 'document'
-              ? t(locale, 'object.note')
-              : item.kind === 'project'
-                ? t(locale, 'org.project')
-                : t(locale, item.kind === 'record' ? 'object.record' : 'object.asset')}
-          </small>
-          {uses.map((ref, index) => (
-            <small key={index}>
-              {ref.mode === 'pinned'
-                ? t(locale, 'source.version', { version: ref.revision })
-                : t(locale, 'relation.followCurrent')}
-            </small>
-          ))}
+          <small>{t(locale, 'source.version', { version: item.ref.revision })}</small>
         </div>
       ))}
-      {!rows.length && !loading && !error && !scanError && (
+      {!loading && !error && rows.length === 0 && (
         <p className="secondary">{t(locale, 'org.noneLinked')}</p>
       )}
-      {loading && <p role="status">{t(locale, 'ui.loading')}</p>}
       {next && (
         <>
           <p className="secondary">{t(locale, 'context.limitReached')}</p>
@@ -165,10 +91,11 @@ export function LinkedMaterial({
               void load(next);
             }}
           >
-            {t(locale, mode === 'asset' ? 'org.moreMaterial' : 'context.nextPage')}
+            {t(locale, 'context.nextPage')}
           </button>
         </>
       )}
+      {loading && <p role="status">{t(locale, 'ui.loading')}</p>}
     </section>
   );
 }

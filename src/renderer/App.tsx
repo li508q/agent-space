@@ -7,6 +7,8 @@ import { Preferences } from './components/Preferences.js';
 import { resolveSystemLocale, t, type Locale } from './i18n/index.js';
 import { Workbench, type WorkbenchHandle } from './Workbench.js';
 import { CloseCoordinator, type CloseState } from './state/close.js';
+import { DataTransferDialog, type TransferEntry } from './components/DataTransferDialog.js';
+import type { SnapshotIdentity } from '../contracts/local.js';
 
 export function App({ api }: { api: DesktopApi | null }) {
   if (!api) {
@@ -36,6 +38,8 @@ function DesktopApp({ api }: { api: DesktopApi }) {
   const [createOpen, setCreateOpen] = useState(false),
     [spaceTitle, setSpaceTitle] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [transfersOpen, setTransfersOpen] = useState(false),
+    [transfers, setTransfers] = useState<TransferEntry[]>([]);
   const [leave, setLeave] = useState<{
     next: (ticket: number) => Promise<void>;
     closeId?: string;
@@ -44,6 +48,7 @@ function DesktopApp({ api }: { api: DesktopApi }) {
   const [closingLocked, setClosingLocked] = useState(false);
   const header = useRef<HTMLElement>(null),
     content = useRef<HTMLDivElement>(null);
+  const spaceMenu = useRef<HTMLDetailsElement>(null);
   const closeLocked = useRef(false),
     closer = useRef<CloseCoordinator | null>(null);
   const movingSpace = useRef(false);
@@ -113,6 +118,7 @@ function DesktopApp({ api }: { api: DesktopApi }) {
     next: (ticket: number) => Promise<void>,
     closeId?: string,
     discard = false,
+    silentFailure = false,
   ) {
     if (guarding.current || closer.current?.pendingId) {
       if (closeId) await api.respondToClose({ requestId: closeId, decision: 'cancel' });
@@ -142,7 +148,7 @@ function DesktopApp({ api }: { api: DesktopApi }) {
       if (safe && !closer.current?.pendingId) {
         setLeave(null);
         await next(ticket);
-      } else setLeave({ next, closeId });
+      } else if (!silentFailure) setLeave({ next, closeId });
     } catch {
       if (live.current) setError('OPERATION_UNKNOWN');
     } finally {
@@ -203,6 +209,55 @@ function DesktopApp({ api }: { api: DesktopApi }) {
       return;
     }
     await closer.current!.start(requestId);
+  }
+  async function prepareTransfer() {
+    if (!workbench.current) return true;
+    let ready = false;
+    await protect(
+      async () => {
+        ready = true;
+      },
+      undefined,
+      false,
+      true,
+    );
+    return ready;
+  }
+  async function openRestored(handle: string, expected: SnapshotIdentity) {
+    let opened = false;
+    await protect(
+      async (ticket) => {
+        const result = await api.openRestoredSpace({ handle }).catch(() => null);
+        if (!live.current || ticket !== platformEpoch.current) return;
+        if (result?.ok && result.value) {
+          adoptSession(result.value);
+          opened =
+            result.value.status.spaceId === expected.spaceId &&
+            result.value.status.instanceId === expected.instanceId;
+        } else {
+          const code = result && !result.ok ? result.error.code : 'OPERATION_UNKNOWN';
+          if (code === 'OPERATION_UNKNOWN') {
+            const observed = await api.bootstrap().catch(() => null);
+            if (
+              live.current &&
+              ticket === platformEpoch.current &&
+              observed?.ok &&
+              observed.value.activeSpace
+            ) {
+              adoptSession(observed.value.activeSpace);
+              opened =
+                observed.value.activeSpace.status.spaceId === expected.spaceId &&
+                observed.value.activeSpace.status.instanceId === expected.instanceId;
+            }
+          }
+        }
+        if (opened) setTransfersOpen(false);
+      },
+      undefined,
+      false,
+      true,
+    );
+    return opened;
   }
   function command(value: MenuCommand) {
     if (
@@ -268,7 +323,27 @@ function DesktopApp({ api }: { api: DesktopApi }) {
           <div className="app-identity">
             <Brand />
             <span className="app-name">AgentSpace</span>
-            <details className="space-menu">
+            <details
+              className="space-menu"
+              ref={spaceMenu}
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget))
+                  event.currentTarget.open = false;
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  event.preventDefault();
+                  event.currentTarget.open = false;
+                  event.currentTarget.querySelector('summary')?.focus();
+                }
+              }}
+              onClickCapture={(event) => {
+                if (event.target instanceof Element && event.target.closest('button')) {
+                  if (spaceMenu.current) spaceMenu.current.open = false;
+                  spaceMenu.current?.querySelector('summary')?.focus();
+                }
+              }}
+            >
               <summary data-testid="space-menu">
                 {session?.status.title ?? t(locale, 'space.open')}
                 <ChevronDown size={14} />
@@ -300,6 +375,26 @@ function DesktopApp({ api }: { api: DesktopApi }) {
                   {t(locale, 'space.openExample')}
                 </button>
                 {session && <small className="as-wrap">{session.locationLabel}</small>}
+                {session && (
+                  <button
+                    data-testid="open-imports"
+                    disabled={busy}
+                    onClick={() => workbench.current?.openImports()}
+                  >
+                    {t(locale, 'import.title')}
+                  </button>
+                )}
+                <button
+                  data-testid="open-data-transfer"
+                  disabled={busy}
+                  onClick={() => {
+                    void (workbench.current?.afterComposition() ?? Promise.resolve()).then(() =>
+                      setTransfersOpen(true),
+                    );
+                  }}
+                >
+                  {t(locale, 'transfer.title')}
+                </button>
               </div>
             </details>
             {session?.status.example && (
@@ -405,6 +500,9 @@ function DesktopApp({ api }: { api: DesktopApi }) {
                   </button>
                 </div>
                 <div className="example-entry">
+                  <button data-testid="restore-welcome" onClick={() => setTransfersOpen(true)}>
+                    {t(locale, 'restore.title')}
+                  </button>
                   <button
                     className="text-button"
                     onClick={() => {
@@ -463,6 +561,20 @@ function DesktopApp({ api }: { api: DesktopApi }) {
               </div>
             </form>
           </Modal>
+        )}
+        {transfersOpen && (
+          <DataTransferDialog
+            api={api}
+            session={session}
+            entries={transfers}
+            onAdd={(entry) => setTransfers((old) => [...old, entry])}
+            onPrepare={prepareTransfer}
+            onOpenRestored={openRestored}
+            onCopyEdits={() => {
+              void workbench.current?.copyEdits();
+            }}
+            onClose={() => setTransfersOpen(false)}
+          />
         )}
         {settingsOpen && (
           <Modal title={t(locale, 'settings.title')} onClose={() => setSettingsOpen(false)}>

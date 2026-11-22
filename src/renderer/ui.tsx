@@ -1,9 +1,9 @@
-import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import type { DesktopApi, SpaceSession } from '../contracts/app.js';
 import type { ErrorCode } from '../contracts/errors.js';
 import type { ObjectContent, ObjectRef, PinnedRef } from '../contracts/schema.js';
-import type { ObjectView } from '../contracts/core.js';
+import type { ObjectSummary, ObjectView } from '../contracts/core.js';
 import { useState } from 'react';
 import {
   formatDate,
@@ -71,11 +71,13 @@ export function Modal({
   onClose,
   children,
   testId,
+  onComposing,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   testId?: string;
+  onComposing?: (composing: boolean) => void;
 }) {
   const locale = useLocale();
   const ref = useRef<HTMLDialogElement>(null);
@@ -100,10 +102,12 @@ export function Modal({
       data-testid={testId}
       onCompositionStartCapture={() => {
         composing.current = true;
+        onComposing?.(true);
       }}
       onCompositionEndCapture={() => {
         queueMicrotask(() => {
           composing.current = false;
+          onComposing?.(false);
           if (closeAfterComposition.current) {
             closeAfterComposition.current = false;
             closeHandler.current();
@@ -204,6 +208,7 @@ export function RefLink({
   onOpen,
   id,
   passive = false,
+  summary,
 }: {
   api: DesktopApi;
   session: SpaceSession;
@@ -211,15 +216,25 @@ export function RefLink({
   onOpen: (reference: ObjectRef, trigger?: string) => void;
   id?: string;
   passive?: boolean;
+  summary?: Pick<ObjectSummary, 'ref' | 'title' | 'kind'>;
 }) {
   const locale = useLocale();
   const [view, setView] = useState<ObjectView | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const refresh = useContext(ReferenceRefreshContext);
   const referenceIdentity = useRef('');
+  const generatedId = useId(),
+    domId = id ?? `reference-${generatedId}`;
   const revision = reference.mode === 'pinned' ? reference.revision : undefined;
   const currentRefresh = reference.mode === 'current' ? refresh : 0;
+  const known =
+    reference.mode === 'pinned' &&
+    summary?.ref.objectId === reference.objectId &&
+    summary.ref.revision === reference.revision
+      ? summary
+      : null;
   useEffect(() => {
+    if (known) return;
     let active = true;
     const identity = `${session.bindingId}/${reference.objectId}/${revision ?? 'current'}`;
     if (referenceIdentity.current !== identity) {
@@ -252,16 +267,18 @@ export function RefLink({
     return () => {
       active = false;
     };
-  }, [api, session.bindingId, reference.objectId, revision, currentRefresh]);
-  const text = view
-    ? titleText(locale, view.object.content.title, view.object.kind)
-    : t(locale, unavailable ? 'source.unavailable' : 'ui.loading');
+  }, [api, session.bindingId, reference.objectId, revision, currentRefresh, known]);
+  const text = known
+    ? titleText(locale, known.title, known.kind)
+    : view
+      ? titleText(locale, view.object.content.title, view.object.kind)
+      : t(locale, unavailable ? 'source.unavailable' : 'ui.loading');
   return (
     <span className="reference">
       {passive ? (
         <span>{text}</span>
       ) : (
-        <button id={id} className="text-button" onClick={() => onOpen(reference, id)}>
+        <button id={domId} className="text-button" onClick={() => onOpen(reference, domId)}>
           {text}
         </button>
       )}
@@ -296,6 +313,7 @@ export function ObjectMetadata({
     uses: 'relation.usesAsset',
     continues_from: 'project.continuation',
   } as const;
+  const instance = useId();
   return (
     <div className="metadata">
       <section>
@@ -317,7 +335,7 @@ export function ObjectMetadata({
               session={session}
               reference={relation.target}
               onOpen={onOpen}
-              id={`relation-${relation.id}`}
+              id={`relation-${instance}-${relation.id}`}
             />
           </div>
         ))}

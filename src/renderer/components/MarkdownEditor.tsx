@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { Compartment, EditorState } from '@codemirror/state';
 import { EditorView, drawSelection, keymap } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
@@ -31,12 +31,26 @@ const phraseKeys = {
 const phrases = (locale: Locale) =>
   Object.fromEntries(Object.entries(phraseKeys).map(([key, value]) => [key, t(locale, value)]));
 
-export function MarkdownEditor({ editor, locale }: { editor: EditorSession; locale: Locale }) {
+export type MarkdownEditorHandle = { selectedText: () => string | null };
+export const MarkdownEditor = forwardRef<
+  MarkdownEditorHandle,
+  { editor: EditorSession; locale: Locale }
+>(function MarkdownEditor({ editor, locale }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const language = useRef(new Compartment());
   const editing = useRef(new Compartment());
   const syncing = useRef(false);
+  useImperativeHandle(ref, () => ({
+    selectedText: () => {
+      const current = view.current,
+        state = editor.getSnapshot();
+      if (!current || state.composing || current.state.sliceDoc() !== state.content.body)
+        return null;
+      const selection = current.state.selection.main;
+      return selection.empty ? null : current.state.sliceDoc(selection.from, selection.to);
+    },
+  }));
   useEffect(() => {
     if (!host.current) return;
     const initial = editor.getSnapshot().content.body;
@@ -129,4 +143,4 @@ export function MarkdownEditor({ editor, locale }: { editor: EditorSession; loca
     };
   }, [editor, locale]);
   return <div className="markdown-editor" ref={host} data-testid="markdown-editor" />;
-}
+});

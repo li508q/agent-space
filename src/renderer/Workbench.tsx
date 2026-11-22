@@ -26,10 +26,12 @@ import type {
   Kind,
 } from '../contracts/core.js';
 import type { ErrorCode } from '../contracts/errors.js';
+import type { Result } from '../contracts/errors.js';
+import type { HumanQueryInput, RelinkSession } from '../contracts/local.js';
 import type { ObjectContent, ObjectRef, QueryInput } from '../contracts/schema.js';
 import { formatCount, formatNumber, t, titleText, type Locale } from './i18n/index.js';
 import { bound, RequestGate } from './state/binding.js';
-import { EditorSession } from './state/editor.js';
+import { EditorSession, type EditorSnapshot } from './state/editor.js';
 import {
   EditorTransitions,
   type TransitionStage,
@@ -59,11 +61,21 @@ import { SourceReader } from './components/SourceReader.js';
 import { PropertiesEditor } from './components/PropertiesEditor.js';
 import { RelationsEditor } from './components/RelationsEditor.js';
 import { RecordsTable } from './components/RecordsTable.js';
+import { ObjectActionsDialog } from './components/ObjectActionsDialog.js';
+import { ImportDialog } from './components/ImportDialog.js';
+import { RecoveryDialog } from './components/RecoveryDialog.js';
 
 type Destination = 'continue' | 'projects' | 'library' | 'review';
-type ReaderEntry = { reference: ObjectRef; trigger?: string; scrollTop: number };
+type ReaderEntry = {
+  entryId: string;
+  reference: ObjectRef;
+  trigger?: string;
+  scrollTop: number;
+  region: 'context' | 'review' | 'document' | 'source' | 'table';
+};
 export type WorkbenchHandle = {
   bindingId: string;
+  openImports: () => void;
   prepareToLeave: () => Promise<boolean>;
   discardEdits: () => Promise<boolean>;
   copyEdits: () => Promise<void>;
@@ -120,7 +132,10 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   const [editor, setEditor] = useState<EditorSession | null>(null);
   const editorRef = useRef<EditorSession | null>(null);
   const [aux, setAux] = useState<'details' | 'history' | null>(null);
-  const [metadataDialog, setMetadataDialog] = useState<'fields' | 'relations' | null>(null);
+  const [metadataDialog, setMetadataDialog] = useState<
+    'fields' | 'relations' | 'lifecycle' | 'relink' | null
+  >(null);
+  const [lifecycle, setLifecycle] = useState<'active' | 'archived' | 'all'>('active');
   const [tableOpen, setTableOpen] = useState(false);
   const [readers, setReaders] = useState<ReaderEntry[]>([]);
   const [drafts, setDrafts] = useState<DraftReceipt[]>([]),
@@ -130,6 +145,8 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   const [status, setStatus] = useState<SpaceStatus>(session.status);
   const [grants, setGrants] = useState<GrantSummary[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [importsOpen, setImportsOpen] = useState(false),
+    [recoveryOpen, setRecoveryOpen] = useState(false);
   const [refresh, setRefresh] = useState(0),
     [loading, setLoading] = useState(false),
     [busy, setBusy] = useState(false);
@@ -351,6 +368,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
           return;
         commandTask.current.installed = true;
         setDestination(result.value.object.kind === 'project' ? 'projects' : 'library');
+        setLifecycle('active');
         setText('');
         setKind(undefined);
         setProjectId(null);
@@ -416,7 +434,8 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
 
   async function loadObjects(next?: string) {
     const ticket = queryGate.current.begin(session);
-    const filter: QueryInput['filter'] = {
+    const filter: HumanQueryInput['filter'] = {
+      lifecycle,
       ...(destination === 'projects' ? { kind: 'project' as const } : kind ? { kind } : {}),
       ...(text ? { text } : {}),
       ...(projectId ? { projectId } : {}),
@@ -534,7 +553,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   };
   useEffect(() => {
     void loadObjects();
-  }, [destination, kind, text, projectId]);
+  }, [destination, kind, text, projectId, lifecycle]);
   useEffect(() => {
     alive.current = true;
     navigation.activate();
@@ -652,6 +671,11 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   }
   useImperativeHandle(ref, () => ({
     bindingId: session.bindingId,
+    openImports: () => {
+      void (editorRef.current?.afterComposition() ?? Promise.resolve()).then(() => {
+        if (alive.current && !navigation.pending && !navigation.locked) setImportsOpen(true);
+      });
+    },
     prepareToLeave,
     discardEdits,
     copyEdits,
@@ -672,12 +696,29 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
         activeEditor?.getSnapshot().locked
       )
         return;
+      const origin = trigger ? document.getElementById(trigger) : document.activeElement;
+      const source = origin instanceof Element ? origin.closest('.source-reader') : null;
+      const scroll =
+        (origin instanceof Element ? origin.closest('.as-scroll-region') : null) ??
+        source?.querySelector('.document-scroll');
+      const region: ReaderEntry['region'] = scroll?.classList.contains('context-scroll')
+        ? 'context'
+        : scroll?.classList.contains('review-scroll')
+          ? 'review'
+          : scroll?.classList.contains('record-table-scroll')
+            ? 'table'
+            : source || scroll?.closest('.source-reader')
+              ? 'source'
+              : 'document';
       const scrollTop =
-        document.querySelector('.source-reader .document-scroll')?.scrollTop ??
+        scroll?.scrollTop ??
         document.querySelector('.review-scroll')?.scrollTop ??
         document.querySelector('.document-scroll')?.scrollTop ??
         0;
-      setReaders((old) => [...old, { reference, trigger, scrollTop }]);
+      setReaders((old) => [
+        ...old,
+        { entryId: crypto.randomUUID(), reference, trigger, scrollTop, region },
+      ]);
       setListOpen(false);
     })().finally(() => {
       openingReference.current = false;
@@ -687,8 +728,17 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     const current = readers.at(-1);
     setReaders((old) => old.slice(0, -1));
     requestAnimationFrame(() => {
-      const scroll =
-        document.querySelector('.review-scroll') ?? document.querySelector('.document-scroll');
+      const selector =
+        current?.region === 'context'
+          ? '.context-scroll'
+          : current?.region === 'review'
+            ? '.review-scroll'
+            : current?.region === 'table'
+              ? '.record-table-scroll'
+              : current?.region === 'source'
+                ? '.source-reader:not([hidden]) .document-scroll'
+                : '.document-pane .document-scroll';
+      const scroll = document.querySelector(selector);
       if (scroll && current) scroll.scrollTop = current.scrollTop;
       (current?.trigger
         ? document.getElementById(current.trigger)
@@ -723,7 +773,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
         ...result.value.items.filter((entry) => !old.some((existing) => existing.id === entry.id)),
       ]);
   }
-  function openMetadata(mode: 'fields' | 'relations') {
+  function openMetadata(mode: 'fields' | 'relations' | 'lifecycle' | 'relink') {
     const active = editorRef.current;
     if (!active) return;
     void active.afterComposition().then(() => {
@@ -731,7 +781,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
         alive.current &&
         active === editorRef.current &&
         !active.getSnapshot().locked &&
-        active.getSnapshot().object?.lifecycle !== 'archived'
+        (mode === 'lifecycle' || active.getSnapshot().object?.lifecycle !== 'archived')
       )
         setMetadataDialog(mode);
     });
@@ -741,6 +791,39 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       (ticket) => createNote(recordFromFields(properties), 'record', ticket),
       'creating',
     );
+  }
+  async function executeObjectAction(
+    perform: (state: EditorSnapshot) => Promise<Result<WriteResult>>,
+  ) {
+    let result: Result<WriteResult> | null = null;
+    await protect(async (ticket) => {
+      const current = editorRef.current;
+      if (!current) return;
+      result = await perform(current.getSnapshot());
+      if (!result.ok) return;
+      const object = result.value.object;
+      const view = await api.readObject(bound(session, { objectId: object.id })).catch(() => null);
+      if (!navigation.isCurrent(ticket)) return;
+      installEditor(
+        view?.ok ? view.value : { object, currentRevision: object.revision, relationTargets: [] },
+        { ticket },
+      );
+      setMetadataDialog(null);
+      currentActions.current.refreshAll();
+      setRefresh((value) => value + 1);
+    });
+    return result;
+  }
+  async function chooseRelink() {
+    let result: Result<RelinkSession | null> | null = null;
+    await protect(async () => {
+      const current = editorRef.current?.getSnapshot();
+      if (current?.objectId && current.revision)
+        result = await api.chooseRelink(
+          bound(session, { objectId: current.objectId, expectedRevision: current.revision }),
+        );
+    });
+    return result;
   }
   const nav = [
     { id: 'continue', key: 'nav.continue', icon: BookOpen },
@@ -763,7 +846,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
           className="workbench"
           data-compact={compact}
           data-list-open={listOpen}
-          data-aux={aux ?? ''}
+          data-aux={reader || tableOpen ? '' : (aux ?? '')}
           data-testid="workbench"
           onBeforeInputCapture={(event) => {
             if (navigation.locked) {
@@ -908,6 +991,19 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                     <option value="project">{t(locale, 'org.project')}</option>
                   </select>
                 )}
+                <select
+                  aria-label={t(locale, 'lifecycle.filter')}
+                  data-testid="lifecycle-filter"
+                  value={lifecycle}
+                  onChange={(event) => {
+                    setLifecycle(event.target.value as typeof lifecycle);
+                    setTableOpen(false);
+                  }}
+                >
+                  <option value="active">{t(locale, 'lifecycle.active')}</option>
+                  <option value="archived">{t(locale, 'ui.archived')}</option>
+                  <option value="all">{t(locale, 'lifecycle.all')}</option>
+                </select>
                 {text && <small>{t(locale, 'ui.searchLiteral')}</small>}
                 {kind === 'record' && destination === 'library' && (
                   <button
@@ -964,6 +1060,11 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                     </button>
                   )}
                 </section>
+              )}
+              {destination === 'continue' && (
+                <button data-testid="open-recoverable-drafts" onClick={() => setRecoveryOpen(true)}>
+                  {t(locale, 'recovery.title')}
+                </button>
               )}
               {destination === 'review' ? (
                 <>
@@ -1192,23 +1293,23 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                 </div>
               )}
             </div>
-            {reader && (
+            {readers.map((entry, index) => (
               <SourceReader
-                key={`${readers.length}-${reader.reference.objectId}-${reader.reference.mode === 'pinned' ? reader.reference.revision : 'current'}`}
+                key={entry.entryId}
                 api={api}
                 session={session}
-                reference={reader.reference}
+                reference={entry.reference}
+                hidden={index !== readers.length - 1}
                 onBack={backFromReference}
                 onOpen={openReference}
                 onCopyVersion={(view) => {
                   void copyVersion(view);
                 }}
               />
-            )}
+            ))}
           </main>
           {editor &&
             aux &&
-            !reader &&
             !tableOpen &&
             destination !== 'review' &&
             (aux === 'details' ? (
@@ -1217,6 +1318,10 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                 api={api}
                 session={session}
                 editor={editor}
+                hidden={!!reader}
+                refresh={refresh}
+                onLifecycle={() => openMetadata('lifecycle')}
+                onRelink={() => openMetadata('relink')}
                 onFields={() => openMetadata('fields')}
                 onRelations={() => openMetadata('relations')}
                 onClose={() => {
@@ -1235,6 +1340,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                   api={api}
                   session={session}
                   objectId={editor.getSnapshot().objectId!}
+                  hidden={!!reader}
                   refresh={refresh}
                   onClose={() => {
                     setAux(null);
@@ -1281,6 +1387,40 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
               session={session}
               editor={editor}
               onClose={() => setMetadataDialog(null)}
+            />
+          )}
+          {editor && (metadataDialog === 'lifecycle' || metadataDialog === 'relink') && (
+            <ObjectActionsDialog
+              api={api}
+              session={session}
+              editor={editor}
+              mode={metadataDialog}
+              onExecute={executeObjectAction}
+              onChoose={chooseRelink}
+              onClose={() => setMetadataDialog(null)}
+            />
+          )}
+          {importsOpen && (
+            <ImportDialog
+              api={api}
+              session={session}
+              onClose={() => setImportsOpen(false)}
+              onChanged={() => currentActions.current.refreshAll()}
+              onOpen={(ref) => {
+                setImportsOpen(false);
+                openReference(ref);
+              }}
+            />
+          )}
+          {recoveryOpen && (
+            <RecoveryDialog
+              api={api}
+              session={session}
+              onClose={() => setRecoveryOpen(false)}
+              onResume={(draftId) => {
+                setRecoveryOpen(false);
+                void resumeDraft(draftId);
+              }}
             />
           )}
           {settingsOpen && (

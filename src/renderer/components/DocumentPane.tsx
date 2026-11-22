@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useRef, useState, useSyncExternalStore } from 'react';
 import { Check, ChevronLeft, History, Link2, PanelRight, Save } from 'lucide-react';
 import type { DesktopApi, SpaceSession } from '../../contracts/app.js';
 import type { ObjectContent, ObjectRef } from '../../contracts/schema.js';
@@ -6,7 +6,8 @@ import type { ErrorCode } from '../../contracts/errors.js';
 import type { EditorSession } from '../state/editor.js';
 import { t, titleText } from '../i18n/index.js';
 import { ErrorNotice, fieldText, ObjectMetadata, RefLink, SafeMarkdown, useLocale } from '../ui.js';
-import { MarkdownEditor } from './MarkdownEditor.js';
+import { MarkdownEditor, type MarkdownEditorHandle } from './MarkdownEditor.js';
+import { CopySavedContext } from './CopySavedContext.js';
 import { LinkedMaterial } from './LinkedMaterial.js';
 
 export function DocumentPane({
@@ -41,6 +42,7 @@ export function DocumentPane({
   const [preview, setPreview] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [copyError, setCopyError] = useState<ErrorCode | null>(null);
+  const markdown = useRef<MarkdownEditorHandle>(null);
   const writable = state.object?.lifecycle !== 'archived';
   const placeholder = {
     document: 'object.untitledNote',
@@ -172,6 +174,18 @@ export function DocumentPane({
             )}
           </div>
         )}
+        <CopySavedContext
+          api={api}
+          session={session}
+          object={state.object}
+          disabled={editor.dirty || state.composing || state.locked}
+          selection={() => markdown.current?.selectedText() ?? null}
+          stillCurrent={() =>
+            editor.getSnapshot().generation === state.generation &&
+            !editor.dirty &&
+            !editor.getSnapshot().composing
+          }
+        />
         <ErrorNotice
           code={state.error}
           onRetry={() => {
@@ -290,7 +304,7 @@ export function DocumentPane({
           {writable ? (
             <>
               <div hidden={preview}>
-                <MarkdownEditor editor={editor} locale={locale} />
+                <MarkdownEditor ref={markdown} editor={editor} locale={locale} />
               </div>
               {preview && (
                 <article className="as-prose markdown-preview">

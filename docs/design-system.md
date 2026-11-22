@@ -1,6 +1,6 @@
 # Workbench design
 
-Status: workbench structure and tokens used by the implemented writing/review vertical slice. Organization and record additions require their own native layout checks; evidence is tracked in [TESTING.md](TESTING.md). Detailed interaction states are specified in [UX.md](UX.md).
+Status: workbench structure and tokens used by writing/review and organization. Local import, transfer, recovery and historical-evidence additions require integrated native layout checks; evidence is tracked in [TESTING.md](TESTING.md). Detailed interaction states are specified in [UX.md](UX.md).
 
 AgentSpace is a document workspace. Writing occupies the center; provenance and proposed changes remain close to the affected material.
 
@@ -35,3 +35,7 @@ Organization extends the same workspace. Project goals use ordinary prose, with 
 The record table occupies the writing surface, uses a selected record as its column reference, and states its 50-row limit and loaded/query scope. Missing, unset, and differently defined fields have text labels rather than ambiguous blank cells. Use semantic headers, an individually named keyboard-scrollable table region, and wrapping surrounding controls. At narrow widths or native zoom, the table scrolls inside its region; its controls remain above it and may scroll vertically when space is limited. Asset reference inspection uses ordinary links with an explicit checked-result range, without a graph or unverified coverage count.
 
 Use visible focus, semantic buttons, announced errors and retained input. Dialogs must trap focus and restore it on close. Defer disruptive transitions during composition, respect reduced motion, and keep controls visible under localized wrapping and zoom. The keyboard-focus and error-recovery guidance was matched in the UI/UX reference; earlier marketing-layout matches were not adopted. Native screenshots and interaction checks remain phase 3–5 work.
+
+Local operations extend the same hierarchy: space-level actions in the space menu, object lifecycle/location in Details, version explanations in History, and other-installation recovery in Continue working. Import entries and per-item outcomes use wrapping rows separated by rules; relative paths identify otherwise repeated filenames. Suggested grouping is editable, with the reused-object limitation visible beside it. Keep long localized controls reachable within the dialog's vertical scroll. Two-column group controls become one column below 640 CSS pixels, including under native zoom.
+
+Use a plain progress element only for a reported positive total. An unknown total gets a processed count, and an uncertain outcome gets a persistent explanation with check/retry actions. A checked restore receipt and the result of opening its space are separate regions. Incoming links and accepted evidence use compact link lists with scope/limit text. They do not introduce graph canvases, decorative status cards or another permanent pane. The saved-context action is subordinate to writing and explicitly states its one-version scope.

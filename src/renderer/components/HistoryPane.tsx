@@ -15,6 +15,7 @@ import { t, titleText } from '../i18n/index.js';
 import { ErrorNotice, Modal, newKey, pin, Time, useLocale, useTaskFactory } from '../ui.js';
 import { ContentDiff } from './ContentDiff.js';
 import { PolicySnapshot } from './ProposalPermissions.js';
+import { AcceptedEvidence } from './AcceptedEvidence.js';
 
 export function HistoryPane({
   api,
@@ -25,6 +26,7 @@ export function HistoryPane({
   onOpen,
   onCopied,
   onChanged,
+  hidden,
 }: {
   api: DesktopApi;
   session: SpaceSession;
@@ -34,6 +36,7 @@ export function HistoryPane({
   onOpen: (reference: ObjectRef, trigger?: string) => void;
   onCopied: (view: ObjectView) => void;
   onChanged: () => void;
+  hidden?: boolean;
 }) {
   const locale = useLocale();
   const [items, setItems] = useState<RevisionSummary[]>([]),
@@ -41,6 +44,7 @@ export function HistoryPane({
   const [error, setError] = useState<ErrorCode | null>(null);
   const [preview, setPreview] = useState<ObjectView | null>(null);
   const gate = useRef(0);
+  const [evidenceRevision, setEvidenceRevision] = useState<number | null>(null);
   async function load(beforeRevision?: number) {
     const ticket = ++gate.current;
     try {
@@ -73,6 +77,7 @@ export function HistoryPane({
       className="context-pane"
       aria-label={t(locale, 'history.title')}
       data-testid="history-pane"
+      hidden={hidden}
     >
       <header>
         <h2>{t(locale, 'history.title')}</h2>
@@ -96,6 +101,24 @@ export function HistoryPane({
             >
               {t(locale, 'source.version', { version: item.revision })}
             </button>
+            <button
+              data-testid={`version-evidence-r${item.revision}`}
+              onClick={() =>
+                setEvidenceRevision((old) => (old === item.revision ? null : item.revision))
+              }
+            >
+              {t(locale, 'evidence.title')}
+            </button>
+            {evidenceRevision === item.revision && (
+              <AcceptedEvidence
+                api={api}
+                session={session}
+                objectId={objectId}
+                revision={item.revision}
+                changeId={item.changeId}
+                onOpen={onOpen}
+              />
+            )}
             <span>{titleText(locale, item.title)}</span>
             <small>
               <Time value={item.createdAt} />
@@ -192,6 +215,12 @@ function UndoPreview({
     };
   }, [api, session.bindingId, selected]);
   const blocked = !!current && current.revision !== selected.object.revision;
+  const originOnly =
+    !!previous &&
+    JSON.stringify(previous.origin) !== JSON.stringify(selected.object.origin) &&
+    JSON.stringify(previous.content) === JSON.stringify(selected.object.content) &&
+    JSON.stringify(previous.policy) === JSON.stringify(selected.object.policy) &&
+    previous.lifecycle === selected.object.lifecycle;
   async function undo() {
     if (!current || blocked) return;
     if (!task.current) {
@@ -248,6 +277,25 @@ function UndoPreview({
           onOpen={onOpen}
         />
       )}
+      {originOnly && previous && (
+        <section>
+          <p className="attention">{t(locale, 'relink.noUndo')}</p>
+          <dl>
+            <dt>{t(locale, 'relink.old')}</dt>
+            <dd className="as-wrap">{previous.origin.locator ?? previous.origin.label}</dd>
+            <dt>{t(locale, 'relink.new')}</dt>
+            <dd className="as-wrap">
+              {selected.object.origin.locator ?? selected.object.origin.label}
+            </dd>
+          </dl>
+        </section>
+      )}
+      {previous && previous.lifecycle !== selected.object.lifecycle && (
+        <p>
+          {t(locale, previous.lifecycle === 'archived' ? 'ui.archived' : 'lifecycle.active')} →{' '}
+          {t(locale, selected.object.lifecycle === 'archived' ? 'ui.archived' : 'lifecycle.active')}
+        </p>
+      )}
       {previous && JSON.stringify(selected.object.policy) !== JSON.stringify(previous.policy) && (
         <section className="policy-diff">
           <h3>{t(locale, 'policy.title')}</h3>
@@ -267,7 +315,11 @@ function UndoPreview({
             className="primary"
             data-testid="confirm-undo"
             disabled={
-              !current || blocked || busy || (!!selected.object.parentRevision && !previous)
+              !current ||
+              blocked ||
+              busy ||
+              originOnly ||
+              (!!selected.object.parentRevision && !previous)
             }
             onClick={() => {
               void undo();

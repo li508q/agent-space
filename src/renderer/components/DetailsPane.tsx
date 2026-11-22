@@ -18,6 +18,7 @@ import {
   useTaskFactory,
 } from '../ui.js';
 import { ProposalPermissions } from './ProposalPermissions.js';
+import { IncomingLinks } from './IncomingLinks.js';
 
 export function DetailsPane({
   api,
@@ -28,6 +29,10 @@ export function DetailsPane({
   onRefresh,
   onFields,
   onRelations,
+  hidden,
+  refresh,
+  onLifecycle,
+  onRelink,
 }: {
   api: DesktopApi;
   session: SpaceSession;
@@ -37,6 +42,10 @@ export function DetailsPane({
   onRefresh: () => void;
   onFields: () => void;
   onRelations: () => void;
+  hidden?: boolean;
+  refresh: number;
+  onLifecycle: () => void;
+  onRelink: () => void;
 }) {
   const locale = useLocale();
   const state = useSyncExternalStore(editor.subscribe, editor.getSnapshot);
@@ -67,7 +76,7 @@ export function DetailsPane({
     }
   }
   return (
-    <aside className="context-pane" aria-label={t(locale, 'common.details')}>
+    <aside className="context-pane" aria-label={t(locale, 'common.details')} hidden={hidden}>
       <header>
         <h2>{t(locale, 'common.details')}</h2>
         <button className="icon-button" aria-label={t(locale, 'common.close')} onClick={onClose}>
@@ -119,6 +128,35 @@ export function DetailsPane({
           </div>
         )}
         <ObjectMetadata content={state.content} api={api} session={session} onOpen={onOpen} />
+        {state.objectId && (
+          <IncomingLinks
+            api={api}
+            session={session}
+            objectId={state.objectId}
+            refresh={refresh}
+            onOpen={onOpen}
+          />
+        )}
+        {state.object && (
+          <section>
+            <button data-testid="set-lifecycle" disabled={state.locked} onClick={onLifecycle}>
+              {t(
+                locale,
+                state.object.lifecycle === 'archived' ? 'lifecycle.restore' : 'lifecycle.archive',
+              )}
+            </button>
+            <p className="secondary">{t(locale, 'lifecycle.notice')}</p>
+            {state.object.kind === 'asset' && state.object.origin.mode === 'external-reference' && (
+              <button
+                data-testid="relink-asset"
+                disabled={state.locked || state.object.lifecycle === 'archived'}
+                onClick={onRelink}
+              >
+                {t(locale, 'relink.choose')}
+              </button>
+            )}
+          </section>
+        )}
         {state.object && state.object.lifecycle === 'active' && (
           <ProposalPermissions
             api={api}

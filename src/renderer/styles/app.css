@@ -325,6 +325,13 @@ button.primary:hover:not(:disabled) {
 .document-header h1 {
   margin-block: 0.9rem 0.65rem;
 }
+@media (max-height: 640px) {
+  .document-header {
+    max-block-size: 55%;
+    overflow-y: auto;
+    scroll-padding-block: var(--as-space-4);
+  }
+}
 .document-tools {
   margin-block-end: 0.8rem;
 }
@@ -452,6 +459,100 @@ button.primary:hover:not(:disabled) {
   min-block-size: 5rem;
   line-height: 1.5;
   resize: vertical;
+}
+.copy-saved-context {
+  display: grid;
+  gap: var(--as-space-1);
+  margin-block-start: var(--as-space-2);
+  max-inline-size: var(--as-prose-measure);
+}
+.accepted-evidence,
+.incoming-links,
+.recovered-preview,
+.transfer-row {
+  min-inline-size: 0;
+  display: grid;
+  gap: var(--as-space-2);
+}
+.accepted-evidence h3,
+.accepted-evidence h4,
+.accepted-evidence p,
+.incoming-links p,
+.transfer-row p {
+  margin: 0;
+}
+.accepted-evidence > .ref-link {
+  justify-self: start;
+}
+.import-entries,
+.recovery-list {
+  display: grid;
+  gap: var(--as-space-3);
+  min-inline-size: 0;
+}
+.import-entry {
+  min-inline-size: 0;
+  border-block-start: 1px solid var(--as-color-divider);
+  padding-block: var(--as-space-4);
+  display: grid;
+  gap: var(--as-space-3);
+}
+.import-entry h4 {
+  margin: 0;
+}
+.import-entry select[multiple] {
+  min-block-size: 5rem;
+}
+.import-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--as-space-3);
+}
+.import-result,
+.import-history-row,
+.recovery-list > button {
+  min-inline-size: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--as-space-2) var(--as-space-3);
+  padding-block: var(--as-space-3);
+  border-block-end: 1px solid var(--as-color-divider);
+}
+.import-result > .as-wrap {
+  flex: 1 1 16rem;
+}
+.import-result > p,
+.import-result > .error-notice {
+  flex-basis: 100%;
+  margin: 0;
+}
+.import-history-row,
+.recovery-list > button {
+  inline-size: 100%;
+  justify-content: flex-start;
+  text-align: start;
+}
+.transfer-section,
+.transfer-row,
+.recovered-preview {
+  border-block-start: 1px solid var(--as-color-divider);
+  margin-block-start: var(--as-space-6);
+  padding-block-start: var(--as-space-4);
+}
+.transfer-row progress {
+  inline-size: min(100%, 24rem);
+  accent-color: var(--as-accent);
+}
+.transfer-row .positive {
+  display: grid;
+  justify-items: start;
+  gap: var(--as-space-2);
+}
+@media (max-width: 640px) {
+  .import-group {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .metadata-form .check-label {
   display: flex;
