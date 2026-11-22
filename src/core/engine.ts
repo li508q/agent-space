@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { SQLInputValue } from 'node:sqlite';
 import {
   ContentSchema,
+  AgentToolSchema,
   CursorSchema,
   HumanReadSchema,
   HumanSaveSchema,
@@ -68,6 +69,18 @@ import {
   type WriteResult,
 } from '../contracts/core.js';
 import type { Result } from '../contracts/errors.js';
+import {
+  AcceptedChangeReadSchema,
+  RelationsExpandSchema,
+  SchemaDescribeSchema,
+  TextSearchSchema,
+  contextUsageHints,
+  type AcceptedChangePage,
+  type RelationsExpandPage,
+  type SchemaDescription,
+  type TextSearchPage,
+} from '../contracts/context.js';
+import { ContextReader, decodeContextCursor } from './context.js';
 import { Store, type Row, rowJson } from './storage.js';
 import {
   MAX_OBJECT_BYTES,
@@ -374,6 +387,7 @@ export class Engine {
       this.store.one('SELECT authority_seq FROM space_meta WHERE id=1').authority_seq,
     );
     const change: ChangeSummary = {
+      acceptedChangeReadable: false,
       sequence,
       id: randomUUID(),
       action,
@@ -583,14 +597,20 @@ export class Engine {
     return this.read(context, 'space.status', () => this.store.status());
   }
   discover(context: Context): Result<DiscoverResult> {
-    return this.read(context, 'space_discover', (a) => ({
-      status: this.store.status(),
-      kinds: ['document', 'project', 'record', 'asset'],
-      scope: this.summaryScope(a),
-      capabilities: a.grant?.capabilities ?? { read: true, propose: false },
-      creation: a.grant?.creation ?? { enabled: false, kinds: [] },
-      limits: { objectBytes: MAX_OBJECT_BYTES, readBytes: 65_536, queryItems: 50 },
-    }));
+    return this.read(context, 'space_discover', (a) => {
+      const value: DiscoverResult = {
+        status: this.store.status(),
+        kinds: ['document', 'project', 'record', 'asset'],
+        scope: this.summaryScope(a),
+        capabilities: a.grant?.capabilities ?? { read: true, propose: false },
+        creation: a.grant?.creation ?? { enabled: false, kinds: [] },
+        limits: { objectBytes: MAX_OBJECT_BYTES, readBytes: 65_536, queryItems: 50 },
+        implementedTools: [...AgentToolSchema.options],
+        usageHints: [...contextUsageHints],
+      };
+      if (bytes({ ok: true, value }) > 8_192) fail('LIMIT_EXCEEDED');
+      return value;
+    });
   }
   createObject(context: Context, input: unknown): Result<WriteResult> {
     return this.command(context, CreateObjectSchema, input, 'object.create', (a, p) => {
@@ -1333,11 +1353,82 @@ export class Engine {
       objectCount: a.scope.mode === 'objects' ? a.scope.objectIds.length : null,
     };
   }
+  private contextReader(access: Access): ContextReader {
+    return new ContextReader(this.store, {
+      load: (id, revision) => this.load(id, revision),
+      visible: (id) => this.visible(access, id),
+      scope: this.summaryScope(access),
+      ownerScope: this.scopedSql(access),
+    });
+  }
+  describe(context: Context, input: unknown): Result<SchemaDescription> {
+    const p = safe(() => parse(SchemaDescribeSchema, input));
+    if (!p.ok) return p;
+    return this.read(context, 'schema_describe', (a, audit) => {
+      const page = this.contextReader(a).describe(p.value);
+      audit.details = { returnedBytes: page.returnedBytes, definitionsVersion: 1 };
+      return page;
+    });
+  }
+  expandRelations(context: Context, input: unknown): Result<RelationsExpandPage> {
+    const p = safe(() => parse(RelationsExpandSchema, input));
+    if (!p.ok) return p;
+    return this.read(context, 'relations_expand', (a, audit) => {
+      const page = this.contextReader(a).expandRelations(p.value);
+      audit.delivered = page.nodes.map((node) => ({ ref: node.ref }));
+      audit.details = {
+        resultKind: 'reference-metadata',
+        returnedBytes: page.returnedBytes,
+        truncated: page.truncated,
+        traversalCompleteWithinScope: page.traversalCompleteWithinScope,
+        direction: page.direction,
+      };
+      return page;
+    });
+  }
+  readAcceptedChange(context: Context, input: unknown): Result<AcceptedChangePage> {
+    const p = safe(() => parse(AcceptedChangeReadSchema, input));
+    if (!p.ok) return p;
+    return this.read(context, 'accepted_change_read', (a, audit) => {
+      const page = this.contextReader(a).readAcceptedChange(p.value);
+      const refs = [
+        page.target,
+        ...(page.section === 'summary'
+          ? page.base
+            ? [page.base]
+            : []
+          : page.items.map((item) => item.ref)),
+      ];
+      audit.delivered = refs.map((ref) => ({ ref }));
+      audit.details = {
+        resultKind: 'reference-metadata',
+        changeId: page.changeId,
+        section: page.section,
+        returnedBytes: page.returnedBytes,
+        ...(page.section === 'evidence' ? { truncated: page.truncated } : {}),
+      };
+      return page;
+    });
+  }
+  search(context: Context, input: unknown): Result<TextSearchPage> {
+    const result = this.queryWithTool(context, input, 'text_search');
+    // The shared implementation parses TextSearchSchema and cannot return a no-text page.
+    return result as Result<TextSearchPage>;
+  }
   query(context: Context, input: unknown): Result<QueryPage> {
-    const parsed = safe(() => parse(QuerySchema, input));
+    return this.queryWithTool(context, input, 'objects_query');
+  }
+  private queryWithTool(
+    context: Context,
+    input: unknown,
+    tool: 'objects_query' | 'text_search',
+  ): Result<QueryPage> {
+    const parsed = safe(() =>
+      parse(tool === 'text_search' ? TextSearchSchema : QuerySchema, input),
+    );
     if (!parsed.ok) return parsed;
     const p = parsed.value;
-    return this.read(context, 'objects_query', (a, audit) => {
+    return this.read(context, tool, (a, audit) => {
       if (p.filter.projectId) {
         this.allow(a, p.filter.projectId);
         if (this.load(p.filter.projectId).kind !== 'project')
@@ -1345,10 +1436,15 @@ export class Engine {
       }
       const scope = this.scopedSql(a);
       const sequence = this.store.status().authoritySequence;
-      const queryDigest = digest({ ...p, cursor: undefined });
+      const request = { ...p, cursor: undefined };
+      const queryDigest = digest(tool === 'objects_query' ? request : { tool, request });
       let afterId = '';
       if (p.cursor) {
-        const cursor = CursorSchema.safeParse(decodeCursor(this.store.secret, p.cursor));
+        const cursor = CursorSchema.safeParse(
+          tool === 'text_search'
+            ? decodeContextCursor(this.store.secret, p.cursor)
+            : decodeCursor(this.store.secret, p.cursor),
+        );
         if (!cursor.success) fail('INVALID_CURSOR');
         if (cursor.data.queryDigest !== queryDigest) fail('INVALID_CURSOR');
         if (cursor.data.scopeDigest !== this.scopeDigest(a) || cursor.data.atSequence !== sequence)
@@ -1611,7 +1707,9 @@ export class Engine {
         ...(context.kind === 'human' ? [] : scope.values),
         p.value.limit + 1,
       );
+      const reader = this.contextReader(a);
       const items: ChangeSummary[] = rows.slice(0, p.value.limit).map((r) => ({
+        acceptedChangeReadable: reader.acceptedChangeReadable(String(r.id)),
         sequence: Number(r.seq),
         id: String(r.id),
         action: String(r.action),

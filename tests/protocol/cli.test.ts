@@ -53,7 +53,7 @@ function result<T>(stdout: string): Result<T> {
   return value;
 }
 
-test('compiled CLI invokes the same six restricted tools with one JSON Result and stable receipts', () => {
+test('compiled CLI invokes all ten restricted tools with one JSON Result and stable receipts', () => {
   const fixture = protocolFixture();
   try {
     const inputs: Record<string, unknown> = {
@@ -66,6 +66,17 @@ test('compiled CLI invokes the same six restricted tools with one JSON Result an
       },
       changes_list: { after: 0, limit: 10 },
       operation_status: { operationKey: 'not:yet:recorded' },
+      schema_describe: { maxBytes: 16_384 },
+      text_search: { filter: { text: 'CAFÉ' }, limit: 10, maxBytes: 4_096 },
+      relations_expand: {
+        seedId: fixture.visible.id,
+        direction: 'outgoing',
+        predicates: ['related'],
+        maxDepth: 1,
+        maxNodes: 10,
+        maxEdges: 10,
+        maxBytes: 4_096,
+      },
     };
     for (const [tool, input] of Object.entries(inputs)) {
       const response = cli(fixture, tool, input);
@@ -110,12 +121,32 @@ test('compiled CLI invokes the same six restricted tools with one JSON Result an
     const recovered = must(result<OperationStatus>(status.stdout));
     assert.ok(recovered.state === 'recorded');
     assert.equal(recovered.receipt.business?.kind, 'proposal');
+    const accepted = must(
+      fixture.human.reviewProposal({
+        operationKey: 'cli:human:accept',
+        proposalId: candidate.id,
+        expectedPayloadHash: candidate.payloadHash,
+        expectedProposalVersion: candidate.statusVersion,
+        decision: 'accept',
+        expectedTarget: { state: 'absent' },
+      }),
+    );
+    for (const section of ['summary', 'evidence']) {
+      const response = cli(fixture, 'accepted_change_read', {
+        changeId: accepted.changeId,
+        section,
+        maxBytes: 8_192,
+      });
+      assert.equal(response.status, 0);
+      const decoded = result<{ returnedBytes: number }>(response.stdout);
+      assert.equal(must(decoded).returnedBytes, Buffer.byteLength(JSON.stringify(decoded)));
+    }
   } finally {
     fixture.close();
   }
 });
 
-test('CLI rejects unknown/human/deferred tools, unknown fields, malformed JSON/UTF-8 and oversized stdin', () => {
+test('CLI rejects unknown/human tools, incomplete requests, unknown fields and malformed or oversized stdin', () => {
   const fixture = protocolFixture();
   try {
     for (const tool of [

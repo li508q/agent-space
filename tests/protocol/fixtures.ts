@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/client';
 import { getDefaultEnvironment, StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { Space } from '../../src/core/index.js';
-import type { GrantSpec } from '../../src/contracts/core.js';
+import type { GrantSpec, IssuedGrant } from '../../src/contracts/core.js';
 import type { Result } from '../../src/contracts/errors.js';
 
 export const entry = fileURLToPath(new URL('../../dist/agent/adapters/entry.js', import.meta.url));
@@ -18,6 +18,10 @@ export const toolNames = [
   'proposal_create',
   'changes_list',
   'operation_status',
+  'schema_describe',
+  'text_search',
+  'relations_expand',
+  'accepted_change_read',
 ].sort();
 
 export function must<T>(result: Result<T>): T {
@@ -109,14 +113,28 @@ export function launchEnvironment(fixture: Fixture, scoped = false): Record<stri
 }
 
 export async function connect(fixture: Fixture, era: 'legacy' | 'modern', scoped = false) {
+  return connectAs(fixture, era, scoped ? fixture.scoped : fixture.full);
+}
+
+export async function connectAs(fixture: Fixture, era: 'legacy' | 'modern', grant: IssuedGrant) {
+  assert.ok(grant.token);
   const client = new Client(
     { name: 'AgentSpace protocol test', version: '1.0.0' },
     { versionNegotiation: { mode: era === 'modern' ? { pin: '2026-07-28' } : 'legacy' } },
   );
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [entry, '--agent-server', ...launchArguments(fixture, scoped)],
-    env: launchEnvironment(fixture, scoped),
+    args: [
+      entry,
+      '--agent-server',
+      '--space',
+      fixture.directory,
+      '--instance',
+      fixture.status.instanceId,
+      '--grant',
+      grant.grant.id,
+    ],
+    env: { ...getDefaultEnvironment(), AGENTSPACE_TOKEN: grant.token },
     stderr: 'pipe',
   });
   let stderr = '';
@@ -141,6 +159,7 @@ export async function connect(fixture: Fixture, era: 'legacy' | 'modern', scoped
       assert.equal(errors.length, 0, 'No malformed stdout or protocol errors');
       assert.ok(!stderr.includes(fixture.full.token!));
       assert.ok(!stderr.includes(fixture.scoped.token!));
+      assert.ok(!stderr.includes(grant.token!));
       assert.ok(!stderr.includes(fixture.visible.content.body));
       assert.ok(!stderr.includes(fixture.hidden.content.body));
     },

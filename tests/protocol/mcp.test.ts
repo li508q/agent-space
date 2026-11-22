@@ -26,7 +26,7 @@ import {
 
 for (const era of ['legacy', 'modern'] as const) {
   test(
-    `${era}: compiled MCP six tools, pinned Unicode pages, human acceptance and restart replay`,
+    `${era}: compiled MCP registry, pinned Unicode pages, human acceptance and restart replay`,
     { timeout: 30_000 },
     async () => {
       const fixture = protocolFixture();
@@ -219,7 +219,7 @@ for (const era of ['legacy', 'modern'] as const) {
 }
 
 test(
-  'MCP unknown fields/tools and outside scope fail; a live grant revocation denies all six calls',
+  'MCP unknown fields/tools and outside scope fail; a live grant revocation denies all ten calls',
   { timeout: 20_000 },
   async () => {
     const fixture = protocolFixture();
@@ -353,6 +353,21 @@ test(
         ],
         ['changes_list', { limit: 10 }],
         ['operation_status', { operationKey: 'deny:target' }],
+        ['schema_describe', { maxBytes: 16_384 }],
+        ['text_search', { filter: { text: '项目' }, limit: 10, maxBytes: 4_096 }],
+        [
+          'relations_expand',
+          {
+            seedId: fixture.visible.id,
+            direction: 'outgoing',
+            predicates: ['related'],
+            maxDepth: 1,
+            maxNodes: 10,
+            maxEdges: 10,
+            maxBytes: 4_096,
+          },
+        ],
+        ['accepted_change_read', { changeId: randomUUID(), section: 'summary', maxBytes: 4_096 }],
       ] as const) {
         const result = await call(connection, tool, args);
         assert.ok(!result.ok);

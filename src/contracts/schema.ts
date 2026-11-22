@@ -14,6 +14,13 @@ export const OperationKeySchema = z
 export const FieldKeySchema = z.string().regex(/^[a-z][a-z0-9_]{0,63}$/);
 export const KindSchema = z.enum(['document', 'project', 'record', 'asset']);
 export const AgentCreatableKindSchema = z.enum(['document', 'record']);
+export const PredicateSchema = z.enum([
+  'belongs_to',
+  'related',
+  'source',
+  'uses',
+  'continues_from',
+]);
 
 export const CurrentRefSchema = z.strictObject({ mode: z.literal('current'), objectId: IdSchema });
 export const PinnedRefSchema = z.strictObject({
@@ -261,6 +268,10 @@ export const AgentToolSchema = z.enum([
   'changes_list',
   'operation_status',
   'proposal_create',
+  'schema_describe',
+  'text_search',
+  'relations_expand',
+  'accepted_change_read',
 ]);
 
 export type Locale = z.infer<typeof LocaleSchema>;
@@ -273,10 +284,4 @@ export type ObjectRef = z.infer<typeof ObjectRefSchema>;
 export type ReadPage = z.infer<typeof ReadPageSchema>;
 export type AgentTool = z.infer<typeof AgentToolSchema>;
 
-// Deferred product capabilities are not advertised by the phase 3 agent facade.
-export const deferredAgentTools = [
-  'schema_describe',
-  'text_search',
-  'relations_expand',
-  'accepted_change_read',
-] as const;
+export const deferredAgentTools = [] as const;

@@ -27,6 +27,12 @@ import {
 import type { BoundRequest } from '../contracts/desktop.js';
 import type { ObjectContent } from '../contracts/schema.js';
 import type { Result } from '../contracts/errors.js';
+import {
+  SchemaDescribeSchema,
+  TextSearchSchema,
+  RelationsExpandSchema,
+  AcceptedChangeReadSchema,
+} from '../contracts/context.js';
 import { Workspace } from './workspace.js';
 import { input, bound } from './validation.js';
 import { trustedSender } from './security.js';
@@ -78,6 +84,10 @@ export function registerCoreHandlers(
   add('saveObject', HumanSaveSchema, (h, p) => h.saveObject(p));
   add('readObject', HumanReadSchema, (h, p) => h.readObject(p));
   add('query', QuerySchema, (h, p) => h.query(p));
+  add('describe', SchemaDescribeSchema, (h, p) => h.describe(p));
+  add('search', TextSearchSchema, (h, p) => h.search(p));
+  add('expandRelations', RelationsExpandSchema, (h, p) => h.expandRelations(p));
+  add('readAcceptedChange', AcceptedChangeReadSchema, (h, p) => h.readAcceptedChange(p));
   add('history', HistorySchema, (h, p) => h.history(p));
   add('saveDraft', SaveDraftSchema, (h, p) => h.saveDraft(p));
   add('listDrafts', DraftListSchema, (h, p) => h.listDrafts(p));

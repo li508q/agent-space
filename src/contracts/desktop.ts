@@ -21,6 +21,10 @@ export interface DesktopCoreBridge {
   saveObject: AsyncBound<'saveObject'>;
   readObject: AsyncBound<'readObject'>;
   query: AsyncBound<'query'>;
+  describe: AsyncBound<'describe'>;
+  search: AsyncBound<'search'>;
+  expandRelations: AsyncBound<'expandRelations'>;
+  readAcceptedChange: AsyncBound<'readAcceptedChange'>;
   history: AsyncBound<'history'>;
   saveDraft: AsyncBound<'saveDraft'>;
   listDrafts: AsyncBound<'listDrafts'>;

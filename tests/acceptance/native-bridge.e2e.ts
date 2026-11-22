@@ -104,6 +104,37 @@ test(
       );
       assert.equal(created.generation, 17);
       assert.equal(created.object.revision, 1);
+      const model = requireSuccess(
+        await native.page.evaluate(
+          (input) => window.agentSpace.describe(input),
+          request(selected, { maxBytes: 16384 }),
+        ),
+      );
+      assert.equal(model.propertyModel, 'per-object');
+      const found = requireSuccess(
+        await native.page.evaluate(
+          (input) => window.agentSpace.search(input),
+          request(selected, { filter: { text: 'Native shared' }, limit: 10, maxBytes: 8192 }),
+        ),
+      );
+      assert.ok(found.items.some((item) => item.ref.objectId === targetId));
+      const links = requireSuccess(
+        await native.page.evaluate(
+          (input) => window.agentSpace.expandRelations(input),
+          request(selected, {
+            seedId: fixture.ids.compass,
+            direction: 'outgoing' as const,
+            predicates: ['uses' as const, 'continues_from' as const],
+            maxDepth: 1 as const,
+            maxNodes: 10,
+            maxEdges: 10,
+            maxBytes: 16384,
+          }),
+        ),
+      );
+      assert.ok(
+        links.edges.some((edge) => edge.resolvedTarget.objectId === fixture.ids.repository),
+      );
       assert.equal(
         requireSuccess(fixture.human.readObject({ objectId: targetId })).object.content.body,
         create.input.content.body,
@@ -167,6 +198,7 @@ test(
       assert.equal(discovered.isError, false);
       const list = await client.listTools();
       assert.ok(list.tools.some((item) => item.name === 'proposal_create'));
+      assert.equal(list.tools.length, 10);
       assert.ok(!list.tools.some((item) => item.name === 'reviewProposal'));
       const proposedId = randomUUID();
       const response = await client.callTool({
@@ -214,6 +246,36 @@ test(
       );
       assert.equal(applied.outcome, 'applied');
       assert.equal(applied.object?.revision, 1);
+      const explanation = requireSuccess(
+        await native.page.evaluate(
+          (input) => window.agentSpace.readAcceptedChange(input),
+          request(selected, {
+            changeId: applied.changeId,
+            section: 'summary' as const,
+            maxBytes: 32768,
+          }),
+        ),
+      );
+      assert.equal(explanation.section, 'summary');
+      if (explanation.section !== 'summary') assert.fail('Expected accepted explanation');
+      assert.equal(explanation.declared.reason, 'Synthetic measurements support a separate note.');
+      const evidence = requireSuccess(
+        await native.page.evaluate(
+          (input) => window.agentSpace.readAcceptedChange(input),
+          request(selected, {
+            changeId: applied.changeId,
+            section: 'evidence' as const,
+            maxBytes: 16384,
+          }),
+        ),
+      );
+      assert.equal(evidence.section, 'evidence');
+      if (evidence.section !== 'evidence') assert.fail('Expected evidence pins');
+      assert.deepEqual(evidence.items[0]?.ref, {
+        mode: 'pinned',
+        objectId: fixture.ids.measurements,
+        revision: 1,
+      });
       assert.equal(
         requireSuccess(fixture.human.readObject({ objectId: proposedId })).object.content.body,
         'A candidate until the person decides.',

@@ -78,6 +78,18 @@ class HumanFacade implements HumanServices {
   query(input: unknown) {
     return this.#core.query(this.#context, input);
   }
+  describe(input: unknown) {
+    return this.#core.describe(this.#context, input);
+  }
+  search(input: unknown) {
+    return this.#core.search(this.#context, input);
+  }
+  expandRelations(input: unknown) {
+    return this.#core.expandRelations(this.#context, input);
+  }
+  readAcceptedChange(input: unknown) {
+    return this.#core.readAcceptedChange(this.#context, input);
+  }
   history(input: unknown) {
     return this.#core.history(this.#context, input);
   }
@@ -145,6 +157,18 @@ class AgentFacade implements AgentServices {
   }
   query(input: unknown) {
     return this.#core.query(this.#context, input);
+  }
+  describe(input: unknown) {
+    return this.#core.describe(this.#context, input);
+  }
+  search(input: unknown) {
+    return this.#core.search(this.#context, input);
+  }
+  expandRelations(input: unknown) {
+    return this.#core.expandRelations(this.#context, input);
+  }
+  readAcceptedChange(input: unknown) {
+    return this.#core.readAcceptedChange(this.#context, input);
   }
   read(input: unknown) {
     return this.#core.readFragment(this.#context, input);

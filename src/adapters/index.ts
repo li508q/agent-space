@@ -27,7 +27,7 @@ Development:
 
 Set AGENTSPACE_TOKEN in the trusted launch environment. Never pass a token as an argument.
 The server uses MCP stdio. The CLI reads one UTF-8 JSON request from stdin (maximum ${MAX_AGENT_INPUT_BYTES} bytes) and writes one JSON Result.
-Tools: space_discover, objects_query, object_read, proposal_create, changes_list, operation_status.
+Tools: space_discover, objects_query, object_read, proposal_create, changes_list, operation_status, schema_describe, text_search, relations_expand, accepted_change_read.
 There are no human save/review/undo/grant, filesystem, SQL or shell commands.
 Only existing supported spaces open. No space is created or migrated.
 CLI exit: 0 success; 1 core/startup failure; 64 arguments/schema; 65 JSON/input limit; 70 unexpected adapter failure.

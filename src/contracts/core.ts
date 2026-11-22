@@ -18,8 +18,25 @@ import type {
   ReadPage,
   ReviewInput,
   QueryInput,
+  AgentTool,
 } from './schema.js';
 import type { Result } from './errors.js';
+import type { ContextServices, ContextUsageHint } from './context.js';
+export type {
+  SchemaDescribeInput,
+  SchemaDescription,
+  TextSearchInput,
+  TextSearchPage,
+  RelationsExpandInitial,
+  RelationsExpandInput,
+  ExpandedEdge,
+  RelationsExpandPage,
+  AcceptedChangeReadInput,
+  AcceptedChangeSummary,
+  AcceptedEvidenceItem,
+  AcceptedChangeEvidencePage,
+  AcceptedChangePage,
+} from './context.js';
 
 export const PolicySchema = z.strictObject({
   protectedFields: z
@@ -277,6 +294,7 @@ export type QueryPage = {
   searchMode: 'none' | 'literal' | 'trigram-literal';
 };
 export type ChangeSummary = {
+  acceptedChangeReadable: boolean;
   sequence: number;
   id: string;
   action: string;
@@ -372,6 +390,8 @@ export type OperationStatus =
   | { state: 'not_found'; operationKey: string; interpretation: 'not_a_failure_confirmation' }
   | { state: 'recorded'; receipt: ReceiptSummary; currentProposal: ProposalSummary | null };
 export type DiscoverResult = {
+  implementedTools: AgentTool[];
+  usageHints: ContextUsageHint[];
   status: SpaceStatus;
   kinds: Kind[];
   scope: ScopeSummary;
@@ -380,7 +400,7 @@ export type DiscoverResult = {
   limits: { objectBytes: number; readBytes: number; queryItems: number };
 };
 
-export interface HumanServices {
+export interface HumanServices extends ContextServices {
   status(): Result<SpaceStatus>;
   createObject(input: CreateObjectInput): Result<WriteResult>;
   saveObject(input: z.infer<typeof import('./schema.js').HumanSaveSchema>): Result<WriteResult>;
@@ -407,7 +427,7 @@ export interface HumanServices {
   activity(input: z.infer<typeof PageRequestSchema>): Result<SequencePage<ActivityEntry>>;
   operationStatus(input: z.infer<typeof OperationStatusSchema>): Result<OperationStatus>;
 }
-export interface AgentServices {
+export interface AgentServices extends ContextServices {
   discover(): Result<DiscoverResult>;
   query(input: QueryInput): Result<QueryPage>;
   read(input: z.infer<typeof import('./schema.js').ReadSchema>): Result<ReadPage>;

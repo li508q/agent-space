@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import type { AgentServices } from '../contracts/core.js';
 import { OperationStatusSchema, PageRequestSchema } from '../contracts/core.js';
+import {
+  SchemaDescribeSchema,
+  TextSearchSchema,
+  RelationsExpandSchema,
+  AcceptedChangeReadSchema,
+} from '../contracts/context.js';
 import type { ErrorCode, Failure, Result } from '../contracts/errors.js';
 import {
   AgentToolSchema,
@@ -45,6 +51,26 @@ export const toolDefinitions = {
     description:
       'Look up an operationKey in this grant namespace. Original receipt.business and currentProposal are separate. not_found is not a failure confirmation; retain the original key.',
   },
+  schema_describe: {
+    schema: SchemaDescribeSchema,
+    description:
+      'Describe the fixed object, per-object property and typed relation model. No global table schema or object dump. Use maxBytes:16384; actual fields are read with object_read(properties).',
+  },
+  text_search: {
+    schema: TextSearchSchema,
+    description:
+      'Find authorized current object summaries with literal NFKC/lowercase text and optional exact filters. Not semantic search. Use maxBytes:16384; read returned pins and follow nextCursor, restarting on CURSOR_STALE.',
+  },
+  relations_expand: {
+    schema: RelationsExpandSchema,
+    description:
+      'Discover bounded current typed links from a seed identity, outgoing or incoming. Start with maxDepth:1,maxNodes:50,maxEdges:50,maxBytes:16384. Pinned destinations are terminal; permissions never propagate. Follow nextCursor and inspect traversalCompleteWithinScope/stopReasons.',
+  },
+  accepted_change_read: {
+    schema: AcceptedChangeReadSchema,
+    description:
+      'Read an accepted proposal event from a changes_list item with acceptedChangeReadable:true. summary returns its declared purpose/reason and exact target pin; evidence returns currently authorized original source pins, never source bodies. Use maxBytes:32768. No original agent operationKey is needed.',
+  },
 } satisfies Record<AgentTool, { schema: z.ZodType; description: string }>;
 
 export function failure(code: ErrorCode, retryable = false, field?: string): Failure {
@@ -83,6 +109,16 @@ export function invokeAgentTool(
       return checked(PageRequestSchema, input, (request) => agent.changes(request));
     case 'operation_status':
       return checked(OperationStatusSchema, input, (request) => agent.operationStatus(request));
+    case 'schema_describe':
+      return checked(SchemaDescribeSchema, input, (request) => agent.describe(request));
+    case 'text_search':
+      return checked(TextSearchSchema, input, (request) => agent.search(request));
+    case 'relations_expand':
+      return checked(RelationsExpandSchema, input, (request) => agent.expandRelations(request));
+    case 'accepted_change_read':
+      return checked(AcceptedChangeReadSchema, input, (request) =>
+        agent.readAcceptedChange(request),
+      );
   }
 }
 

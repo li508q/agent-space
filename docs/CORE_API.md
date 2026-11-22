@@ -1,6 +1,6 @@
 # Core API handoff
 
-Status: implemented 3A/3B surface, 2026-11-23. Native IPC, actual product MCP/CLI adapters and packaging remain later assignments. Definitions are in [`src/contracts/core.ts`](../src/contracts/core.ts), requests in [`schema.ts`](../src/contracts/schema.ts), and the named active-space bridge in [`desktop.ts`](../src/contracts/desktop.ts).
+Definitions are in [`core.ts`](../src/contracts/core.ts), mutation/read requests in [`schema.ts`](../src/contracts/schema.ts), bounded context DTOs in [`context.ts`](../src/contracts/context.ts), and the named active-space bridge in [`desktop.ts`](../src/contracts/desktop.ts). See [AGENT_PROTOCOL.md](AGENT_PROTOCOL.md) for the real Node MCP/CLI entry and its verification limits.
 
 ## Factories and trusted context
 
@@ -24,16 +24,39 @@ The core imports no Electron, renderer or MCP SDK. For the planned packaged desk
 | `saveDraft`, `listDrafts`, `readDraft`, `discardDraft` | Durable generation/base/source and separately readable recovery text; stale generations cannot erase or resurrect a later draft |
 | `query`, `changes`, `activity`, `operationStatus`      | Bounded current material, separate durable change/activity pages and original-operation recovery                                |
 
-| Agent service                           | Actual phase 3 tool name |
-| --------------------------------------- | ------------------------ |
-| `discover`                              | `space_discover`         |
-| `query` (including literal text filter) | `objects_query`          |
-| `read`                                  | `object_read`            |
-| `propose`                               | `proposal_create`        |
-| `changes`                               | `changes_list`           |
-| `operationStatus`                       | `operation_status`       |
+| Agent service                           | Tool name              |
+| --------------------------------------- | ---------------------- |
+| `discover`                              | `space_discover`       |
+| `query` (including literal text filter) | `objects_query`        |
+| `read`                                  | `object_read`          |
+| `propose`                               | `proposal_create`      |
+| `changes`                               | `changes_list`         |
+| `operationStatus`                       | `operation_status`     |
+| `describe`                              | `schema_describe`      |
+| `search`                                | `text_search`          |
+| `expandRelations`                       | `relations_expand`     |
+| `readAcceptedChange`                    | `accepted_change_read` |
 
-Publish only these implemented capabilities in the next adapter. `schema_describe`, separate `text_search`, relation expansion and scoped accepted-change/evidence reading are phase 4 work. Do not relabel a query as another tool while retaining the wrong activity name. The latter evidence API must let another authorized agent find an accepted reason and exact evidence pins through the change/proposal pointer; do not fill that gap by silently modifying the accepted body or relations.
+The adapter publishes these ten implemented capabilities. No agent method saves accepted content, manages grants, reviews proposals, or executes arbitrary files/SQL.
+
+## Shared context services
+
+Both facades implement the same four read-only `ContextServices` methods. Engine authorization, format checks, a single read transaction and prepared activity surround the shared implementation. The Core has no MCP dependency and adds no context authority tables or migrations.
+
+| Method               | Strict input and output                                                                                                                                                                                          |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `describe`           | `{kind?,maxBytes}` → fixed `SchemaDescription`; property definitions remain per-object, with no inferred global record schema                                                                                    |
+| `search`             | Query shape with required nonblank literal text → `TextSearchPage`; reuses scoped literal query, but has its own cursor domain and real `text_search` activity                                                   |
+| `expandRelations`    | `{seedId,direction,predicates,maxDepth,maxNodes,maxEdges,maxBytes}` or `{cursor,maxBytes}` → current-owner BFS with terminal pinned targets, endpoint summaries, completeness/stop reasons and byte continuation |
+| `readAcceptedChange` | `{changeId,section:"summary"                                                                                                                                                                                     | "evidence",maxBytes}`or`{cursor,maxBytes}` → exact accepted target/declaration or currently readable original evidence pins |
+
+Every success fits its explicit 1–64 KiB complete-Result budget. Description and accepted summary are atomic; paged methods never split an edge/evidence item. `discover` adds `implementedTools` and small `usageHints` and stays within 8 KiB. Relationship limits (1/2 hops, 50 total nodes/edges, 5,000 authorized candidates) apply to the whole recomputed walk, not independently to each byte page. They are not a database latency guarantee. New graph/evidence cursors retain initial parameters and a visible position, without server sessions or a stored frontier; authority/scope changes make them stale. Query/search keep their existing repeat-input pagination shape.
+
+`ChangeSummary.acceptedChangeReadable` identifies the successful acceptance event itself, not an earlier event of a now-applied proposal. `readAcceptedChange` checks that event's original receipt/business outcome, proposal hash/target/base/result revision and the retained revision's own change/sequence association. Current publication always creates a revision when a proposal is applied. It whitelists declaration/reference DTOs directly from authority; it never forwards `getProposal`, patches, operation keys or complete candidate snapshots. Another agent needs only the readable change ID and its own current grant. Later undo/edit/source updates preserve the original accepted target/evidence pins.
+
+Read scope for a target includes its retained accepted declaration, and each source is independently authorized. Out-of-scope/nonaccepted/unknown changes return uniform `NOT_FOUND`; a revoked reader fails authorization first. Missing/unreadable sources are aggregate availability only, without hidden IDs/counts or placeholders. Evidence ranges count visible entries, preserve their source order and omit totals. Retained corrupt JSON/digests or an inconsistent event association return `INTEGRITY_FAILURE` rather than healthy availability. Archive is not deletion. External-reference metadata does not open an external path or URL.
+
+Reference-only activity has `details.resultKind:"reference-metadata"` and includes only the page's actual pins. It never labels an examined frontier, hidden source or future page as delivered, and never invents a body range. See the real SDK tests in `tests/protocol/context.test.ts` and the Core boundary/fault cases in `tests/core/context.test.ts`; these are synthetic Node checks, not native/model-host acceptance.
 
 ## Result and recovery semantics
 

@@ -6,7 +6,7 @@ import type { AgentServices } from '../contracts/core.js';
 import { AgentToolSchema } from '../contracts/schema.js';
 import { invokeAgentTool, MAX_AGENT_INPUT_BYTES, toolDefinitions } from './tools.js';
 
-/** Only six implemented tools; schema JSON and runtime validation share one source. */
+/** Schema JSON and runtime validation share the ten implemented tool definitions. */
 export function createAgentServer(agent: AgentServices): Server {
   // The SDK's advanced Server API keeps the application's stable Result envelope
   // for schema failures as well as domain failures (instead of English SDK errors).
