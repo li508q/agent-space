@@ -6,6 +6,8 @@ Build a focused, local-first personal workbench for clear human–AI collaborati
 
 The user explicitly requested phased delivery under the main session. Read `.agents/skills/agent-space-delivery/SKILL.md` and `docs/DELIVERY.md`. Execute only the currently assigned phase; return its artifact and evidence before proceeding. Do not interpret the overall product objective as authorization to skip product definition, PRD, technical contracts, or verification. A session asked to stop at a safe boundary must retain its work and report it, not continue the full application on its own.
 
+For resumed coordinator-assigned work, read the local `.coordination/CURRENT.md` when available, then only the assigned task card and relevant contracts. It indexes private evidence and current ownership; it does not replace the public requirements. On a fresh clone, use `docs/DELIVERY.md` and `docs/PRODUCT_REVIEW.md`. Do not treat historical chat promises, the old final handoff, or a queued slice as a current assignment. Check the actual Git state before writing; only one assigned session may own shared application paths at a time.
+
 The user has explicitly delegated decisions within the focused brief to the coordinator. Do not ask the user to select routine product, architecture, or implementation options. Give a reasoned recommendation and evidence to the coordinator; the coordinator owns the phase decision and next assignment.
 
 ## Explain each decision before acting
