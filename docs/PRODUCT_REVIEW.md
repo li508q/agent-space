@@ -34,7 +34,7 @@ The architecture has useful AI-facing semantics rather than a decorative chat in
 
 The implementation must reuse the common Core and existing guards. Review filtering must be part of the bounded shared query contract, not a client-side scan of every document body. A project link must never silently expand a grant. Historical evidence remains read-only. Import must not automatically certify knowledge or overwrite later human relationships.
 
-The five usage guides' activity wording also needs to match the shipped distinction between prepared material and actual local changes. A prepared result is not a committed revision, host receipt or external task completion.
+The five usage guides now distinguish prepared tool references/ranges from saved changes and accepted-proposal evidence in an object's History. This corrects the documentation, not the missing global change/resolved-proposal entry. A prepared result is not a committed revision, host receipt or external task completion.
 
 ## Evidence added by this review
 

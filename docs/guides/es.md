@@ -44,7 +44,7 @@ Copia la configuración MCP generada al anfitrión o usa la [CLI](../AGENT_PROTO
 
 El agente combina descripción del modelo, filtros, búsqueda literal, relaciones acotadas y lectura de versiones concretas. Una retrospectiva mensual es un ejemplo, no un flujo incorporado. La búsqueda informa de su alcance y no garantiza exhaustividad semántica.
 
-Puedes copiar la versión guardada seleccionada junto con sus referencias. El texto sin guardar se identifica como borrador; no se presenta como una fuente aceptada. La actividad muestra referencias preparadas y acciones locales, no razonamiento privado, comprensión del modelo ni finalización de tareas externas.
+Puedes copiar la versión guardada seleccionada junto con sus referencias. El texto sin guardar se identifica como borrador; no se presenta como una fuente aceptada. La actividad muestra las referencias de versión y los rangos de contenido preparados para las respuestas de las herramientas. Consulta el Historial del objeto para ver los cambios guardados y las pruebas de las propuestas aceptadas. Preparar una respuesta no confirma su recepción por el anfitrión, la comprensión del modelo ni la finalización de tareas externas, y tampoco muestra razonamiento privado.
 
 Revisa el propósito, el motivo, las diferencias, la versión de base y las fuentes de la propuesta. Abre una fuente en la revisión citada y vuelve a la misma revisión de cambios. El contenido aceptado no cambia hasta que aplicas la propuesta. Si cambia la base, ambas versiones se conservan. Puedes rechazar un candidato incluso después de revocar su permiso. Deshacer protege el trabajo posterior; también puedes copiar una versión antigua a una nota nueva.
 

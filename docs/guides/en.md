@@ -44,7 +44,7 @@ Copy the generated launch configuration into your MCP host, or use the documente
 
 An agent starts with small discovery and model-description calls. It can combine structured filtering, literal search, bounded links and exact-version reads for the current task. A monthly retrospective is one possible task, not a built-in workflow. Search reports limits and does not promise semantic completeness.
 
-You can inspect and copy a selected saved version with its references. Draft text must be labeled as draft text rather than presented as the cited accepted version. Activity reports actual prepared references and local changes, not model understanding, private reasoning or completion of work in another application.
+You can inspect and copy a selected saved version with its references. Draft text must be labeled as draft text rather than presented as the cited accepted version. Activity shows version references and content ranges prepared for tool results. Use an object's History for saved edits and accepted-proposal evidence. Preparation does not establish host receipt, model understanding or external task completion. It does not expose private reasoning.
 
 ## Review and continue work
 
