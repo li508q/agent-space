@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { once } from 'node:events';
@@ -168,6 +168,12 @@ test(
         ),
       );
       assert.ok(launch.command.length > 0 && launch.args.includes('--agent-server'));
+      assert.equal(launch.development, !process.env.AGENTSPACE_TEST_EXECUTABLE);
+      if (process.env.AGENTSPACE_TEST_EXECUTABLE)
+        assert.equal(
+          realpathSync(launch.command),
+          realpathSync(process.env.AGENTSPACE_TEST_EXECUTABLE),
+        );
       assert.ok(launch.codexToml.includes('[mcp_servers.agent_space]'));
       assert.deepEqual(JSON.parse(launch.stdioJson), {
         command: launch.command,

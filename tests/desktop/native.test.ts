@@ -107,14 +107,15 @@ process.on('message', (message) => {
 `,
     { mode: 0o600 },
   );
-  const executable: unknown = createRequire(import.meta.url)('electron');
+  const packaged = process.env.AGENTSPACE_TEST_EXECUTABLE;
+  const executable: unknown = packaged ?? createRequire(import.meta.url)('electron');
   assert.equal(typeof executable, 'string');
   const environment: NodeJS.ProcessEnv = {
     ...process.env,
     AGENTSPACE_USER_DATA: join(root, 'profile'),
   };
   delete environment.ELECTRON_RUN_AS_NODE;
-  const child = spawn(executable as string, ['--require', observer, entry], {
+  const child = spawn(executable as string, ['--require', observer, ...(packaged ? [] : [entry])], {
     env: environment,
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
   });
@@ -408,7 +409,7 @@ test(
         }),
       );
       assert.equal(config.command, await application.evaluate(() => process.execPath));
-      assert.equal(config.args[1], '--agent-server');
+      assert.equal(config.args[config.development ? 1 : 0], '--agent-server');
       assert.ok(config.args.includes(example.status.instanceId));
       assert.equal(config.env.AGENTSPACE_TOKEN, issued.token);
       assert.ok(!config.args.includes(issued.token));

@@ -1,7 +1,7 @@
 {
   "name": "agent-space",
   "version": "0.1.0",
-  "description": "A local workbench for clear human–agent collaboration",
+  "description": "A local workbench for clear human\u2013agent collaboration",
   "private": true,
   "type": "module",
   "author": "AgentSpace contributors",
@@ -27,7 +27,12 @@
     "build:desktop": "node scripts/build.mjs --desktop-only",
     "test:desktop:agent": "npm run build:desktop && tsx --test tests/desktop/agent-mode.test.ts",
     "test:desktop": "npm run build && tsx --test --test-concurrency=1 tests/desktop/*.test.ts",
-    "test:local": "npm run build:core && tsx --test tests/core/local-*.test.ts tests/desktop/local-unit.test.ts"
+    "test:local": "npm run build:core && tsx --test tests/core/local-*.test.ts tests/desktop/local-unit.test.ts",
+    "build:production": "node scripts/build.mjs --production",
+    "icons:mac": "node scripts/make-icon.mjs",
+    "package:mac": "node scripts/package-mac.mjs",
+    "package:check": "node scripts/check-packaging.mjs",
+    "package:verify": "node scripts/verify-package.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.4",
@@ -48,6 +53,8 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@electron/asar": "4.3.2",
+    "@electron/packager": "20.3.0",
     "@eslint/js": "10.0.1",
     "@modelcontextprotocol/client": "2.4.0",
     "@types/node": "22.20.5",

@@ -147,7 +147,10 @@ test(
       const sourceId = `proposal-source-${proposal.id}-0`;
       await native.page.locator(`[id="${sourceId}"]`).click();
       const source = native.page.getByTestId('source-reader');
-      await source.locator('#source-heading').getByText('Measurements', { exact: true }).waitFor();
+      await source
+        .locator('header')
+        .getByRole('heading', { name: 'Measurements', exact: true })
+        .waitFor();
       await source
         .getByText(t(locale, 'source.version', { version: 1 }), { exact: true })
         .waitFor();

@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, cpSync, rmSync } fr
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
+import { productionManifest } from './package-inputs.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 function compile(config) {
@@ -14,7 +15,14 @@ function compile(config) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 const desktopOnly = process.argv.includes('--desktop-only');
-const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
+const production = process.argv.includes('--production');
+if (
+  process.argv.slice(2).some((arg) => !['--desktop-only', '--production'].includes(arg)) ||
+  (desktopOnly && production)
+)
+  throw new Error('Use build with --desktop-only or --production.');
+const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+const version = pkg.version;
 compile('tsconfig.core.json');
 if (existsSync(join(root, 'tsconfig.adapters.json'))) compile('tsconfig.adapters.json');
 // Separate outputs prevent a desktop build from deleting another adapter/core build.
@@ -22,7 +30,7 @@ for (const target of ['dist/desktop', ...(desktopOnly ? [] : ['dist/renderer'])]
   rmSync(join(root, target), { recursive: true, force: true });
   mkdirSync(join(root, target), { recursive: true });
 }
-await build({
+const main = await build({
   absWorkingDir: root,
   entryPoints: ['src/desktop/main.ts'],
   outfile: 'dist/desktop/main.cjs',
@@ -34,8 +42,10 @@ await build({
   define: { __AGENTSPACE_VERSION__: JSON.stringify(version) },
   sourcemap: false,
   logLevel: 'info',
+  minify: production,
+  metafile: production,
 });
-await build({
+const preload = await build({
   absWorkingDir: root,
   entryPoints: ['src/desktop/preload.ts'],
   outfile: 'dist/desktop/preload.cjs',
@@ -46,6 +56,8 @@ await build({
   external: ['electron'],
   sourcemap: false,
   logLevel: 'info',
+  minify: production,
+  metafile: production,
 });
 if (desktopOnly) process.exit(0);
 const htmlSource = join(root, 'src/renderer/index.html');
@@ -54,7 +66,7 @@ if (!existsSync(htmlSource) || !existsSync(reactSource))
   throw new Error(
     'The assigned renderer entry is not available yet; no replacement interface is generated.',
   );
-await build({
+const renderer = await build({
   absWorkingDir: root,
   entryPoints: ['src/renderer/main.tsx'],
   outdir: 'dist/renderer',
@@ -70,6 +82,8 @@ await build({
   assetNames: 'assets/[name]-[hash]',
   sourcemap: false,
   logLevel: 'info',
+  minify: production,
+  metafile: production,
 });
 let html = readFileSync(htmlSource, 'utf8');
 // Security headers are controlled by main. Do not let a duplicate meta policy
@@ -88,3 +102,35 @@ if (existsSync(join(root, 'src/renderer/assets')))
   cpSync(join(root, 'src/renderer/assets'), join(root, 'dist/renderer/assets'), {
     recursive: true,
   });
+if (production) {
+  mkdirSync(join(root, 'dist/package'), { recursive: true });
+  // Main lazily imports this fixed ESM path. Package the complete SDK/Core closure,
+  // without copying standalone tsc output or runtime node_modules into the app.
+  const agent = await build({
+    absWorkingDir: root,
+    entryPoints: ['src/adapters/index.ts'],
+    outfile: 'dist/package/agent-index.js',
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    target: 'node24',
+    minify: true,
+    sourcemap: false,
+    metafile: true,
+    logLevel: 'info',
+    banner: {
+      js: "import { createRequire as __agentCreateRequire } from 'node:module'; const require = __agentCreateRequire(import.meta.url);",
+    },
+  });
+  const manifest = productionManifest(root, {
+    version,
+    electronVersion: pkg.devDependencies.electron,
+    metafiles: {
+      main: main.metafile,
+      preload: preload.metafile,
+      renderer: renderer.metafile,
+      agent: agent.metafile,
+    },
+  });
+  writeFileSync(join(root, 'dist/package/build.json'), JSON.stringify(manifest, null, 2) + '\n');
+}

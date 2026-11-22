@@ -32,20 +32,37 @@ export async function launchNative(options: {
   delete env.ELECTRON_RUN_AS_NODE;
   env.AGENTSPACE_USER_DATA = options.userData;
 
-  const resolved: unknown = options.executablePath ?? createRequire(import.meta.url)('electron');
+  // A test-only override runs these same visible controls against an actual
+  // packaged application. Never pass the development source entry to that app.
+  const packaged = process.env.AGENTSPACE_TEST_EXECUTABLE;
+  const resolved: unknown =
+    options.executablePath ?? packaged ?? createRequire(import.meta.url)('electron');
   if (typeof resolved !== 'string') throw new Error('An Electron executable is required.');
+  // This module exports a self-contained installer. Load it in the trusted test
+  // process, then run it through Main's inspector after the real IPC handlers
+  // exist. Packaged Electron does not execute the development --require hook.
+  const installFault: unknown = options.mainRequire
+    ? createRequire(import.meta.url)(options.mainRequire)
+    : null;
+  if (options.mainRequire && typeof installFault !== 'function')
+    throw new Error('The Main fault fixture must export an installer.');
   const application = await _electron.launch({
     executablePath: resolved,
-    args: [
-      ...(options.mainRequire ? ['--require', options.mainRequire] : []),
-      ...(options.entry ? [options.entry] : []),
-    ],
+    args: options.entry && !packaged ? [options.entry] : [],
     env,
     timeout: 30_000,
   });
   const pageErrors: string[] = [];
   try {
     const page = await application.firstWindow({ timeout: 30_000 });
+    if (typeof installFault === 'function') {
+      await application.evaluate(({ ipcMain }, installer) => {
+        // Only the trusted fixture source crosses the Main debug connection.
+        // No renderer capability, product test flag or packaged file is added.
+        const install = new Function('ipcMain', `return (${installer})(ipcMain);`);
+        install(ipcMain);
+      }, Function.prototype.toString.call(installFault));
+    }
     page.on('pageerror', (error) => pageErrors.push(error.message));
     page.setDefaultTimeout(10_000);
     await page.waitForFunction(() => typeof window.agentSpace?.bootstrap === 'function');
