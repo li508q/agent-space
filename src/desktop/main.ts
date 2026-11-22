@@ -43,6 +43,9 @@ import {
 import { nativeText } from './native-copy.js';
 import { bound, input } from './validation.js';
 import { agentRuntime, launchConfiguration } from './agent-configuration.js';
+import { LocalCoordinator } from './local-coordinator.js';
+import { registerLocalHandlers } from './local-ipc.js';
+import { CoreError } from '../core/support.js';
 
 declare const __AGENTSPACE_VERSION__: string;
 const argv = process.defaultApp ? process.argv.slice(2) : process.argv.slice(1);
@@ -251,7 +254,6 @@ if (mode) {
                 2,
               );
         };
-        const unregisterCore = registerCoreHandlers(owner, workspace, remember);
         const platformChannels: string[] = [];
         const platform = <S extends z.ZodType, T>(
           name: string,
@@ -294,6 +296,72 @@ if (mode) {
             switching = false;
           }
         };
+        let localDialogOpen = false;
+        const nativeChoice = async <T>(choose: () => Promise<T>): Promise<T> => {
+          if (localDialogOpen)
+            throw new CoreError({ ok: false, error: { code: 'STORAGE_BUSY', retryable: true } });
+          localDialogOpen = true;
+          try {
+            return await choose();
+          } finally {
+            localDialogOpen = false;
+          }
+        };
+        const local = new LocalCoordinator(workspace, {
+          importSources: (mode) =>
+            nativeChoice(async () => {
+              const selected = await dialog.showOpenDialog(window!, {
+                title: t(locale(), 'import.title'),
+                buttonLabel: t(
+                  locale(),
+                  mode === 'files' ? 'import.chooseFiles' : 'import.chooseFolder',
+                ),
+                properties: mode === 'files' ? ['openFile', 'multiSelections'] : ['openDirectory'],
+              });
+              return selected.canceled ? null : selected.filePaths;
+            }),
+          destination: (kind) =>
+            nativeChoice(async () => {
+              const title = t(
+                locale(),
+                kind === 'sqlite-backup'
+                  ? 'backup.chooseDestination'
+                  : kind === 'restored-space'
+                    ? 'restore.chooseNewLocation'
+                    : 'export.current',
+              );
+              const selected = await dialog.showSaveDialog(window!, {
+                title,
+                buttonLabel: title,
+                properties: ['createDirectory', 'showOverwriteConfirmation'],
+              });
+              return selected.canceled || !selected.filePath ? null : selected.filePath;
+            }),
+          backup: () =>
+            nativeChoice(async () => {
+              const selected = await dialog.showOpenDialog(window!, {
+                title: t(locale(), 'restore.title'),
+                buttonLabel: t(locale(), 'restore.title'),
+                properties: ['openDirectory'],
+              });
+              return selected.canceled ? null : (selected.filePaths[0] ?? null);
+            }),
+          relink: () =>
+            nativeChoice(async () => {
+              const selected = await dialog.showOpenDialog(window!, {
+                title: t(locale(), 'object.asset'),
+                buttonLabel: t(locale(), 'common.confirm'),
+                properties: ['openFile', 'openDirectory'],
+              });
+              return selected.canceled ? null : (selected.filePaths[0] ?? null);
+            }),
+        });
+        const unregisterLocal = registerLocalHandlers(owner, local, (request) =>
+          switchSpace(async () => local.openRestoredSpace(request)),
+        );
+        const unregisterCore = registerCoreHandlers(owner, workspace, remember, (binding, run) =>
+          local.importCoordinatorError(binding, run),
+        );
         platform('bootstrap', z.null(), (): Result<AppBootstrap> => {
           const status = workspace.human?.status();
           return {
@@ -509,6 +577,8 @@ if (mode) {
         window.on('closed', () => {
           clearClose(false);
           unregisterCore();
+          unregisterLocal();
+          local.dispose();
           platformChannels.forEach((name) => ipcMain.removeHandler(name));
           workspace.close();
           window = null;

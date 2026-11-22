@@ -49,6 +49,7 @@ Stale writers, response loss, database failures, and unsafe recovery are enginee
 - Work with real persisted data, reopen accepted work, and keep the selected space visible.
 - Import supported Markdown/plain-text material from user-selected locations as managed copies with origin information. Preserve the original files. Reference other native formats without claiming to parse or synchronize them.
 - Include a guided, previewed folder-import path for the reported knowledge/project/HANDOFF/repository layout. Let the person confirm folder-to-project grouping and asset references before writing; treat layout recognition as a replaceable import profile. Skip unsupported or excluded items with a clear result, cap traversal, and avoid duplicate copies on retry. This is a phase 4 import flow, not live two-way synchronization or a universal migration platform.
+- Apply import grouping to new copies. Re-importing the same source version reuses its original object and preserves current human edits and relationships. Explain before confirmation that new grouping does not reclassify reused objects, and identify reuse distinctly in the results. A person can edit those relationships explicitly afterward.
 - Preserve unsaved input when navigation, a conflict, or a failed save interrupts writing.
 
 ### Content and working context

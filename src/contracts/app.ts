@@ -4,6 +4,7 @@ import type { Locale } from './schema.js';
 import type { SpaceStatus } from './core.js';
 import type { Failure, Result } from './errors.js';
 import type { BoundRequest, DesktopCoreBridge } from './desktop.js';
+import type { LocalDesktopMethods } from './local.js';
 
 // Native dialogs select all filesystem locations. Paths are display data or
 // generated launch configuration, never arbitrary renderer file operations.
@@ -49,7 +50,7 @@ export type CloseRequest = { requestId: string };
 export type Unsubscribe = () => void;
 
 /** Trusted desktop UI only. The MCP adapter never receives this interface. */
-export interface DesktopApi extends DesktopCoreBridge {
+export interface DesktopApi extends DesktopCoreBridge, LocalDesktopMethods {
   bootstrap(): Promise<Result<AppBootstrap>>;
   createSpace(
     request: z.infer<typeof CreateSpaceDialogSchema>,

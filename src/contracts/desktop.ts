@@ -43,4 +43,12 @@ export interface DesktopCoreBridge {
   changes: AsyncBound<'changes'>;
   activity: AsyncBound<'activity'>;
   operationStatus: AsyncBound<'operationStatus'>;
+  setLifecycle: AsyncBound<'setLifecycle'>;
+  retryImport: AsyncBound<'retryImport'>;
+  pauseImport: AsyncBound<'pauseImport'>;
+  getImport: AsyncBound<'getImport'>;
+  listImports: AsyncBound<'listImports'>;
+  listRecoverableDrafts: AsyncBound<'listRecoverableDrafts'>;
+  readRecoverableDraft: AsyncBound<'readRecoverableDraft'>;
+  copyRecoverableDraft: AsyncBound<'copyRecoverableDraft'>;
 }

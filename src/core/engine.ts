@@ -81,6 +81,10 @@ import {
   type TextSearchPage,
 } from '../contracts/context.js';
 import { ContextReader, decodeContextCursor } from './context.js';
+import { searchProjection } from './search.js';
+import { LocalDomain } from './local/domain.js';
+import { HumanQuerySchema } from '../contracts/local.js';
+import type { ImportItemResult, ImportRunSummary } from '../contracts/local.js';
 import { Store, type Row, rowJson } from './storage.js';
 import {
   MAX_OBJECT_BYTES,
@@ -114,7 +118,28 @@ const defaultPolicy: Policy = { protectedFields: [] };
 const defaultOrigin: Origin = { mode: 'managed', label: '' };
 
 export class Engine {
-  constructor(readonly store: Store) {}
+  readonly local: LocalDomain;
+  constructor(readonly store: Store) {
+    this.local = new LocalDomain(store, {
+      command: (context, schema, input, name, fn) =>
+        this.command(context, schema, input, name, (a, p) => fn(a.actor, p)),
+      read: (context, name, fn) => this.read(context, name, (a) => fn(a.actor), true),
+      load: (id, revision) => this.load(id, revision),
+      validate: (content) =>
+        this.validateContent(
+          {
+            actor: { kind: 'human', namespace: 'trusted-local' },
+            scope: { mode: 'space' },
+            grant: null,
+          },
+          content,
+        ),
+      publish: (actor, ...args) =>
+        this.publish({ actor, scope: { mode: 'space' }, grant: null }, ...args),
+      persistDraft: (actor, p) => this.persistDraft(actor, p),
+      draftReceipt: (row) => this.draftReceipt(row),
+    });
+  }
 
   private auth(context: Context, human = false): Access {
     if (context.kind === 'human') {
@@ -307,6 +332,24 @@ export class Engine {
           status: r.status,
           statusVersion: r.statusVersion,
           payloadHash: r.payloadHash,
+        };
+      } else if (command === 'import.item') {
+        const r = result.value as ImportItemResult;
+        business = {
+          kind: 'import-item',
+          runId: key.split(':')[1]!,
+          itemId: r.id,
+          state: r.state,
+          ref: r.originalRef,
+        };
+      } else if (command.startsWith('import.')) {
+        const r = result.value as ImportRunSummary;
+        business = {
+          kind: 'import',
+          runId: r.id,
+          manifestDigest: r.manifestDigest,
+          state: r.state,
+          progressRevision: r.progressRevision,
         };
       } else if (command.startsWith('draft.')) {
         const r = result.value as DraftReceipt;
@@ -557,15 +600,7 @@ export class Engine {
         change.id,
         change.sequence,
       );
-    const text = normalize(
-      content.title +
-        '\n' +
-        content.body +
-        '\n' +
-        Object.values(content.properties)
-          .map((f) => f.label + ' ' + String(f.value ?? ''))
-          .join('\n'),
-    );
+    const text = searchProjection(content);
     this.store.db
       .prepare(
         'INSERT INTO search_projection VALUES (?,?) ON CONFLICT(object_id) DO UPDATE SET normalized=excluded.normalized',
@@ -1189,10 +1224,17 @@ export class Engine {
   undoChange(context: Context, input: unknown): Result<WriteResult> {
     return this.command(context, UndoSchema, input, 'change.undo', (a, p) => {
       const change = this.store.one('SELECT * FROM changes WHERE id=?', p.changeId);
+      if (change.action === 'object.relinked') fail('UNDO_NOT_SUPPORTED');
       if (
-        !['object.created', 'object.saved', 'proposal.applied', 'change.undone'].includes(
-          String(change.action),
-        ) ||
+        ![
+          'object.created',
+          'object.imported',
+          'object.saved',
+          'object.archived',
+          'object.restored',
+          'proposal.applied',
+          'change.undone',
+        ].includes(String(change.action)) ||
         !change.object_id ||
         change.after_revision === null
       )
@@ -1232,48 +1274,48 @@ export class Engine {
     };
   }
   saveDraft(context: Context, input: unknown): Result<DraftReceipt> {
-    return this.command(context, SaveDraftSchema, input, 'draft.save', (a, p) => {
-      if (bytes(p.content) > MAX_OBJECT_BYTES) fail('LIMIT_EXCEEDED');
-      if (p.target.state === 'existing') this.load(p.target.objectId, p.target.baseRevision);
-      if (p.source.kind === 'proposal')
-        this.store.one('SELECT id FROM proposals WHERE id=?', p.source.proposalId);
-      if (p.source.kind === 'revision') this.load(p.source.ref.objectId, p.source.ref.revision);
-      const hash = digest({ target: p.target, source: p.source, content: p.content });
-      const previous = this.store.maybe(
-        'SELECT * FROM drafts WHERE namespace=? AND id=?',
-        a.actor.namespace,
-        p.draftId,
-      );
-      if (previous && (!previous.retained || p.generation < Number(previous.generation)))
-        fail('STALE_REVISION', { currentGeneration: Number(previous.generation) });
-      if (previous && p.generation === previous.generation) {
-        if (previous.digest !== hash) fail('IDEMPOTENCY_KEY_REUSED');
-        return this.draftReceipt(previous);
-      }
-      this.store.db
-        .prepare(
-          'INSERT INTO drafts VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(namespace,id) DO UPDATE SET generation=excluded.generation,target_json=excluded.target_json,source_json=excluded.source_json,content_json=excluded.content_json,digest=excluded.digest,retained=1,updated_at=excluded.updated_at',
-        )
-        .run(
-          a.actor.namespace,
-          p.draftId,
-          p.generation,
-          canonical(p.target),
-          canonical(p.source),
-          canonical(p.content),
-          hash,
-          1,
-          now(),
-        );
-      return this.draftReceipt(
-        this.store.one(
-          'SELECT * FROM drafts WHERE namespace=? AND id=?',
-          a.actor.namespace,
-          p.draftId,
-        ),
-      );
-    });
+    return this.command(context, SaveDraftSchema, input, 'draft.save', (a, p) =>
+      this.persistDraft(a.actor, p),
+    );
   }
+  private persistDraft(actor: Actor, p: z.infer<typeof SaveDraftSchema>): DraftReceipt {
+    if (bytes(p.content) > MAX_OBJECT_BYTES) fail('LIMIT_EXCEEDED');
+    if (p.target.state === 'existing') this.load(p.target.objectId, p.target.baseRevision);
+    if (p.source.kind === 'proposal')
+      this.store.one('SELECT id FROM proposals WHERE id=?', p.source.proposalId);
+    if (p.source.kind === 'revision') this.load(p.source.ref.objectId, p.source.ref.revision);
+    const hash = digest({ target: p.target, source: p.source, content: p.content });
+    const previous = this.store.maybe(
+      'SELECT * FROM drafts WHERE namespace=? AND id=?',
+      actor.namespace,
+      p.draftId,
+    );
+    if (previous && (!previous.retained || p.generation < Number(previous.generation)))
+      fail('STALE_REVISION', { currentGeneration: Number(previous.generation) });
+    if (previous && p.generation === previous.generation) {
+      if (previous.digest !== hash) fail('IDEMPOTENCY_KEY_REUSED');
+      return this.draftReceipt(previous);
+    }
+    this.store.db
+      .prepare(
+        'INSERT INTO drafts VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(namespace,id) DO UPDATE SET generation=excluded.generation,target_json=excluded.target_json,source_json=excluded.source_json,content_json=excluded.content_json,digest=excluded.digest,retained=1,updated_at=excluded.updated_at',
+      )
+      .run(
+        actor.namespace,
+        p.draftId,
+        p.generation,
+        canonical(p.target),
+        canonical(p.source),
+        canonical(p.content),
+        hash,
+        1,
+        now(),
+      );
+    return this.draftReceipt(
+      this.store.one('SELECT * FROM drafts WHERE namespace=? AND id=?', actor.namespace, p.draftId),
+    );
+  }
+
   listDrafts(context: Context, input: unknown): Result<DraftPage> {
     const p = safe(() => parse(DraftListSchema, input));
     if (!p.ok) return p;
@@ -1424,7 +1466,14 @@ export class Engine {
     tool: 'objects_query' | 'text_search',
   ): Result<QueryPage> {
     const parsed = safe(() =>
-      parse(tool === 'text_search' ? TextSearchSchema : QuerySchema, input),
+      parse(
+        tool === 'text_search'
+          ? TextSearchSchema
+          : context.kind === 'human'
+            ? HumanQuerySchema
+            : QuerySchema,
+        input,
+      ),
     );
     if (!parsed.ok) return parsed;
     const p = parsed.value;
@@ -1451,7 +1500,13 @@ export class Engine {
           fail('CURSOR_STALE');
         afterId = cursor.data.afterId;
       }
-      const predicates = [scope.sql, "r.lifecycle='active'", 'o.id>?'];
+      const lifecycle =
+        context.kind === 'human' && 'lifecycle' in p.filter ? p.filter.lifecycle : 'active';
+      const predicates = [scope.sql, 'o.id>?'];
+      if (lifecycle !== 'all')
+        predicates.push(
+          lifecycle === 'archived' ? "r.lifecycle='archived'" : "r.lifecycle='active'",
+        );
       const params: SQLInputValue[] = [...scope.values, afterId];
       if (p.filter.kind) {
         predicates.push('o.kind=?');
@@ -1493,6 +1548,8 @@ export class Engine {
         params.push(q);
         searchMode = 'literal';
         if (
+          lifecycle !== 'all' &&
+          lifecycle !== 'archived' &&
           Array.from(q).length >= 3 &&
           /[\p{L}\p{N}]{3}/u.test(q) &&
           !Array.from(q).some((c) => c.codePointAt(0)! < 32)

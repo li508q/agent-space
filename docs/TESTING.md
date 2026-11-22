@@ -8,6 +8,7 @@ Status: product core, actual product stdio, native boundary and human–agent ve
 npm ci
 npm run check
 npm run test:core
+npm run test:local
 npm run build:core
 npm run build
 npm run test:protocol
@@ -16,7 +17,7 @@ npm run test:desktop
 npm run format:check
 ```
 
-`check` runs strict TypeScript, ESLint with zero allowed warnings, real core/agent builds and the contract, core, editor, localization, desktop unit and real standalone protocol suites. The core subset includes six boundary-schema tests and twelve integration groups; its concurrency worker imports `dist/core/index.js` in independently spawned Node processes. Tests use private temporary file-backed spaces and synthetic material. No browser, protocol mock or phase 2 probe substitutes for these core checks. Node 22 emits its documented experimental SQLite warning; that is distinct from lint warnings.
+`check` runs strict TypeScript, ESLint with zero allowed warnings, real core/agent builds and the contract, core, editor, localization, desktop unit and real standalone protocol suites. The Core suite includes boundary-schema and real persistence/context/import/artifact integration groups; its concurrency worker imports `dist/core/index.js` in independently spawned Node processes. Tests use private temporary file-backed spaces and synthetic material. No browser, protocol mock or phase 2 probe substitutes for these core checks. Node 22 emits its documented experimental SQLite warning; that is distinct from lint warnings.
 
 | Actual core check              | Observed result                                                                                                                                                                                                                                                                                                                                                                                             |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -64,32 +65,59 @@ An official split SDK 2.4.0 stdio client/server probe exercised legacy and pinne
 
 The table records the original core baseline. The native/protocol subsets above add integration evidence; complete user-facing acceptance still requires the remaining checks.
 
-| PRD ID | Current evidence                                                                  | Still required                                                                              |
-| ------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| AS-01  | Real core create/open/example/persist/reopen without provider credentials         | Native direct-use flow                                                                      |
-| AS-02  | No import pipeline implemented                                                    | Folder preview/grouping, originals, retry/results and native references in phase 4          |
-| AS-03  | Direct save/no-op/generation, durable draft/base recovery and failure guards      | Actual editor/IME, navigation/close, async response relevance and 800ms autosave            |
-| AS-04  | Stable identity, current/pinned relations, independent object kinds               | Project organization/continuation/accumulation UI                                           |
-| AS-05  | Real typed labels/values and equality, including dates                            | Record editor/view and export/restore round-trip                                            |
-| AS-06  | Budgeted fixed reads, scoped literal/typed query, signed cursor/sequence behavior | Protocol invocation, description/expansion and accepted-evidence continuation               |
-| AS-07  | Restricted live-authorized AgentServices; SDK transport feasibility only          | Actual built product MCP/CLI and native review of the same proposal                         |
-| AS-08  | Core creation/update/review/CAS/receipt/hash/status/conflict tests                | Readable diff/source/status experience in Electron                                          |
-| AS-09  | Durable authority/proposal/receipt/prepared activity and independent polling      | Real adapter calls and truthful native activity presentation                                |
-| AS-10  | Conditional undo/ABA/policy protection, archive/history foundation                | Native readable old-version/new-draft recovery path                                         |
-| AS-11  | Earlier engine backup feasibility only                                            | Consistent product backup, independent restore validation and readable export               |
-| AS-12  | Core strict inputs, grant/scope and private creation permissions                  | Native renderer/preload/sender/CSP/Markdown/link enforcement and real tool surface          |
-| AS-13  | Five-language dictionary/error/date/count foundation; authored text preserved     | Five-language native flows, focus, composition and layout                                   |
-| AS-14  | Reproducible core build and independent compiled worker                           | Desktop build, moved packaged macOS app and bundled-runtime agent entry                     |
-| AS-15  | Technical/API/test material reflects the implemented subset                       | Five-language publication, real screenshots/license/contribution/CI and remote verification |
+| PRD ID | Current evidence                                                                               | Still required                                                                              |
+| ------ | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| AS-01  | Real core create/open/example/persist/reopen without provider credentials                      | Native direct-use flow                                                                      |
+| AS-02  | Real readonly folder scan/preview, transactional import/dedup/restart/relative-path results    | Folder preview/grouping, originals, retry/results and native references in phase 4          |
+| AS-03  | Direct save/no-op/generation, durable draft/base recovery and failure guards                   | Actual editor/IME, navigation/close, async response relevance and 800ms autosave            |
+| AS-04  | Stable identity, current/pinned relations, independent object kinds                            | Project organization/continuation/accumulation UI                                           |
+| AS-05  | Real typed labels/values and equality, including dates                                         | Record editor/view and export/restore round-trip                                            |
+| AS-06  | Budgeted fixed reads, scoped literal/typed query, signed cursor/sequence behavior              | Protocol invocation, description/expansion and accepted-evidence continuation               |
+| AS-07  | Restricted live-authorized AgentServices; SDK transport feasibility only                       | Actual built product MCP/CLI and native review of the same proposal                         |
+| AS-08  | Core creation/update/review/CAS/receipt/hash/status/conflict tests                             | Readable diff/source/status experience in Electron                                          |
+| AS-09  | Durable authority/proposal/receipt/prepared activity and independent polling                   | Real adapter calls and truthful native activity presentation                                |
+| AS-10  | Conditional undo/ABA/policy protection, archive/history foundation                             | Native readable old-version/new-draft recovery path                                         |
+| AS-11  | Product consistent backup/restore/current export, real512MiB-full source and concurrent writer | Consistent product backup, independent restore validation and readable export               |
+| AS-12  | Core strict inputs, grant/scope and private creation permissions                               | Native renderer/preload/sender/CSP/Markdown/link enforcement and real tool surface          |
+| AS-13  | Five-language dictionary/error/date/count foundation; authored text preserved                  | Five-language native flows, focus, composition and layout                                   |
+| AS-14  | Reproducible core build and independent compiled worker                                        | Desktop build, moved packaged macOS app and bundled-runtime agent entry                     |
+| AS-15  | Technical/API/test material reflects the implemented subset                                    | Five-language publication, real screenshots/license/contribution/CI and remote verification |
 
 No complete native/product AS row is claimed passed by this core milestone.
 
 ## Next blocking checks
 
-The next assignment must connect the exact [Core API](CORE_API.md), not invent a separate mutation path. Exercise an actual SDK client and Electron app: receive/review/apply a real create/update proposal, refresh clean material from another process, preserve a dirty/composing buffer, read a cited version and return to review, reject conflicts, conditionally recover, then close/reopen. Verify sandbox/isolation/no Node in renderer, sender and request bounds, safe Markdown, navigation/links and no raw IPC/fs/SQL/process exposure.
-
-Only prepared activity is implemented: `ActivityEntry.stage='prepared'` means “material prepared to return.” It does not establish stdout emission, host receipt, understanding or task completion. Stage `committed-change` is a local domain event, which may be a pending proposal rather than an applied body. The six phase 3 agent methods retain actual entry names; separate search/description/expansion remain unadvertised. Adapter exit before response belongs to subsequent protocol testing.
-
-Phase 4 must provide a bounded accepted-change/evidence read for another grant: find the reason and exact cited source revision through a change pointer, retain that pin after the source advances, and deny unauthorized source details. Keep the original proposal envelope; do not silently append unreviewed relations/body. Folder import, backup/export/restore, broader organization and typed views follow their bounded implementation slices.
+The exact [Core API](CORE_API.md) and local contracts now have real protocol/native integration evidence. Local data tests below add Common Core and filesystem checks; the coordinator must still exercise native import preview/results/relink/restore/recovery controls, five-language layouts and packaging. Prepared activity remains “material prepared to return,” never host receipt, understanding or completed model work. Folder import does not mark knowledge reviewed or extend any agent scope.
 
 Phase 5 checks five-language controls/long conflict text, CJK composition, focus/source return, keyboard navigation, 980px/zoom, realistic data performance, interrupted storage operations and a moved macOS app using its bundled agent runtime. Power-cut durability, actual full disk, unsupported/network filesystems, signing/notarization, Windows/Linux and arbitrary native-file synchronization remain unverified until separately exercised. Runtime/driver/SDK updates reopen relevant compatibility checks.
+
+## Local data and recovery evidence
+
+`npm run test:local` compiles Core and runs real-file tests in `tests/core/local-import.test.ts`, `local-artifacts.test.ts` and no-window `tests/desktop/local-unit.test.ts`. The ordinary `check`/`test` include this subset too. This is product code against real SQLite/files, not the phase-2 probe.
+
+| Boundary                              | Actual evidence                                                                                                                                                                                                                                                            | Limit                                                                          |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Import from SC-01 directory practices | Knowledge Markdown, confirmed project/HANDOFF membership, independent repo reference, BOM/CRLF/CJK/emoji preservation; original bytes unchanged; no knowledge-review flag                                                                                                  | Replaceable profile, no automatic continuation/source synchronization          |
+| Preview/resource limits               | Complete Result byte pages, only page-needed groups, explicit binary/UTF8/oversize/depth/1,000-visit outcomes and symlink/dependency/build pruning                                                                                                                         | Not a large-directory latency guarantee                                        |
+| Journal/retry/concurrency             | Pause/reopen/resume, source-change reapproval, later human correction protected on reimport, new source-version copy; two real processes compete across separate runs for one source claim                                                                                 | Commit is per item, not atomic folder import                                   |
+| Response loss                         | A compiled worker commits then exits without response; independently spawned retries recover one original item result with one revision; changed same-key body fails                                                                                                       | No power-cut simulation                                                        |
+| Snapshot/export/restore               | Current-only export includes archived/typed/ref metadata and zero excluded-history counts; full backup retains revisions/proposals/receipts/drafts; restore changes instance, disables old grants and preserves old receipt bytes; foreign draft is read/forked explicitly | External originals and historical pin bodies are excluded from readable export |
+| Interrupted/online snapshot           | Process exits after consistent copy before manifest; incomplete destination is unusable and same operation resumes original copy; another real process commits between online-backup steps and copy watermarks/counts match                                                | Destination disk-full and power loss not simulated                             |
+| Actual source capacity                | Source reaches the real512MiB page ceiling and a Core write returns LIMIT_EXCEEDED; read-only-source backup/export both succeed without added authority/activity/receipts                                                                                                  | This is SQLite capacity, not a physically full host disk                       |
+| Native coordinator                    | Real Workspace/Core/files with injected chooser results; opaque/binding guarded previews, changed-source refusal, original-confirm/relink replay, backup/restore progress, explicit open and restored-run reattachment                                                     | No GUI/OS dialog acceptance in this subset                                     |
+
+`npm run typecheck:desktop` checks the complete named Main/preload contract. Trusted raw start/commit/manifest/locator APIs are absent from the bridge. Local format/core version2 refuses unreleased v1/newer formats; it does not migrate the source. Current evidence does not establish a native import/restore UI, moved bundle, signature, physical IME, destination disk-full/power-loss durability or external-file CAS. See [LOCAL_DATA.md](LOCAL_DATA.md) for exact user/data behavior.
+
+Final local subset:16/16; combined contract/Core/UI-unit/desktop-unit/real standalone protocol suite:102/102 on this candidate. ESLint/format and scoped product TypeScript checks have passed for this implementation subset. The integrated TypeScript/native gates are repeated after dependent UI/test changes settle. These are implementation checks, not native4F acceptance.
+
+A separate headless product-Core interoperability check opened a Node22-created format2 source/backup under Electron45.4.1/bundledNode24.22.3, validated its schema, restored a new instance and preserved Unicode. It used Electron's Node mode, with no desktop window/preferences. It does not substitute for native UI or relocated-bundle checks.
+
+## Confirmed-backup acquisition regression
+
+The formal local-artifact regression first failed on the earlier implementation: a separate Node process replaced reviewed backup B1 with a healthy B2 of the same space/instance after inspection but before copying. Restore returned success with B2's watermarks and B1's counts. The corrected implementation rejects that acquisition before changing metadata or publishing a space.
+
+The new tests use production Core saves/backups and a dedicated filesystem worker. They also inject a healthy B2 into reusable scratch and replace the acquired staging file at the validation boundary. Each case refuses publication and clears the rejected scratch; restoring B1 and retrying the same operation produces B1 only. Full metadata/count checks, grant revocation, normal complete-receipt replay and protection of later human edits are asserted. An unfinished target with later heads is refused without writing over them. These are controlled engineering races, not a claim of process-level filesystem isolation or external disk CAS. Normal backup/export, actual SQLite-full-source extraction and independent runtime checks remain separate regressions.
+
+The strict pin exposed a genuine runtime difference: re-running SQLite's online backup API on a closed Node-created backup under the Electron SQLite version could change physical header bytes. Restore now uses a bounded byte-for-byte acquisition for closed backups; live-space backup/export still use the online API. A formal macOS-only, no-window Electron Node-mode worker restores the Node-created backup using its original SHA, preserving content, counts and watermarks with a new instance. Other platforms skip that native-runtime check explicitly.
+
+Fix validation: `npm run test:local`19/19, `npm run test:core`35/35 and `npm run test:protocol`15/15 passed, along with local scoped TypeScript, changed-file ESLint and formatting. The first B1→B2 regression was observed failing before the production fix and passing afterward. Native GUI and packaged-app reruns remain separate.

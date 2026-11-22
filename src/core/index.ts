@@ -135,6 +135,57 @@ class HumanFacade implements HumanServices {
   discardDraft(input: unknown) {
     return this.#core.discardDraft(this.#context, input);
   }
+  setLifecycle(input: unknown) {
+    return this.#core.local.setLifecycle(this.#context, input);
+  }
+
+  relinkExternalAsset(input: unknown) {
+    return this.#core.local.relinkExternalAsset(this.#context, input);
+  }
+
+  startImport(input: unknown) {
+    return this.#core.local.startImport(this.#context, input);
+  }
+
+  commitImportItem(input: unknown) {
+    return this.#core.local.commitImportItem(this.#context, input);
+  }
+
+  retryImport(input: unknown) {
+    return this.#core.local.retryImport(this.#context, input);
+  }
+
+  pauseImport(input: unknown) {
+    return this.#core.local.pauseImport(this.#context, input);
+  }
+
+  resumeImport(input: unknown) {
+    return this.#core.local.resumeImport(this.#context, input);
+  }
+
+  getImportManifest(input: unknown) {
+    return this.#core.local.getImportManifest(this.#context, input);
+  }
+  getImport(input: unknown) {
+    return this.#core.local.getImport(this.#context, input);
+  }
+
+  listImports(input: unknown) {
+    return this.#core.local.listImports(this.#context, input);
+  }
+
+  listRecoverableDrafts(input: unknown) {
+    return this.#core.local.listRecoverableDrafts(this.#context, input);
+  }
+
+  readRecoverableDraft(input: unknown) {
+    return this.#core.local.readRecoverableDraft(this.#context, input);
+  }
+
+  copyRecoverableDraft(input: unknown) {
+    return this.#core.local.copyRecoverableDraft(this.#context, input);
+  }
+
   changes(input: unknown) {
     return this.#core.changes(this.#context, input);
   }

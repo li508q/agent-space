@@ -16,9 +16,35 @@ import { join } from 'node:path';
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { SpaceStatus } from '../contracts/core.js';
 import { CORE_VERSION, FORMAT_VERSION, fail, checkedJson } from './support.js';
+import { IMPORT_SCHEMA_SQL } from './local/schema.js';
 
 export type Row = Record<string, string | number | null | Uint8Array>;
 const APP_ID = 0x41535043;
+export const FORMAT_SCHEMA_SQL =
+  `
+      CREATE TABLE space_meta(id INTEGER PRIMARY KEY CHECK(id=1),space_id TEXT NOT NULL,instance_id TEXT NOT NULL,title TEXT NOT NULL,example INTEGER NOT NULL,cursor_secret TEXT NOT NULL,core_version INTEGER NOT NULL,authority_seq INTEGER NOT NULL) STRICT;
+      CREATE TABLE objects(id TEXT PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN ('document','project','record','asset')),head INTEGER NOT NULL,FOREIGN KEY(id,head) REFERENCES revisions(object_id,revision) DEFERRABLE INITIALLY DEFERRED) STRICT;
+      CREATE TABLE revisions(object_id TEXT NOT NULL REFERENCES objects(id),revision INTEGER NOT NULL,parent INTEGER,content_json TEXT NOT NULL,policy_json TEXT NOT NULL,origin_json TEXT NOT NULL,lifecycle TEXT NOT NULL CHECK(lifecycle IN ('active','archived')),digest TEXT NOT NULL,actor_json TEXT NOT NULL,created_at TEXT NOT NULL,change_id TEXT NOT NULL UNIQUE,authority_seq INTEGER NOT NULL,PRIMARY KEY(object_id,revision),FOREIGN KEY(object_id,parent) REFERENCES revisions(object_id,revision)) STRICT;
+      CREATE TABLE search_projection(object_id TEXT PRIMARY KEY REFERENCES objects(id),normalized TEXT NOT NULL) STRICT;
+      CREATE VIRTUAL TABLE search_fts USING fts5(object_id UNINDEXED,normalized,tokenize='trigram');
+      CREATE TABLE changes(seq INTEGER PRIMARY KEY,id TEXT NOT NULL UNIQUE,action TEXT NOT NULL,object_id TEXT,before_revision INTEGER,after_revision INTEGER,proposal_id TEXT,actor_json TEXT NOT NULL,recorded_at TEXT NOT NULL) STRICT;
+      CREATE TABLE receipts(namespace TEXT NOT NULL,op_key TEXT NOT NULL,command TEXT NOT NULL,request_digest TEXT NOT NULL,result_json TEXT NOT NULL,summary_json TEXT NOT NULL,access_json TEXT NOT NULL,recorded_at TEXT NOT NULL,PRIMARY KEY(namespace,op_key)) STRICT;
+      CREATE TABLE grants(id TEXT PRIMARY KEY,generation INTEGER NOT NULL,spec_json TEXT NOT NULL,token_hash TEXT NOT NULL,revoked INTEGER NOT NULL,created_at TEXT NOT NULL) STRICT;
+      CREATE TABLE proposals(id TEXT PRIMARY KEY,action TEXT NOT NULL,target_id TEXT NOT NULL,kind TEXT NOT NULL,base_revision INTEGER,payload_json TEXT NOT NULL,payload_hash TEXT NOT NULL,grant_id TEXT NOT NULL REFERENCES grants(id),status TEXT NOT NULL CHECK(status IN ('pending','conflicted','applied','rejected')),status_version INTEGER NOT NULL,result_revision INTEGER,created_at TEXT NOT NULL,resolved_at TEXT,conflict_code TEXT) STRICT;
+      CREATE TABLE reservations(object_id TEXT PRIMARY KEY,proposal_id TEXT NOT NULL UNIQUE REFERENCES proposals(id)) STRICT;
+      CREATE TABLE proposal_seen(proposal_id TEXT NOT NULL REFERENCES proposals(id),namespace TEXT NOT NULL,seen INTEGER NOT NULL,PRIMARY KEY(proposal_id,namespace)) STRICT;
+      CREATE TABLE knowledge_reviews(object_id TEXT NOT NULL,revision INTEGER NOT NULL,actor_json TEXT NOT NULL,reviewed_at TEXT NOT NULL,PRIMARY KEY(object_id,revision),FOREIGN KEY(object_id,revision) REFERENCES revisions(object_id,revision)) STRICT;
+      CREATE TABLE drafts(namespace TEXT NOT NULL,id TEXT NOT NULL,generation INTEGER NOT NULL,target_json TEXT NOT NULL,source_json TEXT NOT NULL,content_json TEXT,digest TEXT NOT NULL,retained INTEGER NOT NULL,updated_at TEXT NOT NULL,PRIMARY KEY(namespace,id)) STRICT;
+      CREATE TABLE activity(id INTEGER PRIMARY KEY AUTOINCREMENT,kind TEXT NOT NULL,actor_json TEXT NOT NULL,recorded_at TEXT NOT NULL,object_id TEXT,proposal_id TEXT,authority_seq INTEGER,tool TEXT,delivered_json TEXT NOT NULL,details_json TEXT NOT NULL) STRICT;
+      CREATE INDEX changes_object ON changes(object_id,seq);
+      CREATE INDEX proposals_status ON proposals(status,id);
+      CREATE TRIGGER immutable_object_identity BEFORE UPDATE OF id,kind ON objects BEGIN SELECT RAISE(ABORT,'immutable object identity'); END;
+      CREATE TRIGGER immutable_revision_update BEFORE UPDATE ON revisions BEGIN SELECT RAISE(ABORT,'immutable revision'); END;
+      CREATE TRIGGER immutable_revision_delete BEFORE DELETE ON revisions BEGIN SELECT RAISE(ABORT,'immutable revision'); END;
+      CREATE TRIGGER immutable_receipt_update BEFORE UPDATE ON receipts BEGIN SELECT RAISE(ABORT,'immutable receipt'); END;
+      CREATE TRIGGER immutable_receipt_delete BEFORE DELETE ON receipts BEGIN SELECT RAISE(ABORT,'immutable receipt'); END;
+      CREATE TRIGGER immutable_proposal BEFORE UPDATE OF id,action,target_id,kind,base_revision,payload_json,payload_hash,grant_id,created_at ON proposals BEGIN SELECT RAISE(ABORT,'immutable proposal'); END;
+` + IMPORT_SCHEMA_SQL;
 export class Store {
   readonly db: DatabaseSync;
   readonly secret: string;
@@ -140,8 +166,8 @@ export class Store {
       instanceId: String(m.instance_id),
       title: String(m.title),
       example: Boolean(m.example),
-      formatVersion: 1,
-      coreContractVersion: 1,
+      formatVersion: 2,
+      coreContractVersion: 2,
       authoritySequence: Number(m.authority_seq),
       activitySequence: Number(this.one('SELECT COALESCE(MAX(id),0) AS seq FROM activity').seq),
     };
@@ -150,33 +176,12 @@ export class Store {
     if (this.db.isOpen) this.db.close();
   }
   private initialize(options: { title: string; example: boolean }): void {
-    this.db.exec(`BEGIN IMMEDIATE;
-      PRAGMA application_id=${APP_ID}; PRAGMA user_version=1;
-      CREATE TABLE space_meta(id INTEGER PRIMARY KEY CHECK(id=1),space_id TEXT NOT NULL,instance_id TEXT NOT NULL,title TEXT NOT NULL,example INTEGER NOT NULL,cursor_secret TEXT NOT NULL,core_version INTEGER NOT NULL,authority_seq INTEGER NOT NULL) STRICT;
-      CREATE TABLE objects(id TEXT PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN ('document','project','record','asset')),head INTEGER NOT NULL,FOREIGN KEY(id,head) REFERENCES revisions(object_id,revision) DEFERRABLE INITIALLY DEFERRED) STRICT;
-      CREATE TABLE revisions(object_id TEXT NOT NULL REFERENCES objects(id),revision INTEGER NOT NULL,parent INTEGER,content_json TEXT NOT NULL,policy_json TEXT NOT NULL,origin_json TEXT NOT NULL,lifecycle TEXT NOT NULL CHECK(lifecycle IN ('active','archived')),digest TEXT NOT NULL,actor_json TEXT NOT NULL,created_at TEXT NOT NULL,change_id TEXT NOT NULL UNIQUE,authority_seq INTEGER NOT NULL,PRIMARY KEY(object_id,revision),FOREIGN KEY(object_id,parent) REFERENCES revisions(object_id,revision)) STRICT;
-      CREATE TABLE search_projection(object_id TEXT PRIMARY KEY REFERENCES objects(id),normalized TEXT NOT NULL) STRICT;
-      CREATE VIRTUAL TABLE search_fts USING fts5(object_id UNINDEXED,normalized,tokenize='trigram');
-      CREATE TABLE changes(seq INTEGER PRIMARY KEY,id TEXT NOT NULL UNIQUE,action TEXT NOT NULL,object_id TEXT,before_revision INTEGER,after_revision INTEGER,proposal_id TEXT,actor_json TEXT NOT NULL,recorded_at TEXT NOT NULL) STRICT;
-      CREATE TABLE receipts(namespace TEXT NOT NULL,op_key TEXT NOT NULL,command TEXT NOT NULL,request_digest TEXT NOT NULL,result_json TEXT NOT NULL,summary_json TEXT NOT NULL,access_json TEXT NOT NULL,recorded_at TEXT NOT NULL,PRIMARY KEY(namespace,op_key)) STRICT;
-      CREATE TABLE grants(id TEXT PRIMARY KEY,generation INTEGER NOT NULL,spec_json TEXT NOT NULL,token_hash TEXT NOT NULL,revoked INTEGER NOT NULL,created_at TEXT NOT NULL) STRICT;
-      CREATE TABLE proposals(id TEXT PRIMARY KEY,action TEXT NOT NULL,target_id TEXT NOT NULL,kind TEXT NOT NULL,base_revision INTEGER,payload_json TEXT NOT NULL,payload_hash TEXT NOT NULL,grant_id TEXT NOT NULL REFERENCES grants(id),status TEXT NOT NULL CHECK(status IN ('pending','conflicted','applied','rejected')),status_version INTEGER NOT NULL,result_revision INTEGER,created_at TEXT NOT NULL,resolved_at TEXT,conflict_code TEXT) STRICT;
-      CREATE TABLE reservations(object_id TEXT PRIMARY KEY,proposal_id TEXT NOT NULL UNIQUE REFERENCES proposals(id)) STRICT;
-      CREATE TABLE proposal_seen(proposal_id TEXT NOT NULL REFERENCES proposals(id),namespace TEXT NOT NULL,seen INTEGER NOT NULL,PRIMARY KEY(proposal_id,namespace)) STRICT;
-      CREATE TABLE knowledge_reviews(object_id TEXT NOT NULL,revision INTEGER NOT NULL,actor_json TEXT NOT NULL,reviewed_at TEXT NOT NULL,PRIMARY KEY(object_id,revision),FOREIGN KEY(object_id,revision) REFERENCES revisions(object_id,revision)) STRICT;
-      CREATE TABLE drafts(namespace TEXT NOT NULL,id TEXT NOT NULL,generation INTEGER NOT NULL,target_json TEXT NOT NULL,source_json TEXT NOT NULL,content_json TEXT,digest TEXT NOT NULL,retained INTEGER NOT NULL,updated_at TEXT NOT NULL,PRIMARY KEY(namespace,id)) STRICT;
-      CREATE TABLE activity(id INTEGER PRIMARY KEY AUTOINCREMENT,kind TEXT NOT NULL,actor_json TEXT NOT NULL,recorded_at TEXT NOT NULL,object_id TEXT,proposal_id TEXT,authority_seq INTEGER,tool TEXT,delivered_json TEXT NOT NULL,details_json TEXT NOT NULL) STRICT;
-      CREATE INDEX changes_object ON changes(object_id,seq);
-      CREATE INDEX proposals_status ON proposals(status,id);
-      CREATE TRIGGER immutable_object_identity BEFORE UPDATE OF id,kind ON objects BEGIN SELECT RAISE(ABORT,'immutable object identity'); END;
-      CREATE TRIGGER immutable_revision_update BEFORE UPDATE ON revisions BEGIN SELECT RAISE(ABORT,'immutable revision'); END;
-      CREATE TRIGGER immutable_revision_delete BEFORE DELETE ON revisions BEGIN SELECT RAISE(ABORT,'immutable revision'); END;
-      CREATE TRIGGER immutable_receipt_update BEFORE UPDATE ON receipts BEGIN SELECT RAISE(ABORT,'immutable receipt'); END;
-      CREATE TRIGGER immutable_receipt_delete BEFORE DELETE ON receipts BEGIN SELECT RAISE(ABORT,'immutable receipt'); END;
-      CREATE TRIGGER immutable_proposal BEFORE UPDATE OF id,action,target_id,kind,base_revision,payload_json,payload_hash,grant_id,created_at ON proposals BEGIN SELECT RAISE(ABORT,'immutable proposal'); END;
-    `);
+    this.db.exec(
+      `BEGIN IMMEDIATE; PRAGMA application_id=${APP_ID}; PRAGMA user_version=${FORMAT_VERSION};`,
+    );
+    this.db.exec(FORMAT_SCHEMA_SQL);
     this.db
-      .prepare('INSERT INTO space_meta VALUES (1,?,?,?,?,?,1,0)')
+      .prepare(`INSERT INTO space_meta VALUES (1,?,?,?,?,?,${CORE_VERSION},0)`)
       .run(
         randomUUID(),
         randomUUID(),

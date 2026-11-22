@@ -301,10 +301,14 @@ test('malformed public input, schema versions and capacity fail clearly without 
   error(h.readObject({ objectId: id(50) }), 'NOT_FOUND');
   const db = new DatabaseSync(join(f.directory, 'space.sqlite'));
   t.after(() => db.close());
-  db.exec('PRAGMA user_version=2');
+  db.exec('PRAGMA user_version=1');
   error(h.status(), 'SCHEMA_UNSUPPORTED');
   error(Space.open(f.directory), 'SCHEMA_UNSUPPORTED');
-  assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 2);
+  assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 1);
+  db.exec('PRAGMA user_version=3');
+  error(h.status(), 'SCHEMA_UNSUPPORTED');
+  error(Space.open(f.directory), 'SCHEMA_UNSUPPORTED');
+  assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 3);
   const bad = join(f.root, 'bad');
   mkdirSync(bad);
   const filename = join(bad, 'space.sqlite');

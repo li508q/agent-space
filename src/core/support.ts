@@ -3,8 +3,8 @@ import { z } from 'zod';
 import type { ErrorCode, Failure, Result } from '../contracts/errors.js';
 
 export const MAX_OBJECT_BYTES = 1_048_576;
-export const FORMAT_VERSION = 1;
-export const CORE_VERSION = 1;
+export const FORMAT_VERSION = 2;
+export const CORE_VERSION = 2;
 export class CoreError extends Error {
   constructor(public readonly failure: Failure) {
     super(failure.error.code);

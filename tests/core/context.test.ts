@@ -249,7 +249,7 @@ test('another agent follows an accepted change to the old source pin after sourc
     'NOT_FOUND',
   );
   const schema = new DatabaseSync(join(f.directory, 'space.sqlite'), { readOnly: true });
-  assert.equal(schema.prepare('PRAGMA user_version').get()?.user_version, 1);
+  assert.equal(schema.prepare('PRAGMA user_version').get()?.user_version, 2);
   schema.close();
 });
 

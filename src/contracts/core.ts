@@ -22,6 +22,13 @@ import type {
 } from './schema.js';
 import type { Result } from './errors.js';
 import type { ContextServices, ContextUsageHint } from './context.js';
+import type {
+  LocalHumanServices,
+  HumanQueryInput,
+  HumanQueryPage,
+  ImportItemState,
+  ImportRunState,
+} from './local.js';
 export type {
   SchemaDescribeInput,
   SchemaDescription,
@@ -160,8 +167,8 @@ export type SpaceStatus = {
   instanceId: string;
   title: string;
   example: boolean;
-  formatVersion: 1;
-  coreContractVersion: 1;
+  formatVersion: 2;
+  coreContractVersion: 2;
   authoritySequence: number;
   activitySequence: number;
 };
@@ -373,7 +380,21 @@ export type ReceiptBusinessOutcome =
     }
   | { kind: 'draft'; draftId: string; generation: number; retained: boolean; digest: string }
   | { kind: 'grant'; grantId: string; generation: number; revoked: boolean }
-  | { kind: 'knowledge-review'; ref: PinnedRef };
+  | { kind: 'knowledge-review'; ref: PinnedRef }
+  | {
+      kind: 'import';
+      runId: string;
+      manifestDigest: string;
+      state: ImportRunState;
+      progressRevision: number;
+    }
+  | {
+      kind: 'import-item';
+      runId: string;
+      itemId: string;
+      state: ImportItemState;
+      ref: PinnedRef | null;
+    };
 export type ReceiptSummary = {
   operationKey: string;
   command: string;
@@ -400,12 +421,12 @@ export type DiscoverResult = {
   limits: { objectBytes: number; readBytes: number; queryItems: number };
 };
 
-export interface HumanServices extends ContextServices {
+export interface HumanServices extends ContextServices, LocalHumanServices {
   status(): Result<SpaceStatus>;
   createObject(input: CreateObjectInput): Result<WriteResult>;
   saveObject(input: z.infer<typeof import('./schema.js').HumanSaveSchema>): Result<WriteResult>;
   readObject(input: z.infer<typeof import('./schema.js').HumanReadSchema>): Result<ObjectView>;
-  query(input: QueryInput): Result<QueryPage>;
+  query(input: HumanQueryInput): Result<HumanQueryPage>;
   history(input: z.infer<typeof HistorySchema>): Result<HistoryPage>;
   setPolicy(input: z.infer<typeof SetPolicySchema>): Result<WriteResult>;
   markKnowledgeReviewed(input: z.infer<typeof KnowledgeReviewSchema>): Result<KnowledgeReview>;
