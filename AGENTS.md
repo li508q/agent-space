@@ -6,6 +6,8 @@ Build a focused, local-first personal workbench for clear human–AI collaborati
 
 The user explicitly requested phased delivery under the main session. Read `.agents/skills/agent-space-delivery/SKILL.md` and `docs/DELIVERY.md`. Execute only the currently assigned phase; return its artifact and evidence before proceeding. Do not interpret the overall product objective as authorization to skip product definition, PRD, technical contracts, or verification. A session asked to stop at a safe boundary must retain its work and report it, not continue the full application on its own.
 
+The user has explicitly delegated decisions within the focused brief to the coordinator. Do not ask the user to select routine product, architecture, or implementation options. Give a reasoned recommendation and evidence to the coordinator; the coordinator owns the phase decision and next assignment.
+
 ## Scope and quality
 
 - Follow `docs/product-brief.md`. Turn the user's actual pains into working flows, not a broad platform or a mock interface.
@@ -24,8 +26,8 @@ The user explicitly requested phased delivery under the main session. Read `.age
 
 ## Independent session boundaries
 
-- Product/UX reviewer owns only `.coordination/reviews/product-ux-independent.md`.
-- Architecture/reliability reviewer owns only `.coordination/reviews/architecture-independent.md`.
+- During the first independent pass, the product/UX reviewer owns only `.coordination/reviews/product-ux-independent.md`, and the architecture/reliability reviewer owns only `.coordination/reviews/architecture-independent.md`.
+- Later phase assignments may grant specific additional paths. In phase 2, the product/UX session owns `docs/UX.md`; the technical session owns architecture/contracts/implementation/testing material. Do not edit another owner's paths without coordinator integration.
 - The implementation session owns application code, tests, build scripts, assets, and implementation documentation. It must preserve the root coordinator's `AGENTS.md` and `docs/product-brief.md`.
 - Reviewers and implementer must not read each other's review reports or message each other during the independent pass. Use the same user brief and original evidence; form conclusions independently.
 - The root coordinator alone compares the independent findings and sends concrete integration feedback. Independence is an instruction and file-ownership boundary, not an operating-system sandbox.

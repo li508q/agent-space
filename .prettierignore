@@ -1,0 +1,10 @@
+node_modules
+dist
+release
+.coordination
+test-results
+playwright-report
+AGENTS.md
+docs/product-brief.md
+package-lock.json
+assets

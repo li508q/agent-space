@@ -6,7 +6,7 @@ A local personal workspace for writing, connected context, and human–agent col
 
 ## Delivery status
 
-AgentSpace is in staged development. Product scope and independent reviews are established; technical contracts and runtime choices are being verified next. There is no runnable application or published install package yet.
+AgentSpace is in staged development. Product scope, interaction and technical contracts, and runtime feasibility checks are established. The core collaboration slice is being implemented next; there is no runnable application or published install package yet.
 
 ## Product direction
 
@@ -22,6 +22,10 @@ AgentSpace is in staged development. Product scope and independent reviews are e
 - [Product brief](docs/product-brief.md)
 - [Product requirements and acceptance targets](docs/PRD.md)
 - [Phases and current milestone](docs/DELIVERY.md)
+- [Architecture and decisions](docs/ARCHITECTURE.md)
+- [Interaction specification](docs/UX.md)
+- [Implementation slices](docs/IMPLEMENTATION.md)
+- [Test strategy and current evidence](docs/TESTING.md)
 - [Contributor agent guidance](AGENTS.md)
 
 The first release focuses on local, single-user work. Its scope and verification targets are defined in the requirements; research proposals are not presented as implemented capabilities.

@@ -7,6 +7,8 @@ description: Coordinate staged product definition, architecture, implementation,
 
 Use this skill with the repository's `docs/product-brief.md`, `docs/PRD.md`, and `docs/DELIVERY.md`. Read the current phase and actual evidence before dispatching work. The user's central value is stronger human control through legible human–agent collaboration; a new feature must serve that value or an existing acceptance requirement.
 
+Use the PRD's interview-origin scenarios when choosing features and checks. Keep reported practice/pain, stated needs, jointly constructed examples, and engineering risk cases distinct. Do not promote a monthly example or a future vision into the product's required workflow.
+
 ## Bound each assignment
 
 Give each session an objective, source inputs, included and excluded scope, owned paths, expected artifact, meaningful checks, and a stopping point. Authorize only the current phase. Preserve already completed work when the user changes sequencing; do not let a session silently continue into later phases.

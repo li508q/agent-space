@@ -10,18 +10,36 @@ AgentSpace is a local personal workspace where people can read, write, organize,
 
 The first user works across multiple projects and agent tools, writes notes and documents, and reuses code, knowledge, and other assets. The workbench remains useful without a model account or API key.
 
-## Problems and user outcomes
+## Problems, risks, and user outcomes
 
-| Observed problem | Required user outcome |
-|---|---|
-| Context lives in separate conversations and folders | Find relevant material through one space and provide stable context to another agent |
-| Knowledge changes without a clear explanation | See the proposed or accepted change, its reason, sources, and actual status |
-| Editing and inspecting accumulated material is awkward | Write comfortably, understand save state, and inspect project accumulation directly |
-| Notes, documents, knowledge, project state, and assets are weakly connected | Use one set of objects and explicit references from different working views |
-| Agent work feels opaque | Inspect declared intent, material delivered by tools, proposals, and durable results |
-| Old output or recovery may overwrite newer human work | Detect stale bases and perform guarded recovery with a clear conflict path |
+| Reported problem or collaboration risk                                      | Required user outcome                                                                |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Context lives in separate conversations and folders                         | Find relevant material through one space and provide stable context to another agent |
+| Knowledge changes without a clear explanation                               | See the proposed or accepted change, its reason, sources, and actual status          |
+| Editing and inspecting accumulated material is awkward                      | Write comfortably, understand save state, and inspect project accumulation directly  |
+| Notes, documents, knowledge, project state, and assets are weakly connected | Use one set of objects and explicit references from different working views          |
+| Agent work feels opaque                                                     | Inspect declared intent, material delivered by tools, proposals, and durable results |
+| Old output or recovery may overwrite newer human work                       | Detect stale bases and perform guarded recovery with a clear conflict path           |
 
 The interface reports observable actions and declarations. A tool delivering content does not prove that a model understood it; a declared task does not prove it finished. Private model reasoning is outside the product's visibility.
+
+## Scenario provenance
+
+The first release is grounded in the user's material and the main-session interviews. Distinguish reported use from a requested capability, a jointly constructed example, and an engineering failure case.
+
+| ID    | Scenario or need                                                                                                                                  | Basis                                  | Product implication                                                                                                              |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| SC-01 | A simple folder contains an automatically maintained knowledge area, project subfolders with HANDOFF, and a separate repository area              | Reported working practice              | Organize existing work without requiring a new routine or a project for every note                                               |
+| SC-02 | Knowledge changes after work, but the person cannot readily see what changed or why                                                               | Reported pain                          | Make proposals, accepted changes, reasons, and sources inspectable                                                               |
+| SC-03 | After working on several things, the person wants to open each project and see what it accumulated                                                | Reported pain and desired action       | Provide project material, related knowledge, and continuity references from real objects                                         |
+| SC-04 | Directly correcting accumulated knowledge is inconvenient                                                                                         | Reported editing friction              | Treat human writing/editing as a primary flow, with accurate save state and safe recovery                                        |
+| SC-05 | Personal notes, ideas, work documents, and accumulated knowledge should connect in one content system; tables should serve structured information | Stated need and product reasoning      | Shared content identity, typed records, meaningful relationships, and versioned sources                                          |
+| SC-06 | Code repositories are kept separately, and the design gives reusable assets an independent lifetime                                               | Reported practice and prior design     | Reference assets across projects without duplicating their authority                                                             |
+| SC-07 | Context is locked in separate agent conversations; different agents should access the same personal space and continue work                       | Reported pain and explicit requirement | Real shared context/tools, project continuity, and controlled mutations independent of private chats                             |
+| SC-08 | Read the space entry, gather this month's work, and write a personal retrospective                                                                | Jointly constructed validation example | Test ad hoc cross-project composition; do not make monthly reporting a dedicated product workflow                                |
+| SC-09 | A personal digital twin may later include broader planning, generated small applications, and service access                                      | Stated longer-term direction           | Preserve clear object/capability boundaries; keep broad calendar, app execution, and service platforms outside the first release |
+
+Stale writers, response loss, database failures, and unsafe recovery are engineering cases derived from collaboration and persistence requirements. They are acceptance risks, not claims that the user personally experienced every failure. Public examples and screenshots use synthetic content representing these scenarios.
 
 ## First release scope
 
@@ -30,6 +48,7 @@ The interface reports observable actions and declarations. A tool delivering con
 - Create and open a local space. Offer a separate, clearly labeled example space.
 - Work with real persisted data, reopen accepted work, and keep the selected space visible.
 - Import supported Markdown/plain-text material from user-selected locations as managed copies with origin information. Preserve the original files. Reference other native formats without claiming to parse or synchronize them.
+- Include a guided, previewed folder-import path for the reported knowledge/project/HANDOFF/repository layout. Let the person confirm folder-to-project grouping and asset references before writing; treat layout recognition as a replaceable import profile. Skip unsupported or excluded items with a clear result, cap traversal, and avoid duplicate copies on retry. This is a phase 4 import flow, not live two-way synchronization or a universal migration platform.
 - Preserve unsaved input when navigation, a conflict, or a failed save interrupts writing.
 
 ### Content and working context
@@ -53,6 +72,7 @@ The interface reports observable actions and declarations. A tool delivering con
 ### Changes and recovery
 
 - A proposal contains a target, base revision, proposed differences, declared purpose, reason, source references, and status.
+- An agent can propose a new note/record as well as a revision to existing material. A new-object proposal has no accepted base and does not appear as current content before the person applies it. Creation capability remains explicit and scoped.
 - Start with one object per atomic proposal, including its body, properties, and references. Multiple proposals have individual outcomes; bulk or cross-object transactions require separate acceptance coverage.
 - A person can inspect before/after differences, open supporting material, accept, reject, or continue editing without losing their place.
 - Reading a proposal does not resolve it. Read/unread, pending/applied/rejected/conflicted, and knowledge review status are separate meanings.
@@ -71,14 +91,14 @@ The interface reports observable actions and declarations. A tool delivering con
 
 ## Core scenarios
 
-| Scenario | Flow and observable outcome |
-|---|---|
-| Write and accumulate | Open a project or independent note, edit content/records, save, reopen, and find it through the same project and search views |
-| Provide context | Discover types, filter relevant objects, search/expand when needed, read pinned sources, and inspect which material was delivered |
-| Review an agent proposal | A real agent client creates a proposal; the person understands its purpose, scope, difference, and evidence, then accepts or rejects it |
-| Handle disagreement | Human work advances after a proposal's base; acceptance reports conflict while preserving both versions and the human draft |
+| Scenario                    | Flow and observable outcome                                                                                                                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Write and accumulate        | Open a project or independent note, edit content/records, save, reopen, and find it through the same project and search views                    |
+| Provide context             | Discover types, filter relevant objects, search/expand when needed, read pinned sources, and inspect which material was delivered                |
+| Review an agent proposal    | A real agent client creates a proposal; the person understands its purpose, scope, difference, and evidence, then accepts or rejects it          |
+| Handle disagreement         | Human work advances after a proposal's base; acceptance reports conflict while preserving both versions and the human draft                      |
 | Continue with another agent | The next client reads the project's current continuation entry, relevant sources, and accepted changes without needing a private chat transcript |
-| Recover and carry work | Inspect history, attempt conditional undo, export or back up, restore in a new space, and verify references and content |
+| Recover and carry work      | Inspect history, attempt conditional undo, export or back up, restore in a new space, and verify references and content                          |
 
 Monthly reviews, research writing, and knowledge consolidation are examples that use these capabilities. They do not require dedicated workflow engines or permanent role agents.
 
@@ -86,23 +106,23 @@ Monthly reviews, research writing, and knowledge consolidation are examples that
 
 These are acceptance targets, not completed test results. Implementation evidence is added as the corresponding phases finish.
 
-| ID | Requirement | Passing observation | Verification phase |
-|---|---|---|---|
-| AS-01 | Local direct use | Create/open a space and a separate demo; save and reopen work without a model key | 3, 5 |
-| AS-02 | Safe import and origin | Supported input becomes an editable managed copy with origin; original bytes remain unchanged; unsupported/unreadable inputs have a specific result | 4, 5 |
-| AS-03 | Comfortable human writing | Editing, switching objects, failed saving, and closing/reopening do not silently discard input; save status matches persisted data | 3, 5 |
-| AS-04 | Shared organization | A note can exist alone or appear through several relationships; a reusable asset retains one identity; project accumulation is inspectable | 4, 5 |
-| AS-05 | Real typed records | Stable row keys and field types survive editing/export/restore; invalid values fail clearly; views reference the same records | 4, 5 |
-| AS-06 | Useful bounded context | Exact reads return the requested revision; queries/search expose scope and truncation; CJK short queries, accents, empty results, and source gaps have tested behavior | 2, 4, 5 |
-| AS-07 | Real agent integration | An actual MCP client discovers and reads a selected space, then creates a proposal visible in the native app; tool inputs cannot select arbitrary disk locations or invoke human-only acceptance | 2, 3, 5 |
-| AS-08 | Clear review and safe acceptance | Show all proposed changes and required explanations; accept once with a stable operation identity; a stale base or reused key with different payload is rejected safely | 3, 5 |
-| AS-09 | Understandable activity | Accepted changes and proposals remain inspectable after restart; show declared intent and delivered references accurately; demo actions are identifiable | 3, 4, 5 |
-| AS-10 | Guarded recovery | Conditional undo preserves later edits; history remains readable; a conflict has a usable next action rather than overwriting current work | 3, 5 |
-| AS-11 | Backup and portability | Consistent backup and portable export are distinguishable; restore in a new space preserves the promised objects, text, rows, relations, and retained revisions | 4, 5 |
-| AS-12 | Trusted boundaries | Native renderer has no arbitrary filesystem/process/database access; IPC/tool schemas, source handling, preview rendering, and external links respect the configured boundary | 2, 3, 5 |
-| AS-13 | Five-language experience | All five locales have complete critical strings; key flows and long labels fit; locale switching preserves data and user-authored text | 3, 5, 6 |
-| AS-14 | Reproducible desktop delivery | Documented checks/builds run; a packaged macOS app launches and passes the core flow; other platform and signing claims match actual evidence | 5, 6 |
-| AS-15 | Professional repository | Five-language primary docs match the implemented behavior; real screenshots, license, contribution guidance, CI, commands, and remote contents are checked | 6 |
+| ID    | Requirement                      | Passing observation                                                                                                                                                                                                                          | Verification phase |
+| ----- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| AS-01 | Local direct use                 | Create/open a space and a separate demo; save and reopen work without a model key                                                                                                                                                            | 3, 5               |
+| AS-02 | Safe import and origin           | Selected files or a previewed folder import become managed copies with origin and confirmed project grouping; original bytes remain unchanged; retries do not duplicate accepted items; unsupported/unreadable inputs have a specific result | 4, 5               |
+| AS-03 | Comfortable human writing        | Editing, switching objects, failed saving, and closing/reopening do not silently discard input; save status matches persisted data                                                                                                           | 3, 5               |
+| AS-04 | Shared organization              | A note can exist alone or appear through several relationships; a reusable asset retains one identity; project accumulation is inspectable                                                                                                   | 4, 5               |
+| AS-05 | Real typed records               | Stable row keys and field types survive editing/export/restore; invalid values fail clearly; views reference the same records                                                                                                                | 4, 5               |
+| AS-06 | Useful bounded context           | Exact reads return the requested revision; queries/search expose scope and truncation; CJK short queries, accents, empty results, and source gaps have tested behavior                                                                       | 2, 4, 5            |
+| AS-07 | Real agent integration           | An actual MCP client discovers and reads a selected space, then creates a proposal visible in the native app; tool inputs cannot select arbitrary disk locations or invoke human-only acceptance                                             | 2, 3, 5            |
+| AS-08 | Clear review and safe acceptance | Show all proposed changes and required explanations; accept once with a stable operation identity; a stale base or reused key with different payload is rejected safely                                                                      | 3, 5               |
+| AS-09 | Understandable activity          | Accepted changes and proposals remain inspectable after restart; show declared intent and delivered references accurately; demo actions are identifiable                                                                                     | 3, 4, 5            |
+| AS-10 | Guarded recovery                 | Conditional undo preserves later edits; history remains readable; a conflict has a usable next action rather than overwriting current work                                                                                                   | 3, 5               |
+| AS-11 | Backup and portability           | Consistent backup and portable export are distinguishable; restore in a new space preserves the promised objects, text, rows, relations, and retained revisions                                                                              | 4, 5               |
+| AS-12 | Trusted boundaries               | Native renderer has no arbitrary filesystem/process/database access; IPC/tool schemas, source handling, preview rendering, and external links respect the configured boundary                                                                | 2, 3, 5            |
+| AS-13 | Five-language experience         | All five locales have complete critical strings; key flows and long labels fit; locale switching preserves data and user-authored text                                                                                                       | 3, 5, 6            |
+| AS-14 | Reproducible desktop delivery    | Documented checks/builds run; a packaged macOS app launches and passes the core flow; other platform and signing claims match actual evidence                                                                                                | 5, 6               |
+| AS-15 | Professional repository          | Five-language primary docs match the implemented behavior; real screenshots, license, contribution guidance, CI, commands, and remote contents are checked                                                                                   | 6                  |
 
 The native experience pass also checks long localized conflict messages, CJK input composition, focus when entering/leaving source details, and text zoom. Fixed action bars must not hide the diff or focused controls. A person must be able to read a proposal's cited version and then return to the same review position.
 
