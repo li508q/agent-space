@@ -1,6 +1,6 @@
 # Implementation slices
 
-Status: phase 2 plan, 2026-11-22. Work starts only on the coordinator's next bounded assignment. This file defines tasks and stopping points; it does not report application features as complete. Requirements and their source scenarios SC-01–SC-09 are in [PRD.md](PRD.md); the technical route is in [ARCHITECTURE.md](ARCHITECTURE.md).
+Status: 3A/3B accepted after coordinator review and independent checks, 2026-11-23. Native editor/IPC (3C) and product MCP/CLI (3D) are the next bounded integration tasks; the native end-to-end gate (3E) remains pending. Requirements stay grounded in SC-01–SC-09 / AS-01–AS-15 in [PRD.md](PRD.md).
 
 ## Shared boundaries
 
@@ -47,16 +47,28 @@ After phase 4, stop for integration review. Phase 5 performs independent accepta
 
 ## Verification and commands
 
-The commands currently present are deliberately limited:
+The current reproducible commands are:
 
 ```sh
 npm ci
 npm run check
+npm run test:core
+npm run build:core
 npm run format:check
 ```
 
-`check` typechecks/lints the contracts and runs six boundary-schema tests. It is not an application check. Electron's npm package can download its pinned binary on first invocation; dependency installation is not an offline product-start guarantee. Probes remain local in the ignored coordination directory and are summarized in [TESTING.md](TESTING.md).
+`check` typechecks/lints the contracts, core and test sources, compiles the real ESM/declaration core to `dist/`, and runs six contract plus twelve product-core integration groups. Cross-process workers import the compiled entry with ordinary Node, not a mock or probe schema. `test:core` runs the core subset; neither command is native application acceptance.
 
-Phase 3 adds actual `build`, `dev`, protocol-test and desktop-test scripts only when their entries exist. Phase 4 adds core backup/import/export tests. Phase 5 adds packaging and packaged-path smoke commands. Do not retain scripts pointing to nonexistent files or describe development commands as published installation packages.
+The [API handoff](CORE_API.md) and concrete `HumanServices`/`AgentServices` types define the next integration boundary. The named bridge declaration covers only implemented active-space methods. The desktop adapter still owns OS dialogs, preferences, sender validation, active-space/instance binding, async editor correlation and actual native autosave behavior. Product MCP/CLI still owns stdio/schema registration, connection lifecycle and packaged launch modes. For a packaged app, select `--agent-server`/`--agent-cli` before window creation or normal app-instance locking; use the bundled runtime rather than requiring desktop users to install Node. There is no product MCP/CLI executable in this stage.
+
+Only `space_discover`, `objects_query`, `object_read`, `proposal_create`, `changes_list` and `operation_status` have implemented phase 3 agent methods. Keep `schema_describe`, separate `text_search` and relation expansion for phase 4 unless a later bounded assignment implements and verifies them. Phase 4 Context completion must also add scoped accepted-change/evidence reads so another agent can retrieve accepted reasons and exact source pins without human full-proposal access or an earlier grant’s private operation key. Retain the envelope/change pointer; do not append unreviewed sources into accepted content.
 
 Before each handoff, report changed paths, observed evidence, failures/limits and the next bounded assignment. The root coordinator owns shared-document integration, commits and push; no slice publishes a release.
+
+## 3A/3B handoff evidence
+
+The core now creates/opens private local spaces and separate synthetic examples, checks format on every transaction, preserves immutable revisions with atomic search/change/receipt updates, and exposes direct human editing plus scoped agent proposals. It implements one-time hashed grants, independent creation enablement, reserved creation IDs, bound acceptance/rejection, conditional undo/archival, exact historical and budgeted Unicode reads, current-state query cursors, durable recovery drafts and separate prepared-result activity.
+
+Real file tests cover normal reopen/no-op, policy and typed labels (including date equality), current project versus pinned evidence, scope/revocation/creation denial, new-object reservation, immutable payload/status review guards, conflict followed by rejection and original receipt replay, ABA/later-policy protection, drafts and both sequences, unsupported formats, malformed input and SQLite capacity failure. Independent processes exercise same-base and same-key races, SIGKILL before commit and exit after commit before returning the result. Exact commands/results and limitations are in [TESTING.md](TESTING.md).
+
+Coordinator review is complete. The service boundary is frozen for 3C/3D integration. The coordinator owns platform contracts in `src/contracts/app.ts` and the fresh `bindingId` in `desktop.ts`; requests must bind the current space session, and UI callbacks must also check their object/editor generation. Native, renderer and protocol assignments keep separate owned paths. The integrated desktop gate still follows before phase 4.

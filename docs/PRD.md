@@ -1,6 +1,6 @@
 # AgentSpace product requirements
 
-Status: phase 1 scope established for technical design. Updated 2026-11-22. Implementation and acceptance results remain pending.
+Status: first-release scope established. Updated 2026-11-23. The common core is implemented and checked; native desktop and product MCP/CLI integration are in progress. Complete product acceptance remains pending.
 
 ## Product purpose
 
@@ -66,6 +66,7 @@ Stale writers, response loss, database failures, and unsafe recovery are enginee
 - Support bounded discovery, schema description, structured filtering, text search, typed relation expansion, exact revision reads, and status/change inspection as composable capabilities.
 - Show the executed scope, result limits, source revisions, and known stale or unavailable material. Short CJK queries and accented text require an explicit tested strategy.
 - Let a person inspect/copy selected context and source references. Record what tools actually supplied to a configured agent client.
+- Let another authorized agent trace an accepted change to its declared reason and exact evidence revisions, without the original agent's private conversation or operation key. Reading the changed object does not grant access to its sources.
 - Keep client access bound to an explicitly configured space and capability. The default agent mutation capability is proposal creation, not the person's direct-save or accept authority.
 - Make integration setup accurate and reproducible; configuration examples must point to an existing built entry point.
 
@@ -136,6 +137,6 @@ The first release establishes versioned material, provenance, and controlled cha
 
 ## Decisions and implementation status
 
-Local-first, single-user delivery, agent independence, the control-focused experience, a focused scope, and five-language primary delivery come from the user's current direction. Stack, physical storage, IPC/MCP implementation, and editor components are engineering choices for phase 2. Starter configuration is provisional until its runtime assumptions and compatibility are checked.
+Local-first, single-user delivery, agent independence, the control-focused experience, a focused scope, and five-language primary delivery come from the user's current direction. The selected engineering route is Electron, TypeScript, a shared transactional SQLite core, and narrow desktop/MCP adapters. The reasons and alternatives are recorded in [ARCHITECTURE.md](ARCHITECTURE.md); feasibility checks do not substitute for product acceptance.
 
 This PRD scopes the intended local product. It does not claim a working application exists. Phase transitions and current evidence are tracked in [DELIVERY.md](DELIVERY.md).

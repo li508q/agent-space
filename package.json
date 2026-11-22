@@ -12,9 +12,11 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests eslint.config.mjs --max-warnings 0",
-    "test": "tsx --test tests/contracts.test.ts",
+    "test": "npm run build:core && tsx --test tests/contracts.test.ts tests/core/*.test.ts",
     "check": "npm run typecheck && npm run lint && npm test",
-    "format:check": "prettier --check src tests docs/ARCHITECTURE.md docs/IMPLEMENTATION.md docs/TESTING.md docs/design-system.md package.json tsconfig.json eslint.config.mjs .prettierrc.json"
+    "format:check": "prettier --check src tests docs/CORE_API.md docs/ARCHITECTURE.md docs/IMPLEMENTATION.md docs/TESTING.md docs/design-system.md package.json tsconfig.json tsconfig.core.json eslint.config.mjs .prettierrc.json",
+    "build:core": "tsc -p tsconfig.core.json",
+    "test:core": "npm run build:core && tsx --test tests/core/*.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.4.0",

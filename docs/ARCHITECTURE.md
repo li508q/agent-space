@@ -1,6 +1,6 @@
 # Architecture and decisions
 
-Status: technical route selected after phase 2 review, updated 2026-11-23. Runtime probes support the choices below. The application, its security boundary, and the PRD acceptance flows are not implemented yet. The coordinator selected these engineering decisions under the user's delegated authority. Product choices trace to the source scenarios SC-01–SC-09 and acceptance targets AS-01–AS-15 in [PRD.md](PRD.md); concurrency and response-loss checks are engineering risk controls, not claims about the user’s personal experience.
+Status: phase 3A/3B core implementation accepted after coordinator code/API review and independent checks, 2026-11-23. Native desktop and actual product MCP/CLI integration are in progress. Import/export/backup and full PRD acceptance remain pending. Product choices trace to SC-01–SC-09 / AS-01–AS-15 in [PRD.md](PRD.md). See [CORE_API.md](CORE_API.md) for the exact implemented surface and [TESTING.md](TESTING.md) for evidence.
 
 ## Main route
 
@@ -20,7 +20,7 @@ flowchart LR
   M --> F[User-selected import / backup / export]
 ```
 
-Each adapter has its own core instance and connection to the same local database. SQLite serializes short write transactions; there is no claim of a unique live core process. Code dependencies point inward: contracts → core → adapters → interface. The core imports neither Electron nor a model SDK. Renderer code cannot import the database driver, filesystem, process APIs, or MCP server.
+Each adapter has its own core instance and connection to the same local database. Agent reads use a short write transaction to persist their prepared-result observation consistently; human view polling remains read-only. No model or transport wait holds that transaction. SQLite serializes short write transactions; there is no claim of a unique live core process. Code dependencies point inward: contracts → core → adapters → interface. The core imports neither Electron nor a model SDK. Renderer code cannot import the database driver, filesystem, process APIs, or MCP server.
 
 ## Decision records
 
@@ -58,13 +58,13 @@ Managed imported text is an editable copy with recorded origin. Folder import us
 
 ## Shared write contract
 
-`src/contracts/` defines strict request schemas and stable errors. These are boundary shapes, not an implementation of validation, permissions or persistence. The core enforces the additional rules below.
+`src/contracts/` defines strict requests, concrete response/service types and stable errors. `src/core/` now implements the authority, authorization, proposal and guarded recovery subset described in [CORE_API.md](CORE_API.md). The remaining adapter/features still follow the rules below.
 
 1. Adapter selects the configured space and supplies trusted principal context. Never accept an actor, namespace, space path or capability from tool input. Check byte/field/count budgets and schema; reject unknown fields.
 2. Start `BEGIN IMMEDIATE`, with foreign keys, `synchronous=FULL`, extension loading disabled and a bounded busy timeout. Recheck format/core-contract version and authorization inside the transaction.
 3. Look up `(spaceId, principalNamespace, operationKey)`. An equal canonical request returns its original result. A different request returns `IDEMPOTENCY_KEY_REUSED`. The operation kind is included in the digest; keys cannot be reused across commands. Authorization is checked before disclosing a receipt.
 4. Check the expected object revision, current protections, target kinds, typed values and source visibility. Reject malformed Unicode rather than changing source text during encoding. Store the revision/head, transactional search projection, change and receipt together; commit before reporting saved/applied.
-5. A lost response is unknown to the caller. Query the original key or resend it; do not manufacture a new key. A missing receipt does not prove another request is not in flight. Storage uncertainty is reported as such, with the buffer retained.
+5. A lost response is unknown to the caller. Query the original key (including its small original business-outcome discriminator, separately from current proposal status) or resend it; do not manufacture a new key. A missing receipt does not prove another request is not in flight. Storage uncertainty is reported as such, with the buffer retained.
 
 The UI's human namespace is persistent for that installation; an agent's namespace is its durable grant ID, not a PID, connection ID or model-supplied name. Canonicalization sorts object keys recursively while preserving array order and exact string content. Retriable failures before obtaining the write lock do not invent an accepted receipt.
 
@@ -111,7 +111,7 @@ The opaque read cursor binds instance ID, scope/grant digest, resolved pinned re
 
 A current relationship resolves its target under the same read transaction and returns a resolved pin for that observation; its declared mode remains current. A pinned evidence link always opens the cited historical revision, with currentness shown separately. Outside-scope/unavailable targets remain unresolved, without leaking titles or silently substituting a current revision.
 
-Only authorized objects contribute counts, snippets, relation titles or results. A reference outside scope does not grant access. Tool activity records requested scope and prepared result references/limits; they distinguish preparation from response emission when the adapter observes it. A prepared result or a successful pipe write is not proof that the host received or understood it. They never report that an agent finished an unobserved task.
+Only authorized objects contribute counts, snippets, relation titles or results. A reference outside scope does not grant access. Phase 3 activity records prepared result references/ranges, budgets and actual tool names; it does not observe stdout emission, host receipt, model understanding or task completion. A later adapter may add a separate trusted observation port. See the explicit stages in [CORE_API.md](CORE_API.md).
 
 ## Trusted adapters
 
@@ -132,3 +132,7 @@ Restore into a new directory; reject an occupied destination. Preserve object/sp
 ## Remaining implementation checks
 
 See [IMPLEMENTATION.md](IMPLEMENTATION.md) for bounded slices and [TESTING.md](TESTING.md) for evidence. Native UI isolation, editor/IME behavior, packaged-path relocation, product-level recovery, grants, migration, real data performance and five-language wording are still unverified. No platform other than the probed macOS arm64 runtimes has evidence yet.
+
+## Implemented limits
+
+The current core format uses a 512 MiB database page ceiling, including retained history and receipts. SQLite capacity failure maps to `LIMIT_EXCEEDED`; it is not reported as a successful save. Managed payloads are limited to 1 MiB and a serialized typed field to 32 KiB. Input trees are limited to depth 32 and 20,000 nodes; malformed/non-JSON/cyclic input returns a validation/limit error before serialization. UUIDs normalize to lowercase before identity and reservation checks. These are first-release resource limits, not measured large-library performance claims. No automatic revision/receipt garbage collection or format migration has been implemented.

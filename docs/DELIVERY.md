@@ -39,7 +39,7 @@ Phase 1 is complete as a definition milestone. Independent product, architecture
 
 Phase 2 is complete as a design/feasibility milestone. The shared contracts, interaction specification, implementation slices, and acceptance strategy are established. Node/Electron SQLite, backup/search strategy, mixed-process CAS/idempotency, and MCP v2 transport probes passed. Six boundary-schema checks, type/lint/format checks, and the dependency audit passed. These are not product-flow acceptance results.
 
-Phase 3 starts with core storage, proposals, and guarded recovery. Shared response contracts are reviewed before the desktop interface and agent adapter are wired in parallel. The native end-to-end gate remains pending; full organization/import/backup UI belongs to phase 4.
+Phase 3A/3B is accepted after coordinator code/API review, 18 repeated contract/core checks, type/lint/build and formatting checks. The five-language presentation foundation separately passed ten checks. The shared response contract is frozen for native desktop, renderer and real MCP/CLI integration. These tasks have separate file ownership; the native end-to-end gate remains pending. Full organization, accepted-change evidence access, folder import and backup/export UI belong to phase 4.
 
 The first release remains local-first and single-user. Cloud sync, teams, broad integrations, arbitrary mini-app execution, and a general-purpose chat/orchestration product are outside this delivery.
 

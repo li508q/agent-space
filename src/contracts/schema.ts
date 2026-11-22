@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Boundary shapes only: core authorization, persistence and range assembly are not implemented.
 export const LocaleSchema = z.enum(['en', 'zh-CN', 'ja', 'ko', 'es']);
-export const IdSchema = z.uuid();
+export const IdSchema = z.uuid().toLowerCase();
 export const RevisionSchema = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
 export const SequenceSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 export const DigestSchema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -141,6 +141,7 @@ export const HumanSaveSchema = z.strictObject({
   targetId: IdSchema,
   expectedRevision: RevisionSchema,
   content: ContentSchema,
+  generation: SequenceSchema.optional(),
 });
 export const UndoSchema = z.strictObject({
   operationKey: OperationKeySchema,
@@ -174,6 +175,7 @@ const PageEnvelope = {
   ref: PinnedRefSchema,
   digest: DigestSchema,
   returnedBytes: SequenceSchema,
+  unavailableReferences: z.boolean(),
   truncated: z.boolean(),
   nextCursor: z.string().min(1).max(2_048).nullable(),
 };
@@ -190,6 +192,9 @@ export const ReadPageSchema = z.discriminatedUnion('section', [
     title: z.string().max(240),
     kind: KindSchema,
     currentRevision: RevisionSchema,
+    lifecycle: z.enum(['active', 'archived']),
+    protectedFields: z.array(z.string().max(80)).max(68),
+    knowledgeReviewedRevision: RevisionSchema.nullable(),
     origin: z.strictObject({
       mode: z.enum(['managed', 'imported-copy', 'external-reference']),
       label: z.string().max(240),
@@ -251,10 +256,7 @@ export const GrantScopeSchema = z.discriminatedUnion('mode', [
 ]);
 export const AgentToolSchema = z.enum([
   'space_discover',
-  'schema_describe',
   'objects_query',
-  'text_search',
-  'relations_expand',
   'object_read',
   'changes_list',
   'operation_status',
@@ -270,3 +272,11 @@ export type PinnedRef = z.infer<typeof PinnedRefSchema>;
 export type ObjectRef = z.infer<typeof ObjectRefSchema>;
 export type ReadPage = z.infer<typeof ReadPageSchema>;
 export type AgentTool = z.infer<typeof AgentToolSchema>;
+
+// Deferred product capabilities are not advertised by the phase 3 agent facade.
+export const deferredAgentTools = [
+  'schema_describe',
+  'text_search',
+  'relations_expand',
+  'accepted_change_read',
+] as const;
