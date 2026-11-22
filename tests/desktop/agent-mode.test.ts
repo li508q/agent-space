@@ -139,12 +139,16 @@ test(
       await client.connect(transport);
       assert.equal(client.getProtocolEra(), era);
       assert.deepEqual((await client.listTools()).tools.map((item) => item.name).sort(), [
+        'accepted_change_read',
         'changes_list',
         'object_read',
         'objects_query',
         'operation_status',
         'proposal_create',
+        'relations_expand',
+        'schema_describe',
         'space_discover',
+        'text_search',
       ]);
     }
     assert.equal(

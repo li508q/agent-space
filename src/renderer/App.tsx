@@ -36,13 +36,17 @@ function DesktopApp({ api }: { api: DesktopApi }) {
   const [createOpen, setCreateOpen] = useState(false),
     [spaceTitle, setSpaceTitle] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [leave, setLeave] = useState<{ next: () => Promise<void>; closeId?: string } | null>(null);
+  const [leave, setLeave] = useState<{
+    next: (ticket: number) => Promise<void>;
+    closeId?: string;
+  } | null>(null);
   const [closeState, setCloseState] = useState<CloseState>(null);
   const [closingLocked, setClosingLocked] = useState(false);
   const header = useRef<HTMLElement>(null),
     content = useRef<HTMLDivElement>(null);
   const closeLocked = useRef(false),
     closer = useRef<CloseCoordinator | null>(null);
+  const movingSpace = useRef(false);
   const workbench = useRef<WorkbenchHandle>(null);
   const actionRef = useRef<{
     command: (command: MenuCommand) => void;
@@ -51,14 +55,20 @@ function DesktopApp({ api }: { api: DesktopApi }) {
   const guarding = useRef(false),
     live = useRef(true);
   const platformEpoch = useRef(0);
+  const targetBinding = useRef<string | null>(null);
+  const spaceTitleComposing = useRef(false);
+  function adoptSession(next: SpaceSession | null) {
+    targetBinding.current = next?.bindingId ?? null;
+    setSession(next);
+  }
   if (!closer.current)
     closer.current = new CloseCoordinator({
       afterComposition: () => workbench.current?.afterComposition() ?? Promise.resolve(),
       lockInput: (locked) => {
         if (workbench.current && !workbench.current.lockInput(locked)) return false;
         closeLocked.current = locked;
-        if (header.current) header.current.inert = locked;
-        if (content.current) content.current.inert = locked;
+        if (header.current) header.current.inert = locked || movingSpace.current;
+        if (content.current) content.current.inert = locked || movingSpace.current;
         setClosingLocked(locked);
         return true;
       },
@@ -79,7 +89,7 @@ function DesktopApp({ api }: { api: DesktopApi }) {
         setLocale(
           result.value.preferences.locale ?? resolveSystemLocale(result.value.systemLocales),
         );
-        setSession(result.value.activeSpace);
+        adoptSession(result.value.activeSpace);
         setError(result.value.startupError?.code ?? null);
         setReady(true);
       } else setError(result.error.code);
@@ -99,24 +109,56 @@ function DesktopApp({ api }: { api: DesktopApi }) {
     // Native WebContents owns zoom. Multiplying rem here would apply the preference twice.
     document.documentElement.style.fontSize = '16px';
   }, [locale, preferences.textScale]);
-  async function protect(next: () => Promise<void>, closeId?: string) {
-    if (guarding.current) {
+  async function protect(
+    next: (ticket: number) => Promise<void>,
+    closeId?: string,
+    discard = false,
+  ) {
+    if (guarding.current || closer.current?.pendingId) {
       if (closeId) await api.respondToClose({ requestId: closeId, decision: 'cancel' });
       return;
     }
     guarding.current = true;
+    const ticket = ++platformEpoch.current;
+    const original = workbench.current;
+    let locked = false;
     try {
-      const safe = !workbench.current || (await workbench.current.prepareToLeave());
-      if (safe) await next();
-      else setLeave({ next, closeId });
+      await original?.afterComposition();
+      if (
+        !live.current ||
+        original?.bindingId !== workbench.current?.bindingId ||
+        closer.current?.pendingId
+      )
+        return;
+      if (original && !original.lockInput(true, 'space')) return;
+      locked = true;
+      movingSpace.current = true;
+      setBusy(true);
+      if (header.current) header.current.inert = true;
+      if (content.current) content.current.inert = true;
+      const safe =
+        !original || (await (discard ? original.discardEdits() : original.prepareToLeave()));
+      if (!live.current || original?.bindingId !== workbench.current?.bindingId) return;
+      if (safe && !closer.current?.pendingId) {
+        setLeave(null);
+        await next(ticket);
+      } else setLeave({ next, closeId });
+    } catch {
+      if (live.current) setError('OPERATION_UNKNOWN');
     } finally {
+      // Keep the old DOM/editor paused until its binding is actually unmounted.
+      // A new binding gets its own independent lock owners on mount.
+      if (locked && targetBinding.current === (original?.bindingId ?? null))
+        original?.lockInput(false, 'space');
+      movingSpace.current = false;
+      if (header.current) header.current.inert = closeLocked.current;
+      if (content.current) content.current.inert = closeLocked.current;
+      if (live.current) setBusy(false);
       guarding.current = false;
     }
   }
   async function selectSpace(mode: 'create' | 'open' | 'example') {
-    await protect(async () => {
-      const ticket = ++platformEpoch.current;
-      setBusy(true);
+    await protect(async (ticket) => {
       setError(null);
       try {
         const result =
@@ -128,11 +170,18 @@ function DesktopApp({ api }: { api: DesktopApi }) {
         if (!live.current || ticket !== platformEpoch.current) return;
         if (result.ok) {
           if (result.value) {
-            setSession(result.value);
+            adoptSession(result.value);
             setCreateOpen(false);
             setSpaceTitle('');
+          } else await bootstrap();
+        } else {
+          setError(result.error.code);
+          if (result.error.code === 'OPERATION_UNKNOWN') {
+            const observed = await api.bootstrap().catch(() => null);
+            if (live.current && ticket === platformEpoch.current && observed?.ok)
+              adoptSession(observed.value.activeSpace);
           }
-        } else setError(result.error.code);
+        }
       } catch {
         if (!live.current || ticket !== platformEpoch.current) return;
         // A platform reply can be lost after binding. Re-observe bootstrap, never fabricate a space.
@@ -144,9 +193,7 @@ function DesktopApp({ api }: { api: DesktopApi }) {
           observed?.ok &&
           observed.value.activeSpace
         )
-          setSession(observed.value.activeSpace);
-      } finally {
-        if (live.current && ticket === platformEpoch.current) setBusy(false);
+          adoptSession(observed.value.activeSpace);
       }
     });
   }
@@ -158,7 +205,13 @@ function DesktopApp({ api }: { api: DesktopApi }) {
     await closer.current!.start(requestId);
   }
   function command(value: MenuCommand) {
-    if (busy || closer.current?.pendingId || document.querySelector('dialog[open]')) return;
+    if (
+      busy ||
+      movingSpace.current ||
+      closer.current?.pendingId ||
+      document.querySelector('dialog[open]')
+    )
+      return;
     if (workbench.current) workbench.current.command(value);
     else if (value === 'settings') setSettingsOpen(true);
     else if (value === 'new-note') setCreateOpen(true);
@@ -172,7 +225,7 @@ function DesktopApp({ api }: { api: DesktopApi }) {
     const cancelled = api.onCloseCancelled(({ requestId }) => closer.current?.cancel(requestId));
     const blockLateInput = (event: Event) => {
       if (
-        closeLocked.current &&
+        (closeLocked.current || movingSpace.current) &&
         !(event.target instanceof Element && event.target.closest('dialog'))
       ) {
         event.preventDefault();
@@ -211,7 +264,7 @@ function DesktopApp({ api }: { api: DesktopApi }) {
   return (
     <LocaleContext.Provider value={locale}>
       <div className="desktop-app" data-scale={preferences.textScale} data-testid="desktop-app">
-        <header className="app-header" ref={header} inert={closingLocked}>
+        <header className="app-header" ref={header} inert={busy || closingLocked}>
           <div className="app-identity">
             <Brand />
             <span className="app-name">AgentSpace</span>
@@ -289,12 +342,19 @@ function DesktopApp({ api }: { api: DesktopApi }) {
             {t(locale, 'ui.preparingClose')}
           </div>
         )}
+        {busy && !closingLocked && (
+          <div className="closing-notice" role="status" data-testid="space-transition">
+            {t(locale, 'ui.openingSpace')}
+          </div>
+        )}
         {error && (
           <div className="app-error">
             <ErrorNotice
               code={error}
               onRetry={() => {
-                void bootstrap();
+                void protect(async () => {
+                  await bootstrap();
+                });
               }}
             />
           </div>
@@ -313,6 +373,7 @@ function DesktopApp({ api }: { api: DesktopApi }) {
               session={session}
               scale={preferences.textScale}
               preferencesBusy={preferencesBusy}
+              closingLocked={closingLocked}
               onLocale={(value) => {
                 void changePreference(value);
               }}
@@ -371,7 +432,7 @@ function DesktopApp({ api }: { api: DesktopApi }) {
             <form
               onSubmit={(event) => {
                 event.preventDefault();
-                void selectSpace('create');
+                if (!spaceTitleComposing.current) void selectSpace('create');
               }}
             >
               <label>
@@ -382,6 +443,13 @@ function DesktopApp({ api }: { api: DesktopApi }) {
                   required
                   autoFocus
                   data-testid="space-title"
+                  disabled={busy}
+                  onCompositionStart={() => {
+                    spaceTitleComposing.current = true;
+                  }}
+                  onCompositionEnd={() => {
+                    spaceTitleComposing.current = false;
+                  }}
                   onChange={(event) => setSpaceTitle(event.target.value)}
                 />
               </label>
@@ -464,14 +532,7 @@ function DesktopApp({ api }: { api: DesktopApi }) {
               <button
                 onClick={() => {
                   const intent = leave;
-                  void (workbench.current?.prepareToLeave() ?? Promise.resolve(true)).then(
-                    (safe) => {
-                      if (safe) {
-                        setLeave(null);
-                        void intent.next();
-                      }
-                    },
-                  );
+                  void protect(intent.next, intent.closeId);
                 }}
               >
                 {t(locale, 'common.retry')}
@@ -486,13 +547,7 @@ function DesktopApp({ api }: { api: DesktopApi }) {
               <button
                 onClick={() => {
                   const intent = leave;
-                  void (workbench.current?.discardEdits() ?? Promise.resolve(true)).then((safe) => {
-                    if (!safe) return;
-                    setLeave(null);
-                    if (intent.closeId)
-                      void api.respondToClose({ requestId: intent.closeId, decision: 'discard' });
-                    else void intent.next();
-                  });
+                  void protect(intent.next, intent.closeId, true);
                 }}
               >
                 {t(locale, 'ui.discardEdits')}

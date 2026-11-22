@@ -9,6 +9,9 @@ let trackedMethod = null;
 let armed = false;
 let lost = 0;
 let calls = [];
+let holdNext = false;
+let releaseHeld = null;
+let holdObjectId = null;
 
 globalThis.__agentSpaceTestFault = Object.freeze({
   arm(method) {
@@ -17,9 +20,24 @@ globalThis.__agentSpaceTestFault = Object.freeze({
     armed = true;
     lost = 0;
     calls = [];
+    holdObjectId = null;
+  },
+  hold(method, objectId = null) {
+    if (!['createObject', 'readObject'].includes(method)) throw new Error('Unsupported test hold');
+    trackedMethod = method;
+    holdNext = true;
+    armed = false;
+    releaseHeld = null;
+    holdObjectId = objectId;
+    calls = [];
+  },
+  release() {
+    const release = releaseHeld;
+    releaseHeld = null;
+    release?.();
   },
   snapshot() {
-    return { method: trackedMethod, lost, calls: [...calls] };
+    return { method: trackedMethod, lost, calls: [...calls], held: releaseHeld !== null };
   },
 });
 
@@ -28,6 +46,17 @@ ipcMain.handle = (name, handler) =>
     const tracked = name === 'agentspace:method:' + trackedMethod;
     if (tracked) calls.push(request?.input?.operationKey ?? null);
     const result = await handler(event, request);
+    if (
+      tracked &&
+      holdNext &&
+      result?.ok &&
+      (holdObjectId === null || request?.input?.objectId === holdObjectId)
+    ) {
+      holdNext = false;
+      await new Promise((resolve) => {
+        releaseHeld = resolve;
+      });
+    }
     if (tracked && armed && result?.ok) {
       armed = false;
       lost++;

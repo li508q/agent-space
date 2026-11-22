@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
   ChevronLeft,
@@ -8,6 +8,7 @@ import {
   Search,
   Activity,
   PanelLeft,
+  Plus,
 } from 'lucide-react';
 import type { AppPreferences, DesktopApi, MenuCommand, SpaceSession } from '../contracts/app.js';
 import type {
@@ -22,19 +23,27 @@ import type {
   ProposalView,
   SpaceStatus,
   WriteResult,
+  Kind,
 } from '../contracts/core.js';
 import type { ErrorCode } from '../contracts/errors.js';
 import type { ObjectContent, ObjectRef, QueryInput } from '../contracts/schema.js';
 import { formatCount, formatNumber, t, titleText, type Locale } from './i18n/index.js';
 import { bound, RequestGate } from './state/binding.js';
 import { EditorSession } from './state/editor.js';
+import {
+  EditorTransitions,
+  type TransitionStage,
+  type TransitionTicket,
+} from './state/transition.js';
 import { OperationTask } from './state/operation.js';
+import { recordFromFields } from './state/material.js';
 import {
   ErrorNotice,
   Modal,
   newKey,
   noteFromVersion,
   TaskContext,
+  ReferenceRefreshContext,
   Time,
   useLocale,
   type MakeTask,
@@ -47,15 +56,19 @@ import { HistoryPane } from './components/HistoryPane.js';
 import { Preferences } from './components/Preferences.js';
 import { ReviewPane } from './components/ReviewPane.js';
 import { SourceReader } from './components/SourceReader.js';
+import { PropertiesEditor } from './components/PropertiesEditor.js';
+import { RelationsEditor } from './components/RelationsEditor.js';
+import { RecordsTable } from './components/RecordsTable.js';
 
 type Destination = 'continue' | 'projects' | 'library' | 'review';
 type ReaderEntry = { reference: ObjectRef; trigger?: string; scrollTop: number };
 export type WorkbenchHandle = {
+  bindingId: string;
   prepareToLeave: () => Promise<boolean>;
   discardEdits: () => Promise<boolean>;
   copyEdits: () => Promise<void>;
   afterComposition: () => Promise<void>;
-  lockInput: (locked: boolean) => boolean;
+  lockInput: (locked: boolean, source?: 'close' | 'space') => boolean;
   command: (command: MenuCommand) => void;
 };
 type Props = {
@@ -63,6 +76,7 @@ type Props = {
   session: SpaceSession;
   scale: AppPreferences['textScale'];
   preferencesBusy: boolean;
+  closingLocked: boolean;
   onLocale: (locale: Locale) => void;
   onScale: (factor: AppPreferences['textScale']) => void;
 };
@@ -87,7 +101,7 @@ function remembered(session: SpaceSession): string | null {
 }
 
 export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
-  { api, session, scale, preferencesBusy, onLocale, onScale },
+  { api, session, scale, preferencesBusy, closingLocked, onLocale, onScale },
   ref,
 ) {
   const locale = useLocale();
@@ -106,6 +120,8 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   const [editor, setEditor] = useState<EditorSession | null>(null);
   const editorRef = useRef<EditorSession | null>(null);
   const [aux, setAux] = useState<'details' | 'history' | null>(null);
+  const [metadataDialog, setMetadataDialog] = useState<'fields' | 'relations' | null>(null);
+  const [tableOpen, setTableOpen] = useState(false);
   const [readers, setReaders] = useState<ReaderEntry[]>([]);
   const [drafts, setDrafts] = useState<DraftReceipt[]>([]),
     [draftNext, setDraftNext] = useState<string | null>(null);
@@ -120,7 +136,11 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   const [error, setError] = useState<ErrorCode | null>(null),
     [feedback, setFeedback] = useState(false);
   const [proposalLoadError, setProposalLoadError] = useState<ErrorCode | null>(null);
-  const [leaveAction, setLeaveAction] = useState<(() => Promise<void>) | null>(null);
+  const [leaveAction, setLeaveAction] = useState<{
+    action: (ticket: TransitionTicket) => Promise<void>;
+    stage: 'opening' | 'creating';
+  } | null>(null);
+  const [transitionStage, setTransitionStage] = useState<TransitionStage | null>(null);
   const [narrow, setNarrow] = useState(() => window.matchMedia('(max-width: 1099px)').matches);
   const [listOpen, setListOpen] = useState(true);
   const compact = narrow || scale >= 1.5;
@@ -132,8 +152,20 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     grantEpoch = useRef(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const tasks = useRef(new Map<string, OperationTask<unknown>>());
-  const commandTask = useRef<{ task: OperationTask<WriteResult> } | null>(null);
-  const protecting = useRef(false);
+  const commandTask = useRef<{ task: OperationTask<WriteResult>; installed: boolean } | null>(null);
+  const navigationRef = useRef<EditorTransitions | null>(null);
+  if (!navigationRef.current)
+    navigationRef.current = new EditorTransitions(
+      {
+        current: () => editorRef.current,
+        invalidateReads: () => objectGate.current.invalidate(),
+        changed: (stage) => {
+          if (alive.current) setTransitionStage(stage);
+        },
+      },
+      closingLocked ? ['close'] : [],
+    );
+  const navigation = navigationRef.current;
   const openingReference = useRef(false);
   const operations = useRef<MakeTask>((key, send) => {
     const task = new OperationTask(api, session, key, send);
@@ -155,15 +187,24 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     }
     return true;
   }
-  async function prepareToLeave() {
+  async function prepareCurrent() {
     const activeEditor = editorRef.current;
     if (activeEditor && !(await activeEditor.prepareToLeave())) return false;
     if (activeEditor !== editorRef.current) return false;
-    return resolveOperations();
+    const resolved = await resolveOperations();
+    return resolved && activeEditor === editorRef.current;
   }
-  async function discardEdits() {
+  async function prepareToLeave() {
+    await navigation.whenIdle();
+    return alive.current && prepareCurrent();
+  }
+  async function discardCurrent() {
     if (!(await resolveOperations())) return false;
     return !editorRef.current || (await editorRef.current.discardEdits());
+  }
+  async function discardEdits() {
+    await navigation.whenIdle();
+    return alive.current && discardCurrent();
   }
   async function copyEdits() {
     const active = editorRef.current;
@@ -176,14 +217,18 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       setError('OPERATION_UNKNOWN');
     }
   }
-  async function protect(action: () => Promise<void>) {
-    if (busy || protecting.current || editorRef.current?.getSnapshot().locked) return;
-    protecting.current = true;
+  async function protect(
+    action: (ticket: TransitionTicket) => Promise<void>,
+    stage: 'opening' | 'creating' = 'opening',
+    discard = false,
+  ) {
+    if (busy) return;
     try {
-      if (await prepareToLeave()) await action();
-      else setLeaveAction(() => action);
-    } finally {
-      protecting.current = false;
+      await navigation.run(stage, discard ? discardCurrent : prepareCurrent, action, () =>
+        setLeaveAction({ action, stage }),
+      );
+    } catch {
+      if (alive.current) setError('OPERATION_UNKNOWN');
     }
   }
 
@@ -197,24 +242,33 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   }
   function installEditor(
     view: ObjectView | null,
-    draft?: DraftSnapshot,
-    content?: ObjectContent,
-    proposalId?: string,
+    options: {
+      draft?: DraftSnapshot;
+      content?: ObjectContent;
+      proposalId?: string;
+      kind?: 'document' | 'record';
+      ticket?: TransitionTicket;
+    } = {},
   ) {
+    if (!alive.current || !navigation.claimInstall(options.ticket)) return null;
+    const { draft, content, proposalId, kind } = options;
     const own: EditorSession = new EditorSession(api, session, view, {
       draft,
       content,
+      kind,
       source: proposalId ? { kind: 'proposal', proposalId } : undefined,
       onSaved: (object) => {
         if (!alive.current || editorRef.current !== own) return;
         remember(object.id);
-        setObjects((old) => [
-          summary(object),
-          ...old.filter((entry) => entry.ref.objectId !== object.id),
-        ]);
+        setObjects((old) =>
+          old.map((entry) => (entry.ref.objectId === object.id ? summary(object) : entry)),
+        );
+        // Re-evaluate the current kind/search/project scope rather than inserting into a stale filter.
+        currentActions.current.refreshAll();
         setRefresh((value) => value + 1);
       },
     });
+    navigation.inherit(own);
     editorRef.current?.dispose();
     editorRef.current = own;
     setEditor(own);
@@ -222,17 +276,25 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     setSelectedProposal(null);
     setListOpen(false);
     setAux(null);
+    setTableOpen(false);
+    setMetadataDialog(null);
     if (view) remember(view.object.id);
+    return own;
   }
-  async function readEditor(id: string) {
-    const ticket = objectGate.current.begin(session, id);
-    setLoading(true);
+  async function readEditor(id: string, transition?: TransitionTicket) {
+    const ticket = objectGate.current.begin(session, id),
+      previous = editorRef.current;
     setError(null);
     try {
       const result = await api.readObject(bound(session, { objectId: id }));
-      if (!alive.current || !objectGate.current.accepts(ticket, session, id)) return;
+      if (
+        !alive.current ||
+        !objectGate.current.accepts(ticket, session, id) ||
+        previous !== editorRef.current
+      )
+        return;
       if (result.ok) {
-        installEditor(result.value);
+        if (!installEditor(result.value, { ticket: transition })) return;
         // Review's result/current-object action enters the document workspace.
         // Ordinary project browsing keeps its project destination.
         if (destination === 'review') setDestination('library');
@@ -240,26 +302,33 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     } catch {
       if (alive.current && objectGate.current.accepts(ticket, session, id))
         setError('OPERATION_UNKNOWN');
-    } finally {
-      if (alive.current && objectGate.current.accepts(ticket, session, id)) setLoading(false);
     }
   }
   function openEditor(id: string) {
-    void protect(() => readEditor(id));
+    void protect((ticket) => readEditor(id, ticket));
   }
 
   async function createNote(
     content: ObjectContent = { title: '', body: '', properties: {}, relations: [] },
+    kind: Kind = 'document',
+    ticket?: TransitionTicket,
+    retryOriginal = false,
   ) {
-    if (!commandTask.current || commandTask.current.task.settled) {
+    if (!ticket || !navigation.isCurrent(ticket)) return;
+    if (
+      !commandTask.current ||
+      commandTask.current.installed ||
+      (!retryOriginal && commandTask.current.task.settled)
+    ) {
       const input = {
         operationKey: newKey('create'),
         id: crypto.randomUUID(),
-        kind: 'document' as const,
+        kind,
         content: structuredClone(content),
         generation: 0,
       };
       commandTask.current = {
+        installed: false,
         task: operations.current(input.operationKey, () => api.createObject(bound(session, input))),
       };
     }
@@ -267,14 +336,24 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     setError(null);
     try {
       const result = await commandTask.current.task.run();
-      if (!alive.current) return;
+      if (!alive.current || !navigation.isCurrent(ticket)) return;
       if (result.ok) {
-        installEditor({
-          object: result.value.object,
-          currentRevision: result.value.object.revision,
-          relationTargets: [],
-        });
-        setDestination('library');
+        if (
+          !installEditor(
+            {
+              object: result.value.object,
+              currentRevision: result.value.object.revision,
+              relationTargets: [],
+            },
+            { ticket },
+          )
+        )
+          return;
+        commandTask.current.installed = true;
+        setDestination(result.value.object.kind === 'project' ? 'projects' : 'library');
+        setText('');
+        setKind(undefined);
+        setProjectId(null);
         setObjects((old) => [
           summary(result.value.object),
           ...old.filter((entry) => entry.ref.objectId !== result.value.object.id),
@@ -291,27 +370,29 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     }
   }
   async function copyVersion(view: ObjectView) {
-    await protect(() => createNote(noteFromVersion(view, locale)));
+    await protect(
+      (ticket) => createNote(noteFromVersion(view, locale), 'document', ticket),
+      'creating',
+    );
   }
   async function useProposalDraft(view: ProposalView) {
-    await protect(async () => {
+    await protect(async (ticket) => {
       const content = structuredClone(view.proposedContent);
-      if (view.proposal.kind !== 'document') {
-        const properties = Object.values(content.properties)
-          .map((field) => `${field.label}: ${String(field.value ?? '')}`)
-          .join('\n');
-        content.body = [content.body, properties].filter(Boolean).join('\n\n');
-        content.properties = {};
-      }
-      installEditor(null, undefined, content, view.proposal.id);
+      const own = installEditor(null, {
+        content,
+        proposalId: view.proposal.id,
+        kind: view.proposal.kind === 'record' ? 'record' : 'document',
+        ticket,
+      });
+      if (!own) return;
       setDestination('library');
-      await editorRef.current?.keepDraft();
+      await own.keepDraft();
     });
   }
   async function resumeDraft(draftId: string) {
-    await protect(async () => {
+    await protect(async (ticket) => {
       const result = await api.readDraft(bound(session, { draftId })).catch(() => null);
-      if (!alive.current) return;
+      if (!alive.current || !navigation.isCurrent(ticket)) return;
       if (!result?.ok) {
         setError(result && !result.ok ? result.error.code : 'OPERATION_UNKNOWN');
         return;
@@ -323,12 +404,12 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
               .readObject(bound(session, { objectId: draft.target.objectId }))
               .catch(() => null)
           : null;
-      if (!alive.current) return;
+      if (!alive.current || !navigation.isCurrent(ticket)) return;
       if (draft.target.state === 'existing' && !current?.ok) {
         setError(current && !current.ok ? current.error.code : 'OPERATION_UNKNOWN');
         return;
       }
-      installEditor(current?.ok ? current.value : null, draft);
+      if (!installEditor(current?.ok ? current.value : null, { draft, ticket })) return;
       setDestination('library');
     });
   }
@@ -456,6 +537,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   }, [destination, kind, text, projectId]);
   useEffect(() => {
     alive.current = true;
+    navigation.activate();
     void loadProposals();
     void loadDrafts();
     void loadGrants();
@@ -505,6 +587,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     window.addEventListener('focus', onFocus);
     return () => {
       alive.current = false;
+      navigation.dispose();
       clearInterval(timer);
       window.removeEventListener('focus', onFocus);
       queryGate.current.invalidate();
@@ -512,6 +595,9 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       editorRef.current?.dispose();
     };
   }, [session.bindingId]);
+  useEffect(() => {
+    navigation.setLock('close', closingLocked);
+  }, [closingLocked]);
   useEffect(() => {
     const media = window.matchMedia('(max-width: 1099px)');
     const listener = () => setNarrow(media.matches);
@@ -541,6 +627,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     return () => window.removeEventListener('keydown', keyboard);
   });
   function command(value: MenuCommand) {
+    if (navigation.pending || navigation.locked) return;
     if (value === 'save') {
       void editorRef.current?.saveNow();
       return;
@@ -551,24 +638,26 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       return;
     }
     if (value === 'new-note') {
-      void protect(() => createNote());
+      void protect((ticket) => createNote(undefined, 'document', ticket), 'creating');
       return;
     }
     void protect(async () => {
       setDestination('library');
       setReaders([]);
       setAux(null);
+      setTableOpen(false);
       setListOpen(true);
       requestAnimationFrame(() => searchRef.current?.focus());
     });
   }
   useImperativeHandle(ref, () => ({
+    bindingId: session.bindingId,
     prepareToLeave,
     discardEdits,
     copyEdits,
     command,
     afterComposition: () => editorRef.current?.afterComposition() ?? Promise.resolve(),
-    lockInput: (locked) => editorRef.current?.lockInput(locked) ?? true,
+    lockInput: (locked, source = 'close') => navigation.setLock(source, locked),
   }));
 
   function openReference(reference: ObjectRef, trigger?: string) {
@@ -615,6 +704,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       setProjectId(null);
       setReaders([]);
       setAux(null);
+      setTableOpen(false);
       setListOpen(true);
       if (value !== 'review') setSelectedProposal(null);
     });
@@ -633,6 +723,25 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
         ...result.value.items.filter((entry) => !old.some((existing) => existing.id === entry.id)),
       ]);
   }
+  function openMetadata(mode: 'fields' | 'relations') {
+    const active = editorRef.current;
+    if (!active) return;
+    void active.afterComposition().then(() => {
+      if (
+        alive.current &&
+        active === editorRef.current &&
+        !active.getSnapshot().locked &&
+        active.getSnapshot().object?.lifecycle !== 'archived'
+      )
+        setMetadataDialog(mode);
+    });
+  }
+  function reuseFields(properties: ObjectContent['properties']) {
+    void protect(
+      (ticket) => createNote(recordFromFields(properties), 'record', ticket),
+      'creating',
+    );
+  }
   const nav = [
     { id: 'continue', key: 'nav.continue', icon: BookOpen },
     { id: 'projects', key: 'nav.projects', icon: Folder },
@@ -644,474 +753,616 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     ? t(locale, 'ui.atLeastPending', { count: proposals.length })
     : formatCount(locale, 'pendingProposals', proposals.length);
   const activeObject = editor?.getSnapshot().objectId;
+  const recordItems = useMemo(() => objects.filter((item) => item.kind === 'record'), [objects]);
   const lastPrepared = activity.find((entry) => entry.stage === 'prepared');
   const reader = readers.at(-1);
   return (
     <TaskContext.Provider value={operations.current}>
-      <div
-        className="workbench"
-        data-compact={compact}
-        data-list-open={listOpen}
-        data-aux={aux ?? ''}
-        data-testid="workbench"
-      >
-        <nav className="workspace-nav" aria-label={t(locale, 'app.name')}>
-          {nav.map(({ id, key, icon: Icon }) => (
-            <button
-              key={id}
-              data-testid={`nav-${id}`}
-              aria-current={destination === id ? 'page' : undefined}
-              onClick={() => chooseDestination(id)}
-            >
-              <Icon size={18} />
-              <span>{t(locale, key)}</span>
-              {id === 'review' && proposals.length > 0 && (
-                <span className="nav-count" aria-label={countLabel}>
-                  {formatNumber(locale, proposals.length)}
-                  {moreProposals ? '+' : ''}
-                </span>
-              )}
-            </button>
-          ))}
-          <div className="nav-bottom">
-            <button onClick={() => setActivityOpen(true)} data-testid="open-activity">
-              <Activity size={18} />
-              {t(locale, 'ui.activity')}
-            </button>
-            {lastPrepared && (
-              <small>
-                {t(locale, 'agent.lastCall', {
-                  time: new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(
-                    new Date(lastPrepared.recordedAt),
-                  ),
-                })}
-              </small>
-            )}
-            <small>{t(locale, 'space.local')}</small>
-          </div>
-        </nav>
-        <aside
-          className="material-list"
-          aria-label={t(locale, nav.find((item) => item.id === destination)!.key)}
+      <ReferenceRefreshContext.Provider value={refresh}>
+        <div
+          className="workbench"
+          data-compact={compact}
+          data-list-open={listOpen}
+          data-aux={aux ?? ''}
+          data-testid="workbench"
+          onBeforeInputCapture={(event) => {
+            if (navigation.locked) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }}
+          onKeyDownCapture={(event) => {
+            if (
+              !navigation.locked ||
+              !(event.target instanceof Element) ||
+              !event.target.closest('.document-pane')
+            )
+              return;
+            const key = event.key.toLowerCase();
+            if (
+              key === 'tab' ||
+              key === 'escape' ||
+              key.startsWith('arrow') ||
+              ((event.metaKey || event.ctrlKey) && (key === 'c' || key === 'a'))
+            )
+              return;
+            event.preventDefault();
+            event.stopPropagation();
+          }}
         >
-          <header>
-            <h2>{t(locale, nav.find((item) => item.id === destination)!.key)}</h2>
-            {compact && (editor || selectedProposal || reader) && (
+          <nav
+            className="workspace-nav"
+            aria-label={t(locale, 'app.name')}
+            inert={!!transitionStage}
+          >
+            {nav.map(({ id, key, icon: Icon }) => (
               <button
-                className="icon-button"
-                aria-label={t(locale, 'ui.sourceReturn')}
-                onClick={() => setListOpen(false)}
+                key={id}
+                data-testid={`nav-${id}`}
+                aria-current={destination === id ? 'page' : undefined}
+                onClick={() => chooseDestination(id)}
               >
-                <ChevronLeft size={18} />
+                <Icon size={18} />
+                <span>{t(locale, key)}</span>
+                {id === 'review' && proposals.length > 0 && (
+                  <span className="nav-count" aria-label={countLabel}>
+                    {formatNumber(locale, proposals.length)}
+                    {moreProposals ? '+' : ''}
+                  </span>
+                )}
               </button>
-            )}
-          </header>
-          {destination !== 'review' && (
-            <div className="list-filters">
-              <label className="search-field">
-                <Search size={16} />
-                <input
-                  ref={searchRef}
-                  value={text}
-                  maxLength={200}
-                  placeholder={t(locale, 'ui.search')}
-                  aria-label={t(locale, 'ui.search')}
-                  data-testid="space-search"
-                  onChange={(event) => setText(event.target.value)}
-                />
-              </label>
-              {destination !== 'projects' && (
-                <select
-                  aria-label={t(locale, 'ui.type')}
-                  value={kind ?? ''}
-                  onChange={(event) =>
-                    setKind((event.target.value || undefined) as QueryInput['filter']['kind'])
-                  }
-                >
-                  <option value="">{t(locale, 'ui.allMaterial')}</option>
-                  <option value="document">{t(locale, 'ui.notes')}</option>
-                  <option value="record">{t(locale, 'object.record')}</option>
-                  <option value="asset">{t(locale, 'object.asset')}</option>
-                </select>
+            ))}
+            <div className="nav-bottom">
+              <button onClick={() => setActivityOpen(true)} data-testid="open-activity">
+                <Activity size={18} />
+                {t(locale, 'ui.activity')}
+              </button>
+              {lastPrepared && (
+                <small>
+                  {t(locale, 'agent.lastCall', {
+                    time: new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(
+                      new Date(lastPrepared.recordedAt),
+                    ),
+                  })}
+                </small>
               )}
-              {text && <small>{t(locale, 'ui.searchLiteral')}</small>}
-              {projectId && (
-                <button onClick={() => setProjectId(null)}>
-                  {t(locale, 'common.remove')} · {t(locale, 'relation.inProject')}
+              <small>{t(locale, 'space.local')}</small>
+            </div>
+          </nav>
+          <aside
+            className="material-list"
+            inert={!!transitionStage}
+            aria-label={t(locale, nav.find((item) => item.id === destination)!.key)}
+          >
+            <header>
+              <h2>{t(locale, nav.find((item) => item.id === destination)!.key)}</h2>
+              {compact && (editor || selectedProposal || reader) && (
+                <button
+                  className="icon-button"
+                  aria-label={t(locale, 'ui.sourceReturn')}
+                  onClick={() => setListOpen(false)}
+                >
+                  <ChevronLeft size={18} />
                 </button>
               )}
-            </div>
-          )}
-          <div className="list-scroll as-scroll-region">
-            {destination === 'continue' && drafts.length > 0 && (
-              <section className="draft-list">
-                <h3>{t(locale, 'ui.drafts')}</h3>
-                {drafts.map((draft) => (
-                  <button
-                    key={draft.draftId}
-                    onClick={() => {
-                      void resumeDraft(draft.draftId);
+              {destination !== 'review' && (
+                <details className="material-create">
+                  <summary aria-label={t(locale, 'org.newMaterial')} data-testid="new-material">
+                    <Plus size={16} />
+                    {t(locale, 'org.newMaterial')}
+                  </summary>
+                  <div>
+                    {(['document', 'project', 'record', 'asset'] as const).map((kind) => (
+                      <button
+                        key={kind}
+                        data-testid={`new-${kind}`}
+                        onClick={(event) => {
+                          const menu = event.currentTarget.closest('details');
+                          if (menu) menu.open = false;
+                          void protect((ticket) => createNote(undefined, kind, ticket), 'creating');
+                        }}
+                      >
+                        {t(
+                          locale,
+                          kind === 'document'
+                            ? 'object.newNote'
+                            : kind === 'project'
+                              ? 'org.newProject'
+                              : kind === 'record'
+                                ? 'org.newRecord'
+                                : 'org.newAsset',
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </header>
+            {destination !== 'review' && (
+              <div className="list-filters">
+                <label className="search-field">
+                  <Search size={16} />
+                  <input
+                    ref={searchRef}
+                    value={text}
+                    maxLength={200}
+                    placeholder={t(locale, 'ui.search')}
+                    aria-label={t(locale, 'ui.search')}
+                    data-testid="space-search"
+                    onChange={(event) => setText(event.target.value)}
+                  />
+                </label>
+                {destination !== 'projects' && (
+                  <select
+                    aria-label={t(locale, 'ui.type')}
+                    value={kind ?? ''}
+                    onChange={(event) => {
+                      setKind((event.target.value || undefined) as QueryInput['filter']['kind']);
+                      setTableOpen(false);
                     }}
                   >
-                    <span>
-                      {t(
-                        locale,
-                        draft.target.state === 'new' ? 'ui.newDraft' : 'editor.resumeDraft',
-                      )}
-                    </span>
-                    <small>
-                      <Time value={draft.updatedAt} />
-                    </small>
-                  </button>
-                ))}
-                {draftNext && (
-                  <button
-                    onClick={() => {
-                      void loadDrafts(draftNext);
-                    }}
-                  >
-                    {t(locale, 'ui.moreResults')}
-                  </button>
+                    <option value="">{t(locale, 'ui.allMaterial')}</option>
+                    <option value="document">{t(locale, 'ui.notes')}</option>
+                    <option value="record">{t(locale, 'object.record')}</option>
+                    <option value="asset">{t(locale, 'object.asset')}</option>
+                    <option value="project">{t(locale, 'org.project')}</option>
+                  </select>
                 )}
-              </section>
-            )}
-            {destination === 'review' ? (
-              <>
-                {proposals.map((proposal) => (
+                {text && <small>{t(locale, 'ui.searchLiteral')}</small>}
+                {kind === 'record' && destination === 'library' && (
                   <button
-                    className={`material-row ${selectedProposal === proposal.id ? 'selected' : ''}`}
-                    key={proposal.id}
+                    data-testid="show-record-table"
                     onClick={() => {
                       void protect(async () => {
-                        setSelectedProposal(proposal.id);
+                        setTableOpen(true);
                         setReaders([]);
                         setAux(null);
+                        setSelectedProposal(null);
                         setListOpen(false);
                       });
                     }}
-                    data-testid={`proposal-row-${proposal.id}`}
                   >
-                    <span className="row-title">
-                      {!proposal.seen && (
-                        <span className="unread-dot" aria-label={t(locale, 'proposal.unread')} />
-                      )}{' '}
-                      {proposal.purpose}
-                    </span>
-                    <small>
-                      {t(
-                        locale,
-                        proposal.status === 'conflicted'
-                          ? 'proposal.conflicted'
-                          : proposal.action === 'create'
-                            ? proposal.kind === 'record'
-                              ? 'proposal.proposedNewRecord'
-                              : 'proposal.proposedNewNote'
-                            : 'proposal.pending',
-                      )}
-                    </small>
-                    <small>
-                      <Time value={proposal.createdAt} />
-                    </small>
-                  </button>
-                ))}
-                {proposals.length === 0 && !moreProposals && !proposalLoadError && (
-                  <p className="list-empty">{t(locale, 'proposal.noPending')}</p>
-                )}
-                {moreProposals && (
-                  <button
-                    onClick={() => {
-                      void loadProposals(true);
-                    }}
-                  >
-                    {t(locale, 'ui.moreResults')}
+                    {t(locale, 'records.table')}
                   </button>
                 )}
-              </>
-            ) : (
-              <>
-                {objects.map((object) => (
-                  <button
-                    className={`material-row ${activeObject === object.ref.objectId ? 'selected' : ''}`}
-                    key={object.ref.objectId}
-                    onClick={() => openEditor(object.ref.objectId)}
-                    data-testid={`object-row-${object.ref.objectId}`}
-                  >
-                    <span className="row-title">
-                      {titleText(locale, object.title, object.kind)}
-                    </span>
-                    <small>
-                      {t(
-                        locale,
-                        object.kind === 'document'
-                          ? 'object.note'
-                          : object.kind === 'project'
-                            ? 'nav.projects'
-                            : object.kind === 'record'
-                              ? 'object.record'
-                              : 'object.asset',
-                      )}{' '}
-                      · {t(locale, 'source.version', { version: object.ref.revision })}
-                    </small>
-                    <small>
-                      <Time value={object.updatedAt} />
-                    </small>
-                  </button>
-                ))}
-                {!objects.length && !loading && (
-                  <p className="list-empty">
-                    {t(locale, text ? 'context.noMatches' : 'ui.emptyMaterial')}
-                  </p>
-                )}
-                {cursor && (
-                  <button
-                    onClick={() => {
-                      void loadObjects(cursor);
-                    }}
-                  >
-                    {t(locale, 'ui.moreResults')}
+                {projectId && (
+                  <button onClick={() => setProjectId(null)}>
+                    {t(locale, 'common.remove')} · {t(locale, 'relation.inProject')}
                   </button>
                 )}
-                {loading && <p role="status">{t(locale, 'ui.loading')}</p>}
-              </>
+              </div>
             )}
-          </div>
-        </aside>
-        <main className="working-surface" id="working-surface">
-          {(error || (destination === 'review' && proposalLoadError) || feedback) && (
-            <div className="surface-notices">
-              <ErrorNotice
-                code={error}
-                onRetry={() => {
-                  if (commandTask.current?.task.unknown) void createNote();
-                  else currentActions.current.refreshAll();
-                }}
-              />
-              {destination === 'review' && proposalLoadError && (
+            <div className="list-scroll as-scroll-region">
+              {destination === 'continue' && drafts.length > 0 && (
+                <section className="draft-list">
+                  <h3>{t(locale, 'ui.drafts')}</h3>
+                  {drafts.map((draft) => (
+                    <button
+                      key={draft.draftId}
+                      onClick={() => {
+                        void resumeDraft(draft.draftId);
+                      }}
+                    >
+                      <span>
+                        {t(
+                          locale,
+                          draft.target.state === 'new' ? 'ui.newDraft' : 'editor.resumeDraft',
+                        )}
+                      </span>
+                      <small>
+                        <Time value={draft.updatedAt} />
+                      </small>
+                    </button>
+                  ))}
+                  {draftNext && (
+                    <button
+                      onClick={() => {
+                        void loadDrafts(draftNext);
+                      }}
+                    >
+                      {t(locale, 'ui.moreResults')}
+                    </button>
+                  )}
+                </section>
+              )}
+              {destination === 'review' ? (
+                <>
+                  {proposals.map((proposal) => (
+                    <button
+                      className={`material-row ${selectedProposal === proposal.id ? 'selected' : ''}`}
+                      key={proposal.id}
+                      onClick={() => {
+                        void protect(async () => {
+                          setSelectedProposal(proposal.id);
+                          setReaders([]);
+                          setAux(null);
+                          setListOpen(false);
+                        });
+                      }}
+                      data-testid={`proposal-row-${proposal.id}`}
+                    >
+                      <span className="row-title">
+                        {!proposal.seen && (
+                          <span className="unread-dot" aria-label={t(locale, 'proposal.unread')} />
+                        )}{' '}
+                        {proposal.purpose}
+                      </span>
+                      <small>
+                        {t(
+                          locale,
+                          proposal.status === 'conflicted'
+                            ? 'proposal.conflicted'
+                            : proposal.action === 'create'
+                              ? proposal.kind === 'record'
+                                ? 'proposal.proposedNewRecord'
+                                : 'proposal.proposedNewNote'
+                              : 'proposal.pending',
+                        )}
+                      </small>
+                      <small>
+                        <Time value={proposal.createdAt} />
+                      </small>
+                    </button>
+                  ))}
+                  {proposals.length === 0 && !moreProposals && !proposalLoadError && (
+                    <p className="list-empty">{t(locale, 'proposal.noPending')}</p>
+                  )}
+                  {moreProposals && (
+                    <button
+                      onClick={() => {
+                        void loadProposals(true);
+                      }}
+                    >
+                      {t(locale, 'ui.moreResults')}
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  {objects.map((object) => (
+                    <button
+                      className={`material-row ${activeObject === object.ref.objectId ? 'selected' : ''}`}
+                      key={object.ref.objectId}
+                      onClick={() => openEditor(object.ref.objectId)}
+                      data-testid={`object-row-${object.ref.objectId}`}
+                    >
+                      <span className="row-title">
+                        {titleText(locale, object.title, object.kind)}
+                      </span>
+                      <small>
+                        {t(
+                          locale,
+                          object.kind === 'document'
+                            ? 'object.note'
+                            : object.kind === 'project'
+                              ? 'nav.projects'
+                              : object.kind === 'record'
+                                ? 'object.record'
+                                : 'object.asset',
+                        )}{' '}
+                        · {t(locale, 'source.version', { version: object.ref.revision })}
+                      </small>
+                      <small>
+                        <Time value={object.updatedAt} />
+                      </small>
+                    </button>
+                  ))}
+                  {!objects.length && !loading && (
+                    <p className="list-empty">
+                      {t(locale, text ? 'context.noMatches' : 'ui.emptyMaterial')}
+                    </p>
+                  )}
+                  {cursor && (
+                    <button
+                      onClick={() => {
+                        void loadObjects(cursor);
+                      }}
+                    >
+                      {t(locale, 'ui.moreResults')}
+                    </button>
+                  )}
+                  {loading && <p role="status">{t(locale, 'ui.loading')}</p>}
+                </>
+              )}
+            </div>
+          </aside>
+          <main className="working-surface" id="working-surface">
+            {transitionStage && (
+              <div className="transition-notice" role="status" data-testid="editor-transition">
+                <span>
+                  {t(
+                    locale,
+                    transitionStage === 'preparing'
+                      ? 'ui.preparingNavigation'
+                      : transitionStage === 'creating'
+                        ? 'ui.creatingMaterial'
+                        : 'ui.openingMaterial',
+                  )}
+                </span>
+                {navigation.cancellable && (
+                  <button onClick={() => navigation.cancelOpening()}>
+                    {t(locale, 'common.cancel')}
+                  </button>
+                )}
+              </div>
+            )}
+            {(error || (destination === 'review' && proposalLoadError) || feedback) && (
+              <div className="surface-notices">
                 <ErrorNotice
-                  code={proposalLoadError}
+                  code={error}
                   onRetry={() => {
+                    if (commandTask.current && !commandTask.current.installed)
+                      void protect(
+                        (ticket) => createNote(undefined, 'document', ticket, true),
+                        'creating',
+                      );
+                    else currentActions.current.refreshAll();
+                  }}
+                />
+                {destination === 'review' && proposalLoadError && (
+                  <ErrorNotice
+                    code={proposalLoadError}
+                    onRetry={() => {
+                      void loadProposals();
+                    }}
+                  />
+                )}
+                {feedback && <p role="status">{t(locale, 'common.copied')}</p>}
+              </div>
+            )}
+            <div hidden={!!reader} className="primary-surface" aria-busy={!!transitionStage}>
+              {tableOpen && destination === 'library' && kind === 'record' ? (
+                <RecordsTable
+                  api={api}
+                  session={session}
+                  items={recordItems}
+                  more={!!cursor}
+                  onMore={() => {
+                    void loadObjects(cursor ?? undefined);
+                  }}
+                  onOpen={openEditor}
+                  onReuse={reuseFields}
+                  onBack={() => {
+                    setTableOpen(false);
+                    setListOpen(true);
+                  }}
+                />
+              ) : destination === 'review' && selectedProposal ? (
+                <ReviewPane
+                  key={selectedProposal}
+                  api={api}
+                  session={session}
+                  proposalId={selectedProposal}
+                  refresh={refresh}
+                  grants={grants}
+                  onOpen={openReference}
+                  onEdit={openEditor}
+                  onDraft={(view) => {
+                    void useProposalDraft(view);
+                  }}
+                  onChanged={() => {
                     void loadProposals();
                   }}
                 />
+              ) : editor ? (
+                <DocumentPane
+                  editor={editor}
+                  api={api}
+                  session={session}
+                  refresh={refresh}
+                  onOpen={openReference}
+                  onHistory={() => setAux((old) => (old === 'history' ? null : 'history'))}
+                  onDetails={() => setAux('details')}
+                  onBrowse={() => {
+                    void protect(async () => {
+                      setAux(null);
+                      setTableOpen(false);
+                      setListOpen(true);
+                    });
+                  }}
+                  compact={compact}
+                  onFields={() => openMetadata('fields')}
+                  onReuseFields={reuseFields}
+                  onProjectMaterial={(id) => {
+                    void protect(async () => {
+                      setDestination('library');
+                      setProjectId(id);
+                      setAux(null);
+                      setTableOpen(false);
+                      setListOpen(true);
+                    });
+                  }}
+                />
+              ) : (
+                <div className="empty-pane">
+                  <FileText size={32} aria-hidden="true" />
+                  <h1>{t(locale, 'ui.noSelection')}</h1>
+                  <p>{t(locale, 'ui.emptyMaterial')}</p>
+                  <button
+                    className="primary"
+                    onClick={() => {
+                      void protect(
+                        (ticket) => createNote(undefined, 'document', ticket),
+                        'creating',
+                      );
+                    }}
+                  >
+                    {t(locale, 'object.newNote')}
+                  </button>
+                </div>
               )}
-              {feedback && <p role="status">{t(locale, 'common.copied')}</p>}
             </div>
-          )}
-          <div hidden={!!reader} className="primary-surface">
-            {destination === 'review' && selectedProposal ? (
-              <ReviewPane
-                key={selectedProposal}
+            {reader && (
+              <SourceReader
+                key={`${readers.length}-${reader.reference.objectId}-${reader.reference.mode === 'pinned' ? reader.reference.revision : 'current'}`}
                 api={api}
                 session={session}
-                proposalId={selectedProposal}
-                refresh={refresh}
-                grants={grants}
+                reference={reader.reference}
+                onBack={backFromReference}
                 onOpen={openReference}
-                onEdit={openEditor}
-                onDraft={(view) => {
-                  void useProposalDraft(view);
-                }}
-                onChanged={() => {
-                  void loadProposals();
+                onCopyVersion={(view) => {
+                  void copyVersion(view);
                 }}
               />
-            ) : editor ? (
-              <DocumentPane
-                editor={editor}
+            )}
+          </main>
+          {editor &&
+            aux &&
+            !reader &&
+            !tableOpen &&
+            destination !== 'review' &&
+            (aux === 'details' ? (
+              <DetailsPane
+                key={`details-${editor.getSnapshot().editorId}`}
                 api={api}
                 session={session}
-                onOpen={openReference}
-                onHistory={() => setAux((old) => (old === 'history' ? null : 'history'))}
-                onDetails={() => setAux('details')}
-                onBrowse={() => {
-                  void protect(async () => {
-                    setAux(null);
-                    setListOpen(true);
-                  });
+                editor={editor}
+                onFields={() => openMetadata('fields')}
+                onRelations={() => openMetadata('relations')}
+                onClose={() => {
+                  setAux(null);
+                  document.getElementById('details-button')?.focus();
                 }}
-                compact={compact}
-                onProjectMaterial={(id) => {
-                  void protect(async () => {
-                    setDestination('library');
-                    setProjectId(id);
-                    setAux(null);
-                    setListOpen(true);
-                  });
+                onOpen={openReference}
+                onRefresh={() => {
+                  void pollObject();
                 }}
               />
             ) : (
-              <div className="empty-pane">
-                <FileText size={32} aria-hidden="true" />
-                <h1>{t(locale, 'ui.noSelection')}</h1>
-                <p>{t(locale, 'ui.emptyMaterial')}</p>
-                <button
-                  className="primary"
-                  onClick={() => {
-                    void protect(() => createNote());
+              editor.getSnapshot().objectId && (
+                <HistoryPane
+                  key={`history-${editor.getSnapshot().objectId}`}
+                  api={api}
+                  session={session}
+                  objectId={editor.getSnapshot().objectId!}
+                  refresh={refresh}
+                  onClose={() => {
+                    setAux(null);
+                    document.getElementById('history-button')?.focus();
                   }}
-                >
-                  {t(locale, 'object.newNote')}
-                </button>
-              </div>
-            )}
-          </div>
-          {reader && (
-            <SourceReader
-              key={`${readers.length}-${reader.reference.objectId}-${reader.reference.mode === 'pinned' ? reader.reference.revision : 'current'}`}
-              api={api}
-              session={session}
-              reference={reader.reference}
-              onBack={backFromReference}
-              onOpen={openReference}
-              onCopyVersion={(view) => {
-                void copyVersion(view);
+                  onOpen={openReference}
+                  onCopied={(view) => {
+                    void copyVersion(view);
+                  }}
+                  onChanged={() => {
+                    void pollObject();
+                    setRefresh((value) => value + 1);
+                  }}
+                />
+              )
+            ))}
+          {compact && !listOpen && (
+            <button
+              className="browse-floating"
+              onClick={() => {
+                void protect(async () => {
+                  setAux(null);
+                  setTableOpen(false);
+                  setListOpen(true);
+                });
               }}
+            >
+              <PanelLeft size={16} />
+              {t(locale, 'ui.browse')}
+            </button>
+          )}
+          {editor && metadataDialog === 'fields' && (
+            <PropertiesEditor
+              key={`fields-${editor.getSnapshot().editorId}`}
+              api={api}
+              editor={editor}
+              onClose={() => setMetadataDialog(null)}
             />
           )}
-        </main>
-        {editor &&
-          aux &&
-          !reader &&
-          destination !== 'review' &&
-          (aux === 'details' ? (
-            <DetailsPane
-              key={`details-${editor.getSnapshot().editorId}`}
+          {editor && metadataDialog === 'relations' && (
+            <RelationsEditor
+              key={`relations-${editor.getSnapshot().editorId}`}
               api={api}
               session={session}
               editor={editor}
-              onClose={() => {
-                setAux(null);
-                document.getElementById('details-button')?.focus();
-              }}
-              onOpen={openReference}
-              onRefresh={() => {
-                void pollObject();
-              }}
+              onClose={() => setMetadataDialog(null)}
             />
-          ) : (
-            editor.getSnapshot().objectId && (
-              <HistoryPane
-                key={`history-${editor.getSnapshot().objectId}`}
+          )}
+          {settingsOpen && (
+            <Modal
+              title={t(locale, 'settings.title')}
+              onClose={() => {
+                setSettingsOpen(false);
+                void loadGrants();
+              }}
+              testId="settings-dialog"
+            >
+              <Preferences
+                scale={scale}
+                busy={preferencesBusy}
+                onLocale={onLocale}
+                onScale={onScale}
+              />
+              <AgentAccess
                 api={api}
                 session={session}
-                objectId={editor.getSnapshot().objectId!}
-                refresh={refresh}
-                onClose={() => {
-                  setAux(null);
-                  document.getElementById('history-button')?.focus();
-                }}
-                onOpen={openReference}
-                onCopied={(view) => {
-                  void copyVersion(view);
-                }}
-                onChanged={() => {
-                  void pollObject();
-                  setRefresh((value) => value + 1);
+                onGrants={(entries) => {
+                  grantEpoch.current++;
+                  setGrants(entries);
                 }}
               />
-            )
-          ))}
-        {compact && !listOpen && (
-          <button
-            className="browse-floating"
-            onClick={() => {
-              void protect(async () => {
-                setAux(null);
-                setListOpen(true);
-              });
-            }}
-          >
-            <PanelLeft size={16} />
-            {t(locale, 'ui.browse')}
-          </button>
-        )}
-        {settingsOpen && (
-          <Modal
-            title={t(locale, 'settings.title')}
-            onClose={() => {
-              setSettingsOpen(false);
-              void loadGrants();
-            }}
-            testId="settings-dialog"
-          >
-            <Preferences
-              scale={scale}
-              busy={preferencesBusy}
-              onLocale={onLocale}
-              onScale={onScale}
-            />
-            <AgentAccess
+            </Modal>
+          )}
+          {activityOpen && (
+            <ActivityPane
               api={api}
               session={session}
-              onGrants={(entries) => {
-                grantEpoch.current++;
-                setGrants(entries);
+              entries={activity}
+              more={activity.length > 0 && Math.min(...activity.map((entry) => entry.id)) > 1}
+              onClose={() => setActivityOpen(false)}
+              onOpen={openReference}
+              onEarlier={() => {
+                void earlierActivity();
               }}
             />
-          </Modal>
-        )}
-        {activityOpen && (
-          <ActivityPane
-            api={api}
-            session={session}
-            entries={activity}
-            more={activity.length > 0 && Math.min(...activity.map((entry) => entry.id)) > 1}
-            onClose={() => setActivityOpen(false)}
-            onOpen={openReference}
-            onEarlier={() => {
-              void earlierActivity();
-            }}
-          />
-        )}
-        <span className="as-sr-only" aria-live="polite">
-          {status.example ? t(locale, 'space.example') : ''}
-        </span>
-        {leaveAction && (
-          <Modal
-            title={t(locale, 'ui.leaveFailure')}
-            onClose={() => setLeaveAction(null)}
-            testId="leave-dialog"
-          >
-            <ErrorNotice code={editor?.getSnapshot().error ?? 'OPERATION_UNKNOWN'} />
-            <div className="as-actions">
-              <button
-                onClick={() => {
-                  const action = leaveAction;
-                  void prepareToLeave().then((ready) => {
-                    if (ready) {
-                      setLeaveAction(null);
-                      void action();
-                    }
-                  });
-                }}
-              >
-                {t(locale, 'common.retry')}
-              </button>
-              <button
-                onClick={() => {
-                  void copyEdits();
-                }}
-              >
-                {t(locale, 'editor.copyEdits')}
-              </button>
-              <button
-                onClick={() => {
-                  const action = leaveAction;
-                  void discardEdits().then((ready) => {
-                    if (ready) {
-                      setLeaveAction(null);
-                      void action();
-                    }
-                  });
-                }}
-              >
-                {t(locale, 'ui.discardEdits')}
-              </button>
-              <button onClick={() => setLeaveAction(null)}>{t(locale, 'ui.keepWorking')}</button>
-            </div>
-          </Modal>
-        )}
-      </div>
+          )}
+          <span className="as-sr-only" aria-live="polite">
+            {status.example ? t(locale, 'space.example') : ''}
+          </span>
+          {leaveAction && (
+            <Modal
+              title={t(locale, 'ui.leaveFailure')}
+              onClose={() => setLeaveAction(null)}
+              testId="leave-dialog"
+            >
+              <ErrorNotice code={editor?.getSnapshot().error ?? 'OPERATION_UNKNOWN'} />
+              <div className="as-actions">
+                <button
+                  onClick={() => {
+                    const intent = leaveAction;
+                    setLeaveAction(null);
+                    void protect(intent.action, intent.stage);
+                  }}
+                >
+                  {t(locale, 'common.retry')}
+                </button>
+                <button
+                  onClick={() => {
+                    void copyEdits();
+                  }}
+                >
+                  {t(locale, 'editor.copyEdits')}
+                </button>
+                <button
+                  onClick={() => {
+                    const intent = leaveAction;
+                    setLeaveAction(null);
+                    void protect(intent.action, intent.stage, true);
+                  }}
+                >
+                  {t(locale, 'ui.discardEdits')}
+                </button>
+                <button onClick={() => setLeaveAction(null)}>{t(locale, 'ui.keepWorking')}</button>
+              </div>
+            </Modal>
+          )}
+        </div>
+      </ReferenceRefreshContext.Provider>
     </TaskContext.Provider>
   );
 });

@@ -1,22 +1,211 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { spawn, type ChildProcess } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { closeChannel, coreMethods, platformMethods } from '../../src/desktop/channels.js';
 import { nativeDictionaries } from '../../src/desktop/native-copy.js';
-import { launchNative } from '../acceptance/native-harness.js';
+import { launchNative, type NativeHarness } from '../acceptance/native-harness.js';
+import type { AppBootstrap } from '../../src/contracts/app.js';
+import type { Result } from '../../src/contracts/errors.js';
 import { ok, content } from '../core/helpers.js';
 
 const entry = fileURLToPath(new URL('../../dist/desktop/main.cjs', import.meta.url));
 
+async function within<T>(label: string, milliseconds: number, pending: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      pending,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out`)), milliseconds);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const alive = (child: ChildProcess) =>
+  child.pid !== undefined && child.exitCode === null && child.signalCode === null;
+
+async function cleanupNative(native: NativeHarness, child: ChildProcess): Promise<void> {
+  if (!alive(child)) return;
+  try {
+    await within('native test cleanup', 5_000, native.close());
+  } finally {
+    if (alive(child)) {
+      const exited = once(child, 'exit');
+      child.kill('SIGKILL');
+      await within('native test process exit', 2_000, exited);
+    }
+  }
+}
+
+type CrashObservation = {
+  stage: string;
+  rendererPid?: number;
+  bootstrap?: Result<AppBootstrap>;
+  details?: { reason: string; exitCode: number };
+  buttons?: string[];
+  keptOpen?: boolean;
+};
+
+async function verifyCrashedRendererClose(
+  root: string,
+  expectedSpaceId: string,
+  remember: (child: ChildProcess) => void,
+): Promise<void> {
+  // Renderer death can stall Electron's attached debugging transport. This
+  // separate real app has no inspector/CDP connection; only a trusted temporary
+  // main-process observer and dialog-choice substitute use its private IPC pipe.
+  const observer = join(root, 'native-crash-observer.cjs');
+  writeFileSync(
+    observer,
+    String.raw`
+const { app, dialog } = require('electron');
+const send = (stage, detail = {}) => process.send({ channel: 'native-crash-test', stage, ...detail });
+let window;
+let release;
+const original = dialog.showMessageBox;
+dialog.showMessageBox = (...args) => new Promise((resolve) => {
+  release = resolve;
+  send('prompt', { buttons: args.at(-1).buttons, keptOpen: !window.isDestroyed() });
+});
+app.once('browser-window-created', (_event, created) => {
+  window = created;
+  const owner = window.webContents;
+  owner.once('render-process-gone', (_event, details) => {
+    send('gone', { details, keptOpen: !window.isDestroyed() });
+  });
+  owner.once('did-finish-load', async () => {
+    try {
+      const bootstrap = await owner.executeJavaScript('window.agentSpace.bootstrap()');
+      send('ready', { bootstrap, rendererPid: owner.getOSProcessId() });
+    } catch {
+      send('observer-error');
+    }
+  });
+});
+process.on('message', (message) => {
+  if (message.channel !== 'native-crash-test') return;
+  if (message.action === 'request-close') {
+    window.close();
+    send('close-requested', { keptOpen: !window.isDestroyed() });
+  } else if (message.action === 'keep-open') {
+    release({ response: 0, checkboxChecked: false });
+    setImmediate(() => send('kept-open', { keptOpen: !window.isDestroyed() }));
+  } else if (message.action === 'cleanup') {
+    dialog.showMessageBox = original;
+    app.exit(0); // Test cleanup only, not a product close-policy assertion.
+  }
+});
+`,
+    { mode: 0o600 },
+  );
+  const executable: unknown = createRequire(import.meta.url)('electron');
+  assert.equal(typeof executable, 'string');
+  const environment: NodeJS.ProcessEnv = {
+    ...process.env,
+    AGENTSPACE_USER_DATA: join(root, 'profile'),
+  };
+  delete environment.ELECTRON_RUN_AS_NODE;
+  const child = spawn(executable as string, ['--require', observer, entry], {
+    env: environment,
+    stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+  });
+  remember(child);
+  const observations: CrashObservation[] = [];
+  let startupError: Error | null = null;
+  child.on('error', (error) => {
+    startupError = error;
+  });
+  child.on('message', (raw: unknown) => {
+    if (
+      raw &&
+      typeof raw === 'object' &&
+      'channel' in raw &&
+      raw.channel === 'native-crash-test' &&
+      'stage' in raw &&
+      typeof raw.stage === 'string'
+    )
+      observations.push(raw as CrashObservation);
+  });
+  // Drain diagnostic pipes; no personal data or tokens are printed by this test.
+  child.stdout?.on('data', () => {});
+  child.stderr?.on('data', () => {});
+  const wait = async (stage: string, milliseconds: number): Promise<CrashObservation> => {
+    const deadline = Date.now() + milliseconds;
+    while (Date.now() < deadline) {
+      if (startupError) throw startupError;
+      if (observations.some((item) => item.stage === 'observer-error'))
+        assert.fail('Native crash observer could not read the real renderer bootstrap');
+      const observation = observations.find((item) => item.stage === stage);
+      if (observation) return observation;
+      assert.ok(alive(child), `Native crash app exited before ${stage}`);
+      await new Promise<void>((resolve) => setTimeout(resolve, 25));
+    }
+    assert.fail(
+      `Native crash observation ${stage} timed out; stages: ${observations.map((item) => item.stage).join(', ')}`,
+    );
+  };
+  try {
+    const ready = await wait('ready', 15_000);
+    assert.ok(ready.bootstrap);
+    const bootstrap = ok(ready.bootstrap);
+    assert.equal(bootstrap.preferences.locale, 'es');
+    assert.equal(bootstrap.activeSpace?.status.spaceId, expectedSpaceId);
+    assert.ok(Number.isSafeInteger(ready.rendererPid) && ready.rendererPid! > 0);
+    assert.notEqual(ready.rendererPid, child.pid);
+    // Only the PID reported by this app's own loaded window is killed. This is
+    // an actual renderer death, never a mocked render-process-gone event.
+    process.kill(ready.rendererPid!, 'SIGKILL');
+    const gone = await wait('gone', 5_000);
+    assert.equal(gone.keptOpen, true, 'Renderer death itself never authorizes closing');
+    assert.equal(gone.details?.reason, 'killed');
+    assert.notEqual(gone.details?.exitCode, 0);
+    child.send({ channel: 'native-crash-test', action: 'request-close' });
+    assert.equal((await wait('close-requested', 3_000)).keptOpen, true);
+    // Exercise the real eight-second Main fallback; only its OS choice is held.
+    const prompt = await wait('prompt', 12_000);
+    assert.equal(prompt.keptOpen, true, 'No renderer response never authorizes closing');
+    assert.ok(prompt.buttons?.includes(nativeDictionaries.es.keepOpen));
+    assert.ok(prompt.buttons?.includes(nativeDictionaries.es.discard));
+    child.send({ channel: 'native-crash-test', action: 'keep-open' });
+    assert.equal((await wait('kept-open', 3_000)).keptOpen, true);
+    const exited = once(child, 'exit');
+    child.send({ channel: 'native-crash-test', action: 'cleanup' });
+    assert.deepEqual(await within('native crash test cleanup', 3_000, exited), [0, null]);
+  } finally {
+    if (alive(child)) {
+      const exited = once(child, 'exit');
+      child.kill('SIGKILL');
+      await within('native crash test forced cleanup', 2_000, exited);
+    }
+  }
+}
+
 test(
   'actual desktop enforces origin/sender/schema/binding boundaries and persists private preferences',
   { timeout: 60_000 },
-  async () => {
+  async (t) => {
+    const children = new Set<ChildProcess>();
+    const abort = () => {
+      for (const child of children) if (alive(child)) child.kill('SIGKILL');
+    };
+    t.signal.addEventListener('abort', abort, { once: true });
+    t.after(() => {
+      t.signal.removeEventListener('abort', abort);
+      abort();
+    });
     const root = mkdtempSync(join(tmpdir(), 'agentspace-native-boundary-'));
     const native = await launchNative({ userData: join(root, 'profile'), entry });
+    const nativeChild = native.application.process();
+    children.add(nativeChild);
     let nativeClosed = false;
     try {
       const { application, page } = native;
@@ -350,7 +539,11 @@ test(
       try {
         const request = await held.evaluate((state) => state.observed.request);
         assert.ok(request);
-        await held.evaluate((state) => state.prompt);
+        await within(
+          'first native close fallback',
+          12_000,
+          held.evaluate((state) => state.prompt),
+        );
         const late = await page.evaluate(
           (request) => window.agentSpace.respondToClose({ ...request, decision: 'ready' }),
           request,
@@ -385,9 +578,11 @@ test(
         await held.dispose();
       }
       assert.deepEqual(native.pageErrors, []);
-      await native.close();
+      await cleanupNative(native, nativeChild);
       nativeClosed = true;
       const reopened = await launchNative({ userData: join(root, 'profile'), entry });
+      const reopenedChild = reopened.application.process();
+      children.add(reopenedChild);
       try {
         const restored = ok(await reopened.bootstrap());
         assert.equal(restored.preferences.locale, 'es');
@@ -405,40 +600,14 @@ test(
         );
         assert.equal(saved.object.content.body, note.object.content.body);
         assert.deepEqual(reopened.pageErrors, []);
-        const fallback = await reopened.application.evaluate(async ({ BrowserWindow, dialog }) => {
-          const window = BrowserWindow.getAllWindows()[0]!;
-          const original = dialog.showMessageBox;
-          const observed = { report: null as ((buttons: string[]) => void) | null };
-          const prompt = new Promise<string[]>((resolve) => {
-            observed.report = resolve;
-          });
-          dialog.showMessageBox = async (...args: unknown[]) => {
-            const options = args.at(-1) as { buttons: string[] };
-            observed.report!(options.buttons);
-            return { response: 0, checkboxChecked: false };
-          };
-          try {
-            const gone = new Promise<void>((resolve) =>
-              window.webContents.once('render-process-gone', () => resolve()),
-            );
-            window.webContents.forcefullyCrashRenderer();
-            await gone;
-            window.close();
-            const buttons = await prompt;
-            await new Promise<void>((resolve) => setTimeout(resolve, 0));
-            return { buttons, keptOpen: !window.isDestroyed() };
-          } finally {
-            dialog.showMessageBox = original;
-          }
-        });
-        assert.equal(fallback.keptOpen, true, 'No renderer response never authorizes closing');
-        assert.ok(fallback.buttons.includes(nativeDictionaries.es.keepOpen));
-        assert.ok(fallback.buttons.includes(nativeDictionaries.es.discard));
       } finally {
-        await reopened.close();
+        await cleanupNative(reopened, reopenedChild);
       }
+      await verifyCrashedRendererClose(root, example.status.spaceId, (child) =>
+        children.add(child),
+      );
     } finally {
-      if (!nativeClosed) await native.close();
+      if (!nativeClosed) await cleanupNative(native, nativeChild);
       rmSync(root, { recursive: true, force: true });
     }
   },

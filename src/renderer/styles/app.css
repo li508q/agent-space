@@ -390,6 +390,219 @@ button.primary:hover:not(:disabled) {
   padding: 0.65rem var(--as-page-gutter);
   border-block-end: 1px solid var(--as-color-divider);
 }
+.transition-notice {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.7rem var(--as-page-gutter);
+  color: var(--as-text-secondary);
+  border-block-end: 1px solid var(--as-color-divider);
+  background: var(--as-canvas);
+}
+.material-list > header {
+  flex-wrap: wrap;
+}
+.material-create {
+  flex: 1 1 100%;
+  font-size: var(--as-type-caption);
+}
+.material-create summary {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  min-block-size: 2rem;
+  color: var(--as-accent);
+  padding-block: 0.2rem;
+}
+.material-create > div {
+  display: grid;
+  gap: 0.3rem;
+  padding-block: 0.4rem;
+}
+.material-create button {
+  justify-content: flex-start;
+  text-align: start;
+}
+.metadata-form {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+  display: grid;
+  gap: 0.85rem;
+}
+.metadata-form label,
+.records-pane header > label {
+  display: grid;
+  gap: 0.35rem;
+  min-inline-size: 0;
+}
+.metadata-form input:not([type='checkbox']):not([type='radio']),
+.metadata-form select {
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+.metadata-form textarea {
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 5rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+.metadata-form .check-label {
+  display: flex;
+  align-items: center;
+}
+.field-editor {
+  border: 0;
+  border-block-start: 1px solid var(--as-color-divider);
+  min-inline-size: 0;
+  margin: 0;
+  padding: 1rem 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.field-editor legend {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  padding-inline-end: 0.5rem;
+}
+.field-definition {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 0.75rem;
+}
+.field-options {
+  display: grid;
+  gap: 0.6rem;
+}
+.option-row,
+.relationship-edit {
+  display: flex;
+  align-items: end;
+  gap: 0.6rem;
+}
+.option-row > label,
+.relationship-edit > div {
+  flex: 1;
+  min-inline-size: 0;
+}
+.field-error {
+  color: var(--as-color-danger);
+  margin: 0;
+}
+.metadata-actions {
+  margin-block-start: 1rem;
+  border-block-start: 1px solid var(--as-color-divider);
+  padding-block-start: 1rem;
+}
+.discard-prompt {
+  margin-block-start: 1rem;
+  padding: 0.85rem;
+  background: var(--as-canvas);
+  border-inline-start: 3px solid var(--as-color-attention);
+}
+.target-results {
+  max-block-size: 15rem;
+  overflow: auto;
+  border: 1px solid var(--as-color-divider);
+}
+.target-result {
+  display: flex !important;
+  align-items: start;
+  gap: 0.5rem;
+  padding: 0.65rem;
+}
+.target-result small,
+.record-table-scroll small,
+.reuse-notice {
+  display: block;
+  color: var(--as-text-secondary);
+  margin-block-start: 0.25rem;
+}
+.metadata-edit-actions {
+  margin-block-end: 0.85rem;
+}
+.project-summary,
+.record-fields {
+  margin-block-end: 1.5rem;
+}
+.project-summary h2,
+.record-fields h2,
+.linked-material h2 {
+  font-size: 1rem;
+  margin-block: 1rem 0.65rem;
+}
+.linked-material {
+  border-block-start: 1px solid var(--as-color-divider);
+  margin-block: 1.5rem 1rem;
+  padding-block-start: 0.5rem;
+}
+.linked-material-row {
+  padding-block: 0.55rem;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.7rem;
+}
+.linked-material-row button {
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.records-pane {
+  min-block-size: 0;
+  min-inline-size: 0;
+  block-size: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.records-pane > header {
+  max-block-size: 60%;
+  overflow: auto;
+}
+.records-pane h1 {
+  font-size: var(--as-type-title);
+}
+.record-table-scroll {
+  flex: 1;
+  min-block-size: 0;
+  min-inline-size: 0;
+  overflow: auto;
+}
+.record-table-scroll table {
+  border-collapse: collapse;
+  inline-size: 100%;
+  text-align: start;
+}
+.record-table-scroll th,
+.record-table-scroll td {
+  min-inline-size: 10rem;
+  max-inline-size: 22rem;
+  padding: 0.8rem;
+  vertical-align: top;
+  text-align: start;
+  overflow-wrap: anywhere;
+  border-block-end: 1px solid var(--as-color-divider);
+}
+.record-table-scroll thead th {
+  background: var(--as-canvas);
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+}
+@media (max-width: 600px) {
+  .field-definition {
+    grid-template-columns: 1fr;
+  }
+  .option-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
 .working-surface > .primary-surface,
 .working-surface > .source-reader {
   flex: 1;

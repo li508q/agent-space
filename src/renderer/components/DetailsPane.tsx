@@ -26,6 +26,8 @@ export function DetailsPane({
   onClose,
   onOpen,
   onRefresh,
+  onFields,
+  onRelations,
 }: {
   api: DesktopApi;
   session: SpaceSession;
@@ -33,6 +35,8 @@ export function DetailsPane({
   onClose: () => void;
   onOpen: (ref: ObjectRef, trigger?: string) => void;
   onRefresh: () => void;
+  onFields: () => void;
+  onRelations: () => void;
 }) {
   const locale = useLocale();
   const state = useSyncExternalStore(editor.subscribe, editor.getSnapshot);
@@ -41,7 +45,7 @@ export function DetailsPane({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ErrorCode | null>(null);
   const reviewed = state.object?.knowledgeReview;
-  const currentReviewed = reviewed?.reviewedRevision === state.revision;
+  const currentReviewed = reviewed?.reviewedRevision === state.revision && !editor.dirty;
   async function markReviewed() {
     if (!state.objectId || !state.revision || editor.dirty) return;
     if (!task.current || task.current.settled) {
@@ -104,6 +108,16 @@ export function DetailsPane({
             }}
           />
         </section>
+        {state.object?.lifecycle !== 'archived' && (
+          <div className="as-actions metadata-edit-actions">
+            <button data-testid="edit-fields" disabled={state.locked} onClick={onFields}>
+              {t(locale, 'fields.edit')}
+            </button>
+            <button data-testid="edit-relationships" disabled={state.locked} onClick={onRelations}>
+              {t(locale, 'relations.edit')}
+            </button>
+          </div>
+        )}
         <ObjectMetadata content={state.content} api={api} session={session} onOpen={onOpen} />
         {state.object && state.object.lifecycle === 'active' && (
           <ProposalPermissions

@@ -22,6 +22,7 @@ import type { OperationTask } from './state/operation.js';
 import markUrl from './assets/mark.svg';
 
 export const LocaleContext = createContext<Locale>('en');
+export const ReferenceRefreshContext = createContext(0);
 export type MakeTask = <T>(key: string, send: () => Promise<Result<T>>) => OperationTask<T>;
 export const TaskContext = createContext<MakeTask | null>(null);
 export function useTaskFactory() {
@@ -78,6 +79,10 @@ export function Modal({
 }) {
   const locale = useLocale();
   const ref = useRef<HTMLDialogElement>(null);
+  const composing = useRef(false),
+    closeAfterComposition = useRef(false);
+  const closeHandler = useRef(onClose);
+  closeHandler.current = onClose;
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const dialog = ref.current;
@@ -93,14 +98,33 @@ export function Modal({
       ref={ref}
       aria-label={title}
       data-testid={testId}
+      onCompositionStartCapture={() => {
+        composing.current = true;
+      }}
+      onCompositionEndCapture={() => {
+        queueMicrotask(() => {
+          composing.current = false;
+          if (closeAfterComposition.current) {
+            closeAfterComposition.current = false;
+            closeHandler.current();
+          }
+        });
+      }}
       onCancel={(event) => {
         event.preventDefault();
-        onClose();
+        if (!composing.current) onClose();
       }}
     >
       <header>
         <h2>{title}</h2>
-        <button className="icon-button" aria-label={t(locale, 'common.close')} onClick={onClose}>
+        <button
+          className="icon-button"
+          aria-label={t(locale, 'common.close')}
+          onClick={() => {
+            if (composing.current) closeAfterComposition.current = true;
+            else onClose();
+          }}
+        >
           <X size={18} />
         </button>
       </header>
@@ -179,20 +203,30 @@ export function RefLink({
   reference,
   onOpen,
   id,
+  passive = false,
 }: {
   api: DesktopApi;
   session: SpaceSession;
   reference: ObjectRef;
   onOpen: (reference: ObjectRef, trigger?: string) => void;
   id?: string;
+  passive?: boolean;
 }) {
   const locale = useLocale();
   const [view, setView] = useState<ObjectView | null>(null);
   const [unavailable, setUnavailable] = useState(false);
+  const refresh = useContext(ReferenceRefreshContext);
+  const referenceIdentity = useRef('');
   const revision = reference.mode === 'pinned' ? reference.revision : undefined;
+  const currentRefresh = reference.mode === 'current' ? refresh : 0;
   useEffect(() => {
     let active = true;
-    setView(null);
+    const identity = `${session.bindingId}/${reference.objectId}/${revision ?? 'current'}`;
+    if (referenceIdentity.current !== identity) {
+      referenceIdentity.current = identity;
+      setView(null);
+      setUnavailable(false);
+    }
     setUnavailable(false);
     void api
       .readObject(
@@ -200,25 +234,37 @@ export function RefLink({
       )
       .then((result) => {
         if (active) {
-          if (result.ok) setView(result.value);
-          else setUnavailable(true);
+          if (result.ok) {
+            setView(result.value);
+            setUnavailable(false);
+          } else {
+            setView(null);
+            setUnavailable(true);
+          }
         }
       })
       .catch(() => {
-        if (active) setUnavailable(true);
+        if (active) {
+          setView(null);
+          setUnavailable(true);
+        }
       });
     return () => {
       active = false;
     };
-  }, [api, session.bindingId, reference.objectId, revision]);
+  }, [api, session.bindingId, reference.objectId, revision, currentRefresh]);
   const text = view
     ? titleText(locale, view.object.content.title, view.object.kind)
     : t(locale, unavailable ? 'source.unavailable' : 'ui.loading');
   return (
     <span className="reference">
-      <button id={id} className="text-button" onClick={() => onOpen(reference, id)}>
-        {text}
-      </button>
+      {passive ? (
+        <span>{text}</span>
+      ) : (
+        <button id={id} className="text-button" onClick={() => onOpen(reference, id)}>
+          {text}
+        </button>
+      )}
       <small>
         {reference.mode === 'pinned'
           ? t(locale, 'source.version', { version: reference.revision })

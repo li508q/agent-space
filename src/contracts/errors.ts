@@ -22,6 +22,10 @@ export const errorCodes = [
   'SOURCE_UNAVAILABLE',
   'UNSAFE_LINK',
   'UNSUPPORTED_IMPORT',
+  'IMPORT_SOURCE_CHANGED',
+  'IMPORT_PLAN_CHANGED',
+  'DESTINATION_EXISTS',
+  'UNDO_NOT_SUPPORTED',
 ] as const;
 export type ErrorCode = (typeof errorCodes)[number];
 export type ErrorMessageKey = `error.${ErrorCode}`;

@@ -38,6 +38,7 @@ export type EditorSnapshot = Readonly<{
 }>;
 type SaveAttempt = { task: OperationTask<WriteResult>; generation: number };
 type DraftAttempt = { task: OperationTask<DraftReceipt>; input: SaveDraftInput };
+export type InputLockSource = 'close' | 'navigation' | 'space';
 
 const empty = (): ObjectContent => ({ title: '', body: '', properties: {}, relations: [] });
 const clone = <T>(value: T): T => structuredClone(value);
@@ -57,6 +58,7 @@ export class EditorSession {
   private retained = new Map<string, DraftReceipt>();
   private retirements = new Map<string, OperationTask<DraftReceipt>>();
   private compositionWaiters = new Set<() => void>();
+  private inputLocks = new Set<InputLockSource>();
   private disposed = false;
   private readonly id: () => string;
   private readonly source: SaveDraftInput['source'];
@@ -69,6 +71,7 @@ export class EditorSession {
     private readonly options: {
       draft?: DraftSnapshot;
       content?: ObjectContent;
+      kind?: 'document' | 'record';
       source?: SaveDraftInput['source'];
       timers?: boolean;
       id?: () => string;
@@ -86,7 +89,8 @@ export class EditorSession {
     this.state = Object.freeze({
       editorId: this.id(),
       objectId: target?.state === 'existing' ? target.objectId : (view?.object.id ?? null),
-      kind: target?.state === 'new' ? target.kind : (view?.object.kind ?? 'document'),
+      kind:
+        target?.state === 'new' ? target.kind : (view?.object.kind ?? options.kind ?? 'document'),
       revision,
       object: view?.object ?? null,
       content: clone(options.draft?.content ?? options.content ?? view?.object.content ?? empty()),
@@ -125,6 +129,7 @@ export class EditorSession {
     if (
       this.disposed ||
       this.state.locked ||
+      this.state.object?.lifecycle === 'archived' ||
       JSON.stringify(content) === JSON.stringify(this.state.content)
     )
       return;
@@ -157,9 +162,11 @@ export class EditorSession {
     if (!this.state.composing) return Promise.resolve();
     return new Promise((resolve) => this.compositionWaiters.add(resolve));
   }
-  lockInput(locked: boolean): boolean {
+  lockInput(locked: boolean, source: InputLockSource = 'close'): boolean {
     if (locked && this.state.composing) return false;
-    this.publish({ locked });
+    if (locked) this.inputLocks.add(source);
+    else this.inputLocks.delete(source);
+    this.publish({ locked: this.inputLocks.size > 0 });
     return true;
   }
   private clearTimers() {
@@ -292,9 +299,9 @@ export class EditorSession {
         saveState: laterInput ? 'dirty' : 'saved',
         error: null,
       });
-      this.options.onSaved?.(value.object);
       if (laterInput) await this.keepDraft();
       else await this.cleanupSavedDraft();
+      this.options.onSaved?.(value.object);
     }
     return !this.dirty;
   }
