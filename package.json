@@ -32,6 +32,7 @@
     "icons:mac": "node scripts/make-icon.mjs",
     "package:mac": "node scripts/package-mac.mjs",
     "package:check": "node scripts/check-packaging.mjs",
+    "docs:check": "node scripts/check-docs.mjs",
     "package:verify": "node scripts/verify-package.mjs"
   },
   "dependencies": {

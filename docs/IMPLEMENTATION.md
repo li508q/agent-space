@@ -1,6 +1,6 @@
 # Implementation slices
 
-Status: core, real MCP/CLI and native vertical-loop integration accepted after coordinator checks, 2026-11-23. Phase 4 local-data contracts and Core/native coordination are implemented; their native UI integration is awaiting coordinator acceptance. Requirements stay grounded in SC-01–SC-09 / AS-01–AS-15 in [PRD.md](PRD.md).
+Status: focused implementation slices 3A–4F are accepted after real Core, MCP/CLI, native UI and moved-package checks, 2026-11-23. Packaging and five-language publication have dedicated verification in [TESTING.md](TESTING.md); remote delivery status is in [DELIVERY.md](DELIVERY.md). Requirements remain grounded in SC-01–SC-09 / AS-01–AS-15 in [PRD.md](PRD.md).
 
 ## Shared boundaries
 

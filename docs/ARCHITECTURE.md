@@ -1,6 +1,6 @@
 # Architecture and decisions
 
-Status: the shared Core, real MCP/CLI and native collaboration loop have passed coordinator checks. Local import/recovery services are implemented against persistent format 2; their native UI acceptance and relocated packaging are separate gates. Product choices trace to SC-01–SC-09 / AS-01–AS-15 in [PRD.md](PRD.md). See [CORE_API.md](CORE_API.md), [LOCAL_DATA.md](LOCAL_DATA.md) and [TESTING.md](TESTING.md).
+Status: the focused format-2 product, real MCP/CLI, native workbench and relocated macOS arm64 application have passed coordinator checks, 2026-11-23. Product choices trace to SC-01–SC-09 / AS-01–AS-15 in [PRD.md](PRD.md). See [CORE_API.md](CORE_API.md), [LOCAL_DATA.md](LOCAL_DATA.md) and [TESTING.md](TESTING.md) for implemented contracts and measured limits.
 
 ## Main route
 

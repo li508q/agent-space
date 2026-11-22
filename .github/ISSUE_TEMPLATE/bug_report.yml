@@ -1,0 +1,30 @@
+name: Report a bug
+description: Describe a reproducible problem with writing, context, review or recovery.
+body:
+  - type: input
+    id: environment
+    attributes:
+      label: Application version and environment
+      placeholder: AgentSpace version, macOS version, Apple Silicon; source or local build
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Use a small synthetic example. Omit access tokens, personal documents and private paths.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: Include the visible state or error code and whether the issue survives reopening.
+    validations:
+      required: true
