@@ -48,7 +48,7 @@ This omits the development app entry. The separate no-debugger crash observer in
 | AS-12 Boundaries    | Real sandbox/CSP/preload/origin/frame/schema/binding checks, strict tools, scoped grants, source/Markdown handling                                                                     | A local OS administrator or arbitrary database writer is outside this boundary          |
 | AS-13 Languages     | Complete EN/zh-CN/JA/KO/ES strings; actual review/import/transfer/recovery/record controls at 980px and native 1×/2× text; source focus retained                                       | Human-authored content retains its language                                             |
 | AS-14 Desktop       | Production app/ZIP, exact ASAR allowlist, signatures/hashes, extraction and move to a path with spaces; actual bundled-runtime CLI/MCP and visible controls                            | macOS arm64, ad-hoc signing; no Developer ID/notarization or Windows/Linux claim        |
-| AS-15 Repository    | Five-language overview/usage, actual native screenshots, license/contribution/security guidance, command/link checks and CI configuration                                              | Remote CI result is recorded in delivery status after the push                          |
+| AS-15 Repository    | Five-language overview/usage, actual native screenshots, license/contribution/security guidance, command/link checks and CI configuration                                              | Current remote CI is linked from delivery status                                        |
 
 ## Persistence and recovery boundaries
 

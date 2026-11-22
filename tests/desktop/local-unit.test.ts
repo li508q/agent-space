@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { setImmediate } from 'node:timers/promises';
+import { setTimeout as delay } from 'node:timers/promises';
 import { Preferences } from '../../src/desktop/preferences.js';
 import { Workspace } from '../../src/desktop/workspace.js';
 import { LocalCoordinator } from '../../src/desktop/local-coordinator.js';
@@ -53,12 +53,15 @@ function setup(t: { after(fn: () => void): void }) {
   return { root, workspace, session, selected, local };
 }
 async function complete(local: LocalCoordinator, handle: string) {
-  for (let n = 0; n < 10000; n++) {
+  // A fast runner can consume thousands of empty event-loop turns before
+  // SQLite's asynchronous snapshot finishes. Bound real time, not turn count.
+  const deadline = Date.now() + 10_000;
+  for (;;) {
     const p = ok(local.readLocalTransfer({ handle }));
     if (p.stage === 'complete' || p.stage === 'failed') return p;
-    await setImmediate();
+    if (Date.now() >= deadline) assert.fail(`Transfer did not settle; last stage: ${p.stage}`);
+    await delay(10);
   }
-  assert.fail('Transfer did not settle');
 }
 test('native coordinator only accepts chooser handles, binds previews to each active session, and drives real Core imports', async (t) => {
   const f = setup(t);

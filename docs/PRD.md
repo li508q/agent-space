@@ -140,4 +140,4 @@ The first release establishes versioned material, provenance, and controlled cha
 
 Local-first, single-user delivery, agent independence, the control-focused experience, a focused scope, and five-language primary delivery come from the user's current direction. The selected engineering route is Electron, TypeScript, a shared transactional SQLite core, and narrow desktop/MCP adapters. The reasons and alternatives are recorded in [ARCHITECTURE.md](ARCHITECTURE.md); feasibility checks do not substitute for product acceptance.
 
-This PRD scopes the intended local product. A runnable vertical slice does not mean every requirement below is complete. Phase transitions and current evidence are tracked in [DELIVERY.md](DELIVERY.md).
+This PRD defines the focused local product. Implemented coverage, phase outcomes and verification limits are tracked in [DELIVERY.md](DELIVERY.md) and [TESTING.md](TESTING.md).
