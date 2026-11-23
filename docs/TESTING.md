@@ -37,6 +37,8 @@ npx tsx --test --test-concurrency=1 tests/desktop/native.test.ts tests/acceptanc
 
 These tests use actual Electron, preload, React, CodeMirror, SQLite and SDK processes. The harness assigns a private absolute `AGENTSPACE_USER_DATA` directory to each application. It must not reuse a person's normal profile, spaces or host configuration.
 
+The native composition suite also checks failed-save closure in all five languages: cancelling the native discard confirmation preserves current input and its retained draft; confirming closes normally, and reopening can recover that draft. Only persistence failures and the OS dialog choice are supplied by the fixture. Real close nonces, binding checks, preload, editor and draft storage remain active.
+
 To reproduce a smaller native work area for the acceptance files:
 
 ```sh

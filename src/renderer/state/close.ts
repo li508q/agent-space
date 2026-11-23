@@ -8,7 +8,6 @@ type Hooks = {
   afterComposition: () => Promise<void>;
   lockInput: (locked: boolean) => boolean;
   prepare: () => Promise<boolean>;
-  discard: () => Promise<boolean>;
   respond: (
     id: string,
     decision: 'ready' | 'discard' | 'cancel',
@@ -100,12 +99,8 @@ export class CloseCoordinator {
   async discard(requestId: string) {
     const attempt = this.attempt;
     if (!attempt || attempt.id !== requestId) return;
-    let safe = false;
-    try {
-      safe = await this.hooks.discard();
-    } catch {
-      this.hooks.error('OPERATION_UNKNOWN');
-    }
-    if (this.current(attempt) && safe) await this.finish(attempt, 'discard');
+    // Main confirms before closing. Keep the buffer and retained drafts intact
+    // so cancellation cannot turn a close request into a destructive edit.
+    await this.finish(attempt, 'discard');
   }
 }

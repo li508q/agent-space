@@ -23,7 +23,7 @@ const en = {
   fullScreen: 'Toggle full screen',
   closeWaiting: 'Your editor has not confirmed a safe close.',
   closeExplanation:
-    'Keep this window open to retry saving or retain a recovery draft. Unsaved input has not been discarded.',
+    'Keep this window open to retry saving or retain a recovery draft. The latest input may not have been saved.',
   keepOpen: 'Keep window open',
   copyReceived: 'Copy last received text',
   copyNotice:
@@ -31,7 +31,7 @@ const en = {
   discard: 'Close without saving',
   discardTitle: 'Discard unsaved input?',
   discardExplanation:
-    'Any input not saved or kept in a recovery draft will be lost. Saved material and retained drafts remain on disk.',
+    'Input that is neither saved nor included in a retained recovery draft will be lost. Closing keeps saved material and retained drafts. Operations already in progress may still finish.',
   loadFailure: 'AgentSpace could not load this window.',
   actionFailure: 'This action could not be completed. The window remains open.',
 } as const;
@@ -56,13 +56,14 @@ const zh: NativeDictionary = {
   zoom: '缩放窗口',
   fullScreen: '切换全屏',
   closeWaiting: '编辑器尚未确认可以安全关闭。',
-  closeExplanation: '请保留窗口，重试保存或保留恢复草稿。未保存的输入尚未被丢弃。',
+  closeExplanation: '请保留窗口，重试保存或保留恢复草稿。最新输入可能尚未保存。',
   keepOpen: '保留窗口',
   copyReceived: '复制最近收到的文本',
   copyNotice: '复制应用最近收到的文本；无响应编辑器内更新的输入可能尚未传出。',
   discard: '不保存并关闭',
   discardTitle: '丢弃未保存的输入？',
-  discardExplanation: '尚未保存或保留为恢复草稿的输入将会丢失。已保存内容和恢复草稿会留在磁盘上。',
+  discardExplanation:
+    '未保存且未保留为恢复草稿的输入将会丢失。关闭会保留已保存内容和恢复草稿；正在进行的操作仍可能完成。',
   loadFailure: 'AgentSpace 无法加载此窗口。',
   actionFailure: '未能完成此操作。窗口会保持打开。',
 };
@@ -87,7 +88,7 @@ const ja: NativeDictionary = {
   fullScreen: 'フルスクリーンを切り替え',
   closeWaiting: 'エディターは安全に閉じられることをまだ確認していません。',
   closeExplanation:
-    'ウインドウを開いたまま、保存を再試行するか復旧用下書きを保持してください。未保存の入力は破棄されていません。',
+    'ウインドウを開いたまま、保存を再試行するか復旧用の下書きを保持してください。最新の入力は保存されていない可能性があります。',
   keepOpen: '開いたままにする',
   copyReceived: '最後に受信したテキストをコピー',
   copyNotice:
@@ -95,7 +96,7 @@ const ja: NativeDictionary = {
   discard: '保存せずに閉じる',
   discardTitle: '未保存の入力を破棄しますか？',
   discardExplanation:
-    '保存または復旧用下書きに保持されていない入力は失われます。保存済みの内容と保持した下書きはディスクに残ります。',
+    '保存も復旧用の下書きへの保持もされていない入力は失われます。閉じても、保存済みの内容と保持中の下書きは残ります。処理中の操作は完了する場合があります。',
   loadFailure: 'AgentSpace はこのウインドウを読み込めませんでした。',
   actionFailure: 'この操作を完了できませんでした。ウインドウは開いたままです。',
 };
@@ -120,7 +121,7 @@ const ko: NativeDictionary = {
   fullScreen: '전체 화면 전환',
   closeWaiting: '편집기에서 안전하게 닫을 수 있는지 아직 확인하지 못했습니다.',
   closeExplanation:
-    '창을 유지하고 저장을 다시 시도하거나 복구 초안을 보관하세요. 저장하지 않은 입력은 삭제되지 않았습니다.',
+    '창을 열어 두고 저장을 다시 시도하거나 복구용 초안을 보관하세요. 최신 입력은 저장되지 않았을 수 있습니다.',
   keepOpen: '창 유지',
   copyReceived: '마지막으로 받은 텍스트 복사',
   copyNotice:
@@ -128,7 +129,7 @@ const ko: NativeDictionary = {
   discard: '저장하지 않고 닫기',
   discardTitle: '저장하지 않은 입력을 버릴까요?',
   discardExplanation:
-    '저장하거나 복구 초안으로 보관하지 않은 입력은 사라집니다. 저장된 내용과 보관된 초안은 디스크에 남습니다.',
+    '저장되지 않았고 복구용 초안으로도 보관되지 않은 입력은 사라집니다. 창을 닫아도 저장된 자료와 보관된 초안은 남습니다. 이미 진행 중인 작업은 완료될 수 있습니다.',
   loadFailure: 'AgentSpace가 이 창을 불러오지 못했습니다.',
   actionFailure: '작업을 완료하지 못했습니다. 창은 열린 상태로 유지됩니다.',
 };
@@ -153,7 +154,7 @@ const es: NativeDictionary = {
   fullScreen: 'Alternar pantalla completa',
   closeWaiting: 'El editor aún no ha confirmado que sea seguro cerrar.',
   closeExplanation:
-    'Mantén la ventana abierta para reintentar el guardado o conservar un borrador de recuperación. No se ha descartado el texto sin guardar.',
+    'Mantén la ventana abierta para reintentar el guardado o conservar un borrador de recuperación. Es posible que el texto más reciente no se haya guardado.',
   keepOpen: 'Mantener abierta',
   copyReceived: 'Copiar el último texto recibido',
   copyNotice:
@@ -161,7 +162,7 @@ const es: NativeDictionary = {
   discard: 'Cerrar sin guardar',
   discardTitle: '¿Descartar el texto sin guardar?',
   discardExplanation:
-    'Se perderá lo que no se haya guardado ni conservado en un borrador de recuperación. El contenido guardado y los borradores conservados permanecerán en el disco.',
+    'Se perderá el texto que no se haya guardado ni conservado en un borrador de recuperación. Cerrar conserva el contenido guardado y los borradores conservados. Las operaciones en curso pueden completarse.',
   loadFailure: 'AgentSpace no pudo cargar esta ventana.',
   actionFailure: 'No se pudo completar esta acción. La ventana sigue abierta.',
 };

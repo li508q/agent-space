@@ -25,7 +25,6 @@ test('closing waits for composition, then keeps input locked through the ready r
       return true;
     },
     prepare: () => prepared.promise,
-    discard: async () => true,
     respond: async (id, decision) => {
       sends.push(`${id}:${decision}`);
       return response.promise;
@@ -61,7 +60,6 @@ test('a cancelled old nonce never locks input or sends late ready; a new nonce c
       return true;
     },
     prepare: async () => true,
-    discard: async () => true,
     respond: async (id, decision) => {
       sends.push(`${id}:${decision}`);
       return { ok: true, value: { closed: true } };
@@ -97,7 +95,6 @@ test('cancellation during persistence invalidates its late ready and restores ed
       return true;
     },
     prepare: () => prepare.promise,
-    discard: async () => true,
     respond: async (id, decision) => {
       sends.push(`${id}:${decision}`);
       return { ok: true, value: { closed: true } };
@@ -124,7 +121,6 @@ test('an unknown ready response keeps input frozen until native cancellation', a
       return true;
     },
     prepare: async () => true,
-    discard: async () => true,
     respond: async () => ({ ok: false, error: { code: 'OPERATION_UNKNOWN', retryable: true } }),
     changed: () => {},
     error: () => {},
@@ -135,4 +131,37 @@ test('an unknown ready response keeps input frozen until native cancellation', a
   assert.equal(locked, true);
   close.cancel('unknown-ready');
   assert.equal(locked, false);
+});
+
+test('discard waits for native confirmation and cancellation restores editing', async () => {
+  const response = deferred<{ ok: true; value: { closed: boolean } }>();
+  let locked = false;
+  const sends: string[] = [];
+  const states: CloseState[] = [];
+  const close = new CloseCoordinator({
+    afterComposition: async () => {},
+    lockInput: (value) => {
+      locked = value;
+      return true;
+    },
+    prepare: async () => false,
+    respond: async (id, decision) => {
+      sends.push(`${id}:${decision}`);
+      return response.promise;
+    },
+    changed: (state) => states.push(state),
+    error: () => assert.fail('Discard must reach the native confirmation without editing content.'),
+  });
+  await close.start('confirmation');
+  assert.equal(states.at(-1)?.stage, 'blocked');
+  const pending = close.discard('confirmation');
+  await tick();
+  assert.deepEqual(sends, ['confirmation:discard']);
+  assert.equal(states.at(-1)?.stage, 'responding');
+  assert.equal(locked, true);
+  response.resolve({ ok: true, value: { closed: false } });
+  await pending;
+  assert.equal(locked, false);
+  assert.equal(close.pendingId, null);
+  assert.equal(states.at(-1), null);
 });

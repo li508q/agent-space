@@ -10,7 +10,7 @@ import { invokeAgentTool, MAX_AGENT_INPUT_BYTES, toolDefinitions } from './tools
 export function createAgentServer(agent: AgentServices): Server {
   // Preserve the Core Result envelope for both schema and domain failures.
   const server = new Server(
-    { name: 'AgentSpace', version: '0.2.3' },
+    { name: 'AgentSpace', version: '0.2.4' },
     {
       capabilities: { tools: {} },
       instructions:

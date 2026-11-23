@@ -78,7 +78,6 @@ function DesktopApp({ api }: { api: DesktopApi }) {
         return true;
       },
       prepare: () => workbench.current?.prepareToLeave() ?? Promise.resolve(true),
-      discard: () => workbench.current?.discardEdits() ?? Promise.resolve(true),
       respond: (requestId, decision) => api.respondToClose({ requestId, decision }),
       changed: setCloseState,
       error: setError,
