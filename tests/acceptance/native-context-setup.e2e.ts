@@ -14,6 +14,11 @@ import type { ReadPage } from '../../src/contracts/schema.js';
 import type { Result } from '../../src/contracts/errors.js';
 import { Space } from '../../src/core/index.js';
 import { supportedLocales, t } from '../../src/renderer/i18n/index.js';
+import {
+  installClipboardFixture,
+  readClipboardSink,
+  type ClipboardFixture,
+} from './clipboard-fixture.js';
 import { createAcceptanceFixture, requireSuccess as ok } from './fixtures.js';
 import { launchNative, type NativeHarness } from './native-harness.js';
 
@@ -167,7 +172,7 @@ async function openSpace(n: NativeHarness, directory: string) {
   await n.page.keyboard.press('Escape');
 }
 async function clipboard(n: NativeHarness) {
-  return n.application.evaluate(({ clipboard }) => clipboard.readText());
+  return readClipboardSink(n);
 }
 async function capture(n: NativeHarness, name: string) {
   mkdirSync(out, { recursive: true });
@@ -504,7 +509,9 @@ test(
     const other = ok(Space.create(otherDirectory, { title: 'Other binding', example: true }));
     const n = await launchNative({ entry: root, userData: join(f.root, '7D fault profile') });
     const freeze: unknown[] = [];
+    let clipboardDevice: ClipboardFixture | undefined;
     try {
+      clipboardDevice = await installClipboardFixture(n, 'context-response-loss');
       await openSpace(n, f.directory);
       await installFaults(n, 'response-loss');
       await n.page.getByTestId('nav-projects').click();
@@ -866,26 +873,33 @@ test(
       );
       assert.deepEqual(n.pageErrors, []);
     } finally {
-      const remainingSettings = n.page.getByTestId('settings-dialog');
-      const dialogState = (await remainingSettings.count())
-        ? await remainingSettings.evaluate((element) => ({
-            open: (element as HTMLDialogElement).open,
-            cancelEvents: (element as HTMLElement).dataset.cancelEvents,
-          }))
-        : null;
-      writeFileSync(
-        join(out, 'last-settings-dialog.json'),
-        JSON.stringify({ count: await remainingSettings.count(), dialogState }, null, 2),
-      );
-      const observed = await faultState(n).catch(() => null);
-      if (observed)
+      try {
+        const remainingSettings = n.page.getByTestId('settings-dialog');
+        const dialogState = (await remainingSettings.count())
+          ? await remainingSettings.evaluate((element) => ({
+              open: (element as HTMLDialogElement).open,
+              cancelEvents: (element as HTMLElement).dataset.cancelEvents,
+            }))
+          : null;
         writeFileSync(
-          join(out, 'response-loss-last-state.json'),
-          JSON.stringify(observed, null, 2),
+          join(out, 'last-settings-dialog.json'),
+          JSON.stringify({ count: await remainingSettings.count(), dialogState }, null, 2),
         );
-      await n.close();
-      other.close();
-      f.dispose();
+        const observed = await faultState(n).catch(() => null);
+        if (observed)
+          writeFileSync(
+            join(out, 'response-loss-last-state.json'),
+            JSON.stringify(observed, null, 2),
+          );
+      } finally {
+        try {
+          await clipboardDevice?.restore();
+        } finally {
+          await n.close();
+          other.close();
+          f.dispose();
+        }
+      }
     }
   },
 );
@@ -902,7 +916,9 @@ test(
     writeFileSync(join(originals, 'Existing material.md'), original);
     const space = ok(Space.create(directory, { title: 'Import entry check', example: true }));
     const n = await launchNative({ entry: root, userData: join(scratch, '7D import profile') });
+    let clipboardDevice: ClipboardFixture | undefined;
     try {
+      clipboardDevice = await installClipboardFixture(n, 'context-import');
       await openSpace(n, directory);
       await installFaults(n, 'import-entry');
       await n.page.getByTestId('continue-import').click();
@@ -973,9 +989,13 @@ test(
       assert.equal(readFileSync(join(originals, 'Existing material.md'), 'utf8'), original);
       assert.deepEqual(n.pageErrors, []);
     } finally {
-      await n.close();
-      space.close();
-      rmSync(scratch, { recursive: true, force: true });
+      try {
+        await clipboardDevice?.restore();
+      } finally {
+        await n.close();
+        space.close();
+        rmSync(scratch, { recursive: true, force: true });
+      }
     }
   },
 );
@@ -987,7 +1007,9 @@ test(
     const f = contextFixture();
     const n = await launchNative({ entry: root, userData: join(f.root, '7D context profile') });
     const clients: Client[] = [];
+    let clipboardDevice: ClipboardFixture | undefined;
     try {
+      clipboardDevice = await installClipboardFixture(n, 'context-reference-clients');
       await openSpace(n, f.directory);
       await n.page.getByTestId('nav-projects').click();
       await n.page.getByTestId(`object-row-${f.project.id}`).click();
@@ -1205,9 +1227,16 @@ test(
       );
       assert.deepEqual(n.pageErrors, []);
     } finally {
-      for (const client of clients) await client.close();
-      await n.close();
-      f.dispose();
+      try {
+        for (const client of clients) await client.close();
+      } finally {
+        try {
+          await clipboardDevice?.restore();
+        } finally {
+          await n.close();
+          f.dispose();
+        }
+      }
     }
   },
 );
@@ -1220,7 +1249,9 @@ test(
     const n = await launchNative({ entry: root, userData: join(f.root, '7D label profile') });
     const records: unknown[] = [];
     mkdirSync(out, { recursive: true });
+    let clipboardDevice: ClipboardFixture | undefined;
     try {
+      clipboardDevice = await installClipboardFixture(n, 'context-labels');
       await openSpace(n, f.directory);
       await n.page.getByTestId('nav-library').click();
       await n.page.getByTestId('space-search').fill(longTitle);
@@ -1380,8 +1411,12 @@ test(
       assert.equal(ok(f.human.listGrants()).length, 0);
       assert.deepEqual(n.pageErrors, []);
     } finally {
-      await n.close();
-      f.dispose();
+      try {
+        await clipboardDevice?.restore();
+      } finally {
+        await n.close();
+        f.dispose();
+      }
     }
   },
 );
@@ -1395,7 +1430,9 @@ test(
       entry: root,
       userData: join(f.root, '7D configuration identity profile'),
     });
+    let clipboardDevice: ClipboardFixture | undefined;
     try {
+      clipboardDevice = await installClipboardFixture(n, 'context-configuration-identity');
       await openSpace(n, f.directory);
       await installFaults(n, 'configuration-identity');
       await n.page.getByTestId('settings-button').click();
@@ -1459,12 +1496,19 @@ test(
       assert.equal(ok(f.human.listGrants()).length, 2);
       assert.deepEqual(n.pageErrors, []);
     } finally {
-      writeFileSync(
-        join(out, 'configuration-last-state.json'),
-        JSON.stringify(await faultState(n).catch(() => null), null, 2),
-      );
-      await n.close();
-      f.dispose();
+      try {
+        writeFileSync(
+          join(out, 'configuration-last-state.json'),
+          JSON.stringify(await faultState(n).catch(() => null), null, 2),
+        );
+      } finally {
+        try {
+          await clipboardDevice?.restore();
+        } finally {
+          await n.close();
+          f.dispose();
+        }
+      }
     }
   },
 );

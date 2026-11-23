@@ -10,6 +10,7 @@ import type { AgentLaunchConfiguration } from '../../src/contracts/app.js';
 import type { ProposalReceipt } from '../../src/contracts/core.js';
 import type { Result } from '../../src/contracts/errors.js';
 import { supportedLocales, t, type Locale } from '../../src/renderer/i18n/index.js';
+import { installClipboardFixture, type ClipboardFixture } from './clipboard-fixture.js';
 import { createAcceptanceFixture, requireSuccess } from './fixtures.js';
 import { launchNative } from './native-harness.js';
 
@@ -35,7 +36,9 @@ test(
       userData: join(fixture.root, 'Workbench profile'),
     });
     let client: Client | null = null;
+    let clipboardDevice: ClipboardFixture | undefined;
     try {
+      clipboardDevice = await installClipboardFixture(native, 'workbench');
       await native.focus();
       await native.chooseNextFolder(fixture.directory);
       await native.page.getByTestId('open-space').click();
@@ -76,8 +79,8 @@ test(
         .getByTestId('issued-configuration')
         .getByText(t(locale, 'common.copied'), { exact: true })
         .waitFor();
-      // Read only the synthetic configuration just written by this controlled click.
-      const copied = await native.application.evaluate(({ clipboard }) => clipboard.readText());
+      // Read the synthetic configuration from this Main's isolated device sink.
+      const copied = await clipboardDevice.readText();
       const launch = JSON.parse(copied) as Pick<
         AgentLaunchConfiguration,
         'command' | 'args' | 'env'
@@ -157,7 +160,7 @@ test(
         .waitFor();
       await source.getByTestId('source-back').click();
       await native.page.waitForFunction((id) => document.activeElement?.id === id, sourceId);
-      const screenshots = join(root, '.coordination/screenshots');
+      const screenshots = clipboardDevice.evidenceDirectory;
       mkdirSync(screenshots, { recursive: true });
       await native.page.screenshot({ path: join(screenshots, 'phase3-review.png') });
       await review.getByTestId('accept-proposal').click();
@@ -253,9 +256,16 @@ test(
       );
       assert.deepEqual(native.pageErrors, []);
     } finally {
-      await client?.close().catch(() => undefined);
-      await native.close();
-      fixture.dispose();
+      try {
+        await client?.close().catch(() => undefined);
+      } finally {
+        try {
+          await clipboardDevice?.restore();
+        } finally {
+          await native.close();
+          fixture.dispose();
+        }
+      }
     }
   },
 );

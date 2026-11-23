@@ -23,13 +23,26 @@ import {
 } from '../state/collaboration.js';
 import { ErrorNotice, Modal, useLocale } from '../ui.js';
 
-/** Only these two context selectors reveal their complete focused label. */
-export function revealContextChoice(input: HTMLInputElement) {
+/** Reveal the focused context control with its label and same-dialog description. */
+export function revealContextChoice(input: HTMLInputElement | HTMLTextAreaElement) {
   if (!input.matches(':focus-visible')) return;
-  const label = input.closest('label'),
-    dialog = input.closest('dialog');
-  if (!label || !dialog) return;
-  const rect = label.getBoundingClientRect(),
+  const dialog = input.closest('dialog');
+  if (!dialog) return;
+  const parts = [
+      ...Array.from(input.labels ?? []),
+      ...(input.getAttribute('aria-describedby') ?? '')
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((id) => input.ownerDocument.getElementById(id)),
+    ]
+      .filter(
+        (part): part is HTMLElement =>
+          !!part &&
+          part.closest('dialog') === dialog &&
+          part.getClientRects().length > 0 &&
+          getComputedStyle(part).visibility === 'visible',
+      )
+      .map((part) => part.getBoundingClientRect()),
     control = input.getBoundingClientRect(),
     style = getComputedStyle(input),
     outset = Math.max(
@@ -40,9 +53,9 @@ export function revealContextChoice(input: HTMLInputElement) {
     border = getComputedStyle(dialog),
     top = port.top + (parseFloat(border.borderTopWidth) || 0),
     bottom = port.bottom - (parseFloat(border.borderBottomWidth) || 0),
-    first = Math.min(rect.top, control.top - outset),
-    last = Math.max(rect.bottom, control.bottom + outset);
-  // An oversized title needs an explicit readable design, not a fabricated fit.
+    first = Math.min(control.top - outset, ...parts.map((rect) => rect.top)),
+    last = Math.max(control.bottom + outset, ...parts.map((rect) => rect.bottom));
+  // An oversized semantic unit needs an explicit readable design, not a fabricated fit.
   if (last - first > bottom - top) return;
   if (first < top) dialog.scrollTop += Math.floor(first - top);
   else if (last > bottom) dialog.scrollTop += Math.ceil(last - bottom);
@@ -74,6 +87,7 @@ export function ContextPreparation({
     seedEpoch = useRef(0),
     memberEpoch = useRef(0),
     actionEpoch = useRef(0);
+  const taskPointer = useRef(false);
   scope.current = key;
   visible.current = open;
   const [task, setTask] = useState(''),
@@ -408,6 +422,17 @@ export function ContextPreparation({
           value={task}
           data-testid="context-task"
           aria-describedby={`${instance}-task-limit`}
+          onPointerDown={() => {
+            taskPointer.current = true;
+          }}
+          onFocus={(event) => {
+            // Textareas can be :focus-visible even when a pointer placed the caret.
+            if (!taskPointer.current) revealContextChoice(event.currentTarget);
+            taskPointer.current = false;
+          }}
+          onBlur={() => {
+            taskPointer.current = false;
+          }}
           onCompositionStart={() => setComposing(true)}
           onCompositionEnd={(event) => {
             setComposing(false);

@@ -16,6 +16,10 @@ The 0.2.0 application from `d7202a4` implements shared current-head review state
 
 A following CI run exposed an original-edit focus timeout at 1.5× text, with the correct saved body already installed. A bounded source correction handles a hidden source trigger's natural blur without taking focus from a later control or dialog. Original assertions and the delayed failure mechanism pass locally; the [exact source publication CI](https://github.com/li508q/agent-space/actions/runs/45202596836) passed all three jobs. The preceding package acceptance retains its original scope. See [the follow-up evidence](TESTING.md#original-edit-focus-follow-up).
 
+The 0.2.1 independent package check observed the six contextual-collaboration business batches without a failure. Its seven layout groups exposed a clipped task field/outline and version descriptions outside the dialog. The bounded source correction now passes 42 strict focus observations and preserves pointer placement, human input and fixed versions. A shared test clipboard device also keeps three native copy flows out of the user's OS clipboard while retaining their actual IPC/MCP assertions. These source checks do not close the new-package or publication gates.
+
+Informal owner use also identified a visual-design gap. Professional color, control hierarchy, icons and restrained materials are a separate planned correction. Real personal-source intake and freely combining material across levels are being scoped from actual notes; they have not been delivered by a document or inventory alone. Complete workflow acceptance remains open.
+
 ## The product promise
 
 A person owns the shared workspace and can write directly. Different agents use the same material and continue work through explicit references. Proposed changes, their declared reasons, their evidence and their accepted results remain understandable. The person can correct, reject and recover work.
