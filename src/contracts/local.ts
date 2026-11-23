@@ -463,7 +463,7 @@ export type LocalProgress = {
   error: { code: ErrorCode; retryable: boolean } | null;
 };
 
-/** Platform proposal: chooser-produced handles only, never paths/namespaces. */
+/** Native requests use chooser-selected locations and opaque handles, never renderer paths or namespaces. */
 export const LocalHandleSchema = z.string().regex(/^[a-f0-9]{64}$/);
 export const ChooseImportSchema = z.strictObject({
   mode: z.enum(['files', 'folder']),

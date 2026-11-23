@@ -63,9 +63,7 @@ if (desktopOnly) process.exit(0);
 const htmlSource = join(root, 'src/renderer/index.html');
 const reactSource = join(root, 'src/renderer/main.tsx');
 if (!existsSync(htmlSource) || !existsSync(reactSource))
-  throw new Error(
-    'The assigned renderer entry is not available yet; no replacement interface is generated.',
-  );
+  throw new Error('Required renderer entry files are missing.');
 const renderer = await build({
   absWorkingDir: root,
   entryPoints: ['src/renderer/main.tsx'],

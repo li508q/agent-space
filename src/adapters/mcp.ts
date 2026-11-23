@@ -8,10 +8,9 @@ import { invokeAgentTool, MAX_AGENT_INPUT_BYTES, toolDefinitions } from './tools
 
 /** Schema JSON and runtime validation share the ten implemented tool definitions. */
 export function createAgentServer(agent: AgentServices): Server {
-  // The SDK's advanced Server API keeps the application's stable Result envelope
-  // for schema failures as well as domain failures (instead of English SDK errors).
+  // Preserve the Core Result envelope for both schema and domain failures.
   const server = new Server(
-    { name: 'AgentSpace', version: '0.2.1' },
+    { name: 'AgentSpace', version: '0.2.2' },
     {
       capabilities: { tools: {} },
       instructions:

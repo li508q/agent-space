@@ -1,113 +1,114 @@
-# Core API handoff
+# Core API
 
-Definitions are in [`core.ts`](../src/contracts/core.ts), mutation/read requests in [`schema.ts`](../src/contracts/schema.ts), bounded context DTOs in [`context.ts`](../src/contracts/context.ts), and the named active-space bridge in [`desktop.ts`](../src/contracts/desktop.ts). See [AGENT_PROTOCOL.md](AGENT_PROTOCOL.md) for the real Node MCP/CLI entry and its verification limits.
+The Core owns authorization, accepted content, versions and operation receipts. Desktop and agent adapters use the same implementation.
 
-## Factories and trusted context
+| Contract                   | Definition                                  |
+| -------------------------- | ------------------------------------------- |
+| Services and results       | [`core.ts`](../src/contracts/core.ts)       |
+| Strict commands and reads  | [`schema.ts`](../src/contracts/schema.ts)   |
+| Bounded context            | [`context.ts`](../src/contracts/context.ts) |
+| Local import and artifacts | [`local.ts`](../src/contracts/local.ts)     |
+| Active-space bridge        | [`desktop.ts`](../src/contracts/desktop.ts) |
 
-Build with `npm run build:core`; the real ESM entry is `dist/core/index.js`. `Space.create(absoluteDirectory, { title, example? })` creates a private empty space, while `Space.open(absoluteDirectory)` only opens an existing supported space. Both return `Result<Space>`. Creation refuses a nonempty destination. `createExampleSpace(directory)` creates separate, labeled synthetic persisted material; it fabricates no agent activity. Close with `space.close()`.
+## Open and close a space
 
-`space.human(installationNamespace)` is for the trusted desktop main process. Keep that namespace stable across application/editor restarts. It is not an authentication interface to expose through MCP. `space.agent({ grantId, token, instanceId })` validates stored authorization and returns only `AgentServices`; each later call rechecks it. Constructing a facade does not prove an agent is connected and creates no tool-result event. Neither facade serializes its private context or database handle.
+Build with `npm run build:core`; the ESM entry is `dist/core/index.js`.
 
-The core imports no Electron, renderer or MCP SDK. For the planned packaged desktop, choose agent server/CLI launch mode before creating a window or acquiring a normal app-instance lock. That adapter can run this same core in the bundled Node runtime; a user-facing configuration must ultimately point to the packaged executable, not TypeScript sources or a separately installed Node. These launch modes are implemented in the desktop entry; relocated application verification remains separate.
+- `Space.create(absoluteDirectory, { title, example? }): Result<Space>` creates an empty private space and refuses a nonempty destination.
+- `Space.open(absoluteDirectory): Result<Space>` opens an existing supported space without migration.
+- `createExampleSpace(directory)` creates separate, labeled synthetic material.
+- `space.close()` closes the connection.
 
-## Implemented services
+`space.human(installationNamespace)` returns `HumanServices` for trusted adapters. Persist that namespace across restarts; do not derive it from an editor or process ID. It is not an agent authentication mechanism.
 
-| Human service                                          | Result and use                                                                                                                  |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| `status`                                               | Space/instance identity, example flag, authority/activity sequences                                                             |
-| `createObject`, `saveObject`                           | Real atomic accepted revision or explicit unchanged result; fixed snapshot, change ID and echoed generation                     |
-| `readObject`, `history`                                | Full trusted object view, current/pinned relation resolution; paged revision summaries and explicit next revision               |
-| `setPolicy`, `markKnowledgeReviewed`                   | Human-owned policy revision and a distinct review record pinned to the reviewed revision                                        |
-| `createGrant`, `updateGrant`, `listGrants`             | Stored scope/capabilities/generation/revocation; creation is independently disabled by default                                  |
-| `getProposal`, `listProposals`, `markProposalSeen`     | Immutable proposal/base/current/proposed content, paged summaries, independent seen state                                       |
-| `reviewProposal`, `undoChange`                         | Bound review outcome or guarded inverse revision; creation undo archives identity rather than deleting history                  |
-| `saveDraft`, `listDrafts`, `readDraft`, `discardDraft` | Durable generation/base/source and separately readable recovery text; stale generations cannot erase or resurrect a later draft |
-| `query`, `changes`, `activity`, `operationStatus`      | Bounded current material, separate durable change/activity pages and original-operation recovery                                |
+`space.agent({ grantId, token, instanceId })` authenticates and returns `Result<AgentServices>`. Each call and continuation rechecks current authorization. Neither facade serializes its principal or database handle.
 
-| Agent service                           | Tool name              |
-| --------------------------------------- | ---------------------- |
-| `discover`                              | `space_discover`       |
-| `query` (including literal text filter) | `objects_query`        |
-| `read`                                  | `object_read`          |
-| `propose`                               | `proposal_create`      |
-| `changes`                               | `changes_list`         |
-| `operationStatus`                       | `operation_status`     |
-| `describe`                              | `schema_describe`      |
-| `search`                                | `text_search`          |
-| `expandRelations`                       | `relations_expand`     |
-| `readAcceptedChange`                    | `accepted_change_read` |
+## Human services
 
-The adapter publishes these ten implemented capabilities. No agent method saves accepted content, manages grants, reviews proposals, or executes arbitrary files/SQL.
+| Services                                                      | Contract                                                                                             |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `status`                                                      | Space/instance identity, example flag and authority/activity sequences.                              |
+| `createObject`, `saveObject`                                  | Atomic accepted revision or explicit unchanged result, fixed snapshot/change and echoed generation.  |
+| `readObject`, `history`                                       | Complete trusted object view and bounded revision history.                                           |
+| `setPolicy`, `markKnowledgeReviewed`                          | Human-owned protection and version review.                                                           |
+| `createGrant`, `updateGrant`, `listGrants`                    | Scope, capabilities, generation and revocation; new-object proposal creation is disabled by default. |
+| `getProposal`, `listProposals`, `markProposalSeen`            | Immutable candidate with current outcome; independent read state.                                    |
+| `reviewProposal`, `undoChange`                                | Version-checked decision or conditional inverse revision.                                            |
+| `saveDraft`, `listDrafts`, `readDraft`, `discardDraft`        | Durable base/generation and recovery text; stale generations cannot erase later drafts.              |
+| `query`, `changes`, `activity`, `operationStatus`             | Bounded material/event pages and original-operation recovery.                                        |
+| `describe`, `search`, `expandRelations`, `readAcceptedChange` | Shared read services described below.                                                                |
+| `setLifecycle`, `relinkExternalAsset`                         | Checked archival/reactivation and trusted locator-only relinking.                                    |
 
-## Shared context services
+Local import and foreign-draft services are specified in `local.ts`. Raw-path and verified-capture operations are trusted APIs, not renderer or agent capabilities.
 
-Both facades implement the same four read-only `ContextServices` methods. Engine authorization, format checks, a single read transaction and prepared activity surround the shared implementation. The Core has no MCP dependency and adds no context authority tables or migrations.
+## Agent services
 
-| Method               | Strict input and output                                                                                                                                                                                          |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `describe`           | `{kind?,maxBytes}` → fixed `SchemaDescription`; property definitions remain per-object, with no inferred global record schema                                                                                    |
-| `search`             | Query shape with required nonblank literal text → `TextSearchPage`; reuses scoped literal query, but has its own cursor domain and real `text_search` activity                                                   |
-| `expandRelations`    | `{seedId,direction,predicates,maxDepth,maxNodes,maxEdges,maxBytes}` or `{cursor,maxBytes}` → current-owner BFS with terminal pinned targets, endpoint summaries, completeness/stop reasons and byte continuation |
-| `readAcceptedChange` | `{changeId,section:"summary"                                                                                                                                                                                     | "evidence",maxBytes}`or`{cursor,maxBytes}` → exact accepted target/declaration or currently readable original evidence pins |
+| Service              | MCP/CLI tool           |
+| -------------------- | ---------------------- |
+| `discover`           | `space_discover`       |
+| `query`              | `objects_query`        |
+| `read`               | `object_read`          |
+| `propose`            | `proposal_create`      |
+| `changes`            | `changes_list`         |
+| `operationStatus`    | `operation_status`     |
+| `describe`           | `schema_describe`      |
+| `search`             | `text_search`          |
+| `expandRelations`    | `relations_expand`     |
+| `readAcceptedChange` | `accepted_change_read` |
 
-Every success fits its explicit 1–64 KiB complete-Result budget. Description and accepted summary are atomic; paged methods never split an edge/evidence item. `discover` adds `implementedTools` and small `usageHints` and stays within 8 KiB. Relationship limits (1/2 hops, 50 total nodes/edges, 5,000 authorized candidates) apply to the whole recomputed walk, not independently to each byte page. They are not a database latency guarantee. New graph/evidence cursors retain initial parameters and a visible position, without server sessions or a stored frontier; authority/scope changes make them stale. Query/search keep their existing repeat-input pagination shape.
+Agents cannot save accepted content, accept/reject/undo, manage grants or execute files/SQL. [Agent protocol](AGENT_PROTOCOL.md) defines launch arguments and tool inputs.
 
-`ChangeSummary.acceptedChangeReadable` identifies the successful acceptance event itself, not an earlier event of a now-applied proposal. `readAcceptedChange` checks that event's original receipt/business outcome, proposal hash/target/base/result revision and the retained revision's own change/sequence association. Current publication always creates a revision when a proposal is applied. It whitelists declaration/reference DTOs directly from authority; it never forwards `getProposal`, patches, operation keys or complete candidate snapshots. Another agent needs only the readable change ID and its own current grant. Later undo/edit/source updates preserve the original accepted target/evidence pins.
+## Results, mutations and unknown outcomes
 
-Read scope for a target includes its retained accepted declaration, and each source is independently authorized. Out-of-scope/nonaccepted/unknown changes return uniform `NOT_FOUND`; a revoked reader fails authorization first. Missing/unreadable sources are aggregate availability only, without hidden IDs/counts or placeholders. Evidence ranges count visible entries, preserve their source order and omit totals. Retained corrupt JSON/digests or an inconsistent event association return `INTEGRITY_FAILURE` rather than healthy availability. Archive is not deletion. External-reference metadata does not open an external path or URL.
+Calls return `{ ok: true, value }` or `{ ok: false, error }` with a stable code, retryability and optional safe field/parameters. Inspect business outcomes: successful `reviewProposal` can mean applied, rejected or conflicted. `WriteResult.generation` echoes the submitted generation; it does not mark newer visible input saved.
 
-Reference-only activity has `details.resultKind:"reference-metadata"` and includes only the page's actual pins. It never labels an examined frontier, hidden source or future page as delivered, and never invents a body range. See the real SDK tests in `tests/protocol/context.test.ts` and the Core boundary/fault cases in `tests/core/context.test.ts`; these are synthetic Node checks, not native/model-host acceptance.
+An operation key belongs to the persistent human namespace or grant ID. Its canonical digest includes the command and request. Replaying a recorded same-key request returns its original complete result; using that key for a different request fails.
 
-## Result and recovery semantics
+`operationStatus` returns original `receipt.business` separately from `currentProposal`. Receipts contain bounded identities, pins and generations, not bodies or secrets. `not_found` is not proof of failure: retain the original request and key while querying or replaying an uncertain operation.
 
-### Current-head version review
+Grant tokens are returned once. Only the summary/hash is retained; same-key replay returns the summary with `token:null`. Recover a lost issuance by revoking that grant and issuing another, not by trying to recover its secret.
 
-Every `ObjectSummary` in human/agent query, search and relationship expansion includes `currentRevision`, `knowledgeReviewedRevision:number|null` and `knowledgeReviewState`. `object_read(summary)` includes the same metadata. In one authenticated read transaction, H is the current head and R is the highest human-reviewed revision:
+Acceptance checks candidate hash/status, target expectation, current policy and originating grant. Rejection guards the candidate/hash/status and remains possible after target edits or grant revocation. A human draft copied from a proposal does not accept or alter that proposal. Undo checks the exact successor revision; creation undo archives identity rather than deleting history.
 
-| State                  | Condition | Meaning                                                                     |
-| ---------------------- | --------- | --------------------------------------------------------------------------- |
-| `never-reviewed`       | R is null | No revision has been marked reviewed; ordinary notes may stay in this state |
-| `current-reviewed`     | R = H     | The current saved revision was marked reviewed by a person                  |
-| `changed-since-review` | R < H     | A newer revision exists after the last human review                         |
+## Version review
 
-This is version review, not truth certification or source-freshness analysis. Saving, applying/rejecting a proposal, reading and seen markers do not mark a version reviewed. Updating a source without advancing its referencing target leaves that target's review state unchanged. Only the existing human-only `markKnowledgeReviewed` command records review, using an exact current pin and CAS/idempotency. Repeating a review of the same revision does not advance authority.
+Query/search/relationship summaries and `object_read(summary)` include current head H (`currentRevision`), highest human-reviewed revision R (`knowledgeReviewedRevision`) and a derived state:
 
-`ref`, `title`, `digest` and `updatedAt` still describe the represented exact revision. A historical K1 summary may have H=K2/R=K2 and `current-reviewed`; it does not assert that K1 has its own review. Review metadata is an observation made during this read and is not part of a revision digest. A write/review receipt remains the original operation result; re-read to observe the current head.
+| State                  | Condition         |
+| ---------------------- | ----------------- |
+| `never-reviewed`       | R is null.        |
+| `current-reviewed`     | R equals H.       |
+| `changed-since-review` | R is less than H. |
 
-Query and search accept `filter.knowledgeReviewStates?: KnowledgeReviewState[]`: 1–3 unique enum values, OR within the set and AND with other filters. Empty, duplicate, null and unknown values fail validation. Sets are normalized in the order shown above before `queryDigest`, `executed` and audit assembly; reordering the same set can continue a page, while changing its members cannot. Explicit all-three remains distinct from an omitted filter.
+Review is human-only and tied to an exact current pin. Repeating the same review does not advance authority. Saving, applying/rejecting, reading or marking a proposal seen does not review knowledge. A source change without a new referencing-object revision leaves that object's review state unchanged.
 
-SQL authorization and filtering precede ordering/limit. A scalar highest-review lookup on the existing composite key avoids duplicate objects from multiple review rows. Invalid R>H in an authorized candidate or lookahead returns `INTEGRITY_FAILURE`, including when a state filter would otherwise hide it; this is a candidate integrity check, not a full-space audit. Summary fields count toward the complete Result budget, including first-item `requiredBytes`, true empty results and the last actually returned ID cursor.
+The represented ref/title/digest/time remain historical when a pin is historical; H/R describe the head observed during this read. Review metadata is outside the revision digest. Re-read after mutations instead of treating an old receipt as current metadata.
 
-The runtime schema catalogue has `definitionsVersion:2`, the new filter key and explicit current-read semantics. Persistent/Core/local format versions remain 2, with no database migration. Clients using strict old output schemas must update.
+`filter.knowledgeReviewStates` accepts 1–3 unique enum values: OR within the set, AND with other filters. Empty, duplicate, null and unknown values fail. Canonical enum order permits a reordered equivalent set to continue; changed members do not. Explicit all-three differs from omission. Authorized invalid metadata, including R greater than H, returns `INTEGRITY_FAILURE` rather than disappearing behind a filter.
 
-### Operation results
+## Bounded context and cursors
 
-Public calls return `{ ok: true, value }` or a stable error code, retry flag and optional field/parameters. A successful response is specific to that operation. `ReviewResult.outcome` is `applied`, `rejected` or `conflicted`; generic success does not mean adoption. Every accepted revision is immutable. `WriteResult.generation` echoes the submitted editor generation; it does not certify a newer visible buffer as saved.
+- `describe({ kind?, maxBytes })` returns fixed semantics; property definitions remain per-object.
+- `search` requires nonblank literal text, uses scoped query semantics and has its own cursor domain.
+- `expandRelations` uses explicit direction/predicates, depth 1–2, at most 50 total nodes/edges and a 5,000 authorized-candidate work cap. Pinned targets are terminal. Limits cover the whole recomputed walk, not each byte page or database latency.
+- `readAcceptedChange` reads summary or evidence for a successful acceptance event. It checks the original receipt, candidate association and immutable result revision. Another agent needs the change ID and its own grant, not the originating chat or operation key.
 
-An operation key is scoped to the persistent human namespace or grant ID and includes the command in its canonical request digest. Same-key replay returns the original complete Result even after later edits or proposal decisions. `operationStatus` returns a small original `receipt.business` discriminator (object pin/generation, review outcome, draft generation/retained state, proposal or grant identity) and separately named `currentProposal`. It contains no body or secret. `not_found` is not a failure confirmation; resend/query the same key when the result is unknown.
+Source authorization is independent of target authorization. Unreadable evidence exposes only aggregate availability, without hidden IDs, titles or counts. Evidence pages contain visible entries in source order and omit totals. Inconsistent stored data returns `INTEGRITY_FAILURE`, not healthy unavailability.
 
-A grant token is deliberately one-time: `createGrant` stores and replays the same grant summary, while its ephemeral `token` is non-null only on the initial issuance. Losing that response requires revoking the recovered grant ID and issuing a new one; the secret cannot be recovered from a receipt. Do not display a connection as established merely because a grant exists or its configuration was copied.
+`maxBytes` is 1,024–65,536 bytes for bounded reads. `returnedBytes` measures UTF-8 JSON of the complete Core Result, including cursor/count fields; transport framing is additional. Pages split only at complete code points or entries. An indivisible item reports `LIMIT_EXCEEDED` and `requiredBytes`. Discovery fits within 8 KiB.
 
-Acceptance checks the immutable hash, proposal status version, current target expectation, current policy and originating grant. Rejection checks only the candidate hash/status version and human context, so a stale or revoked candidate can still be rejected. “Use as draft” can use `getProposal` plus `saveDraft` with a proposal source and an explicitly selected new/current target. That remains a human draft; it does not alter or accept the agent original. Historical copying similarly composes `readObject` at a pin with `createObject` under a new identity.
+Current-state cursors bind instance, scope/grant generation, authority sequence, parameters and position. Authority/scope changes require a restart. Exact-read cursors instead retain the resolved pin/section/offset across head changes and recheck authorization. Query and search retain their repeat-input pagination form.
 
-## Budgets, cursors and observations
+Prepared activity records only returned pins/ranges. A frontier node, hidden source or future page is not supplied context. `committed-change` is a durable local event and can describe a pending proposal; it does not imply an applied body.
 
-Query pages bind filters/limits, scope digest (including instance and grant generation), authority sequence and last ID. An authority change returns `CURSOR_STALE`; activity, draft saves and seen markers do not invalidate a query. Read continuations bind a retained pin, section, scope and next Unicode-code-point/entry offset and survive a later head change, while revoked/changed authorization is checked again. Evidence locator strings are advisory metadata; `object_read` selects explicit sections and returns the actual range it prepared, not an inferred semantic heading range.
+## Native and local boundary
 
-`returnedBytes` measures UTF-8 JSON of the entire core `Result` envelope, including cursor and the byte-count field. This does not include an MCP transport's additional encoding. Readers return whole code points or whole typed entries; if one entry cannot fit, they report `LIMIT_EXCEEDED` with the minimum required budget. `unavailableReferences` flags scope gaps without exposing outside IDs, titles or counts. Original text and labels are never normalized in storage; search alone uses a normalized projection.
+Main exposes native-selection/handle operations for import, backup, export, restore and relink. It does not forward `startImport`, `commitImportItem`, `getImportManifest` or path-bearing relink through preload. `ImportRunPage.coordinatorError` is a live Main failure observation, not a retained item outcome.
 
-An `ActivityEntry` has a stable numeric ID and explicit stage. `prepared` means the core assembled a tool result with those exact pins/ranges. It does **not** mean the adapter wrote stdout, the host received it, or a model understood/finished work. `committed-change` is a local durable domain event (including a pending proposal), not proof that its body was applied. Human UI polling creates no agent activity. No transmission-observation port or fictional agent run exists in this stage.
+Import manifests freeze source identity/version, grouping, object IDs and keys. Same-source retries retain the original pin and later human edits. Restored/different installations require fresh source selection and approval. Artifact factories read the source database read-only and publish checked destination receipts. Restore creates a new instance and disables copied grants; foreign drafts are explicitly forked. See [Local data](LOCAL_DATA.md).
 
-## Limits and pending boundaries
+## Operating limits
 
-Format/core-contract version 2 is required on every transaction; no automatic migrations run. Spaces are plaintext local SQLite with private creation permissions. The database page ceiling is 512 MiB (history/receipts count); SQLite capacity failure returns `LIMIT_EXCEEDED`. Managed payloads are at most 1 MiB, serialized typed fields 32 KiB, input graphs depth 32/20,000 nodes, object grants 1,000 IDs, and stored grants 256. First release keeps revisions/receipts without automatic GC. A full space can still use the read-only-source export/backup paths or a new space; deleting the database is not an index rebuild.
+Persistent/Core/local contracts and schema definitions are version 2. Unsupported formats fail without automatic migration. Spaces are plaintext local SQLite with private creation permissions. The database page ceiling is 512 MiB, managed objects at most 1 MiB, each serialized typed field 32 KiB, at most 64 fields/100 relations per object, input graphs depth 32/20,000 nodes, object grants 1,000 IDs and stored grants 256. Revisions and receipts have no automatic garbage collection.
 
-Core/local-file tests do not establish physical IME, OS chooser interactions, large-space performance, destination disk-full/power-loss durability or signed/moved packaging. The desktop validates sender/frame, binding/space/instance and strict requests; the renderer separately protects editor generations and input. [TESTING.md](TESTING.md) identifies the actual native/protocol evidence.
-
-## Local human and native services
-
-[`local.ts`](../src/contracts/local.ts) defines format-2 request/response schemas. `HumanServices` adds CAS `setLifecycle`, trusted locator-only `relinkExternalAsset`, transactional import run/item control, and foreign-installation draft discovery/read/copy. Human `query` inherits the shared review filter and adds active(default)/archived/all; Agent lifecycle access remains active-only. `operationStatus.receipt.business` distinguishes import run state and item outcome/original pin as well as existing object/review/draft results. Original results remain separate from current progress.
-
-The safe Core bridge exposes `setLifecycle`, `retryImport`, `pauseImport`, `getImport`, `listImports` and recovery draft methods. Main exposes native chooser/opaque-handle `chooseImport`, `readImportPreview`, `confirmImport`, `resumeImport`, `exportCurrent`, `backupSpace`, `chooseBackup`, `restoreBackup`, `readLocalTransfer`, `openRestoredSpace`, `chooseRelink`, `confirmRelink`. It never forwards `startImport`, `commitImportItem`, `getImportManifest` or raw path-bearing relink. `ImportRunPage.coordinatorError?` is a bounded live Main observation when progress could not be persisted; it is not a retained item result.
-
-Import manifests freeze relative paths, source identity/version, grouping, IDs and operation keys. Same-source-version retries return the retained original pin and do not overwrite later edits. New-install/restored resume requires fresh native selection/approval. Readable export and full backup are distinct trusted factories, open source SQLite read-only and publish destination receipts after validation. Restore resets instance/grants while preserving receipt bytes; old-install drafts are explicitly forked. See [LOCAL_DATA.md](LOCAL_DATA.md) for concrete scope and limits.
+At capacity, use read-only-source backup/export or another space. The database is authority, not a disposable index. [Testing](TESTING.md) defines platform, physical-device and failure coverage.

@@ -281,6 +281,7 @@ try {
     connections.push({ client, transport, errors, stderr: () => stderr });
     await client.connect(transport);
     assert.equal(client.getProtocolEra(), era);
+    assert.equal(client.getServerVersion()?.version, pkg.version);
     assert.deepEqual((await client.listTools()).tools.map((t) => t.name).sort(), toolNames);
     eras.push(era);
   }

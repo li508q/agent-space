@@ -499,7 +499,7 @@ async function capture(native: NativeHarness, name: string, data: unknown) {
 }
 
 test(
-  '7C Details review and adjacent controls retain outward focus paint in short viewports',
+  'Details review and adjacent controls retain outward focus paint in short viewports',
   { skip: process.platform !== 'darwin', timeout: 180_000 },
   async () => {
     const f = createAcceptanceFixture();
@@ -859,7 +859,7 @@ test(
 );
 
 test(
-  '7C one changed Library row retains its complete natural-Tab boundary at Spanish 681px',
+  'one changed Library row retains its complete natural-Tab boundary at Spanish 681px',
   { skip: process.platform !== 'darwin', timeout: 120_000 },
   async () => {
     const results = [];
@@ -967,7 +967,7 @@ test(
 );
 
 test(
-  '7C Library review/save/reopen and Continue MRU use real current objects and keep fixed activity evidence',
+  'Library review/save/reopen and Continue MRU use real current objects and keep fixed activity evidence',
   { skip: process.platform !== 'darwin', timeout: 120_000 },
   async () => {
     const f = createAcceptanceFixture();
@@ -1111,7 +1111,7 @@ test(
 );
 
 test(
-  '7C A-B-A late query success and failure cannot replace current rows, error or loading',
+  'A-B-A late query success and failure cannot replace current rows, error or loading',
   { skip: process.platform !== 'darwin', timeout: 90_000 },
   async () => {
     const f = createAcceptanceFixture();
@@ -1170,7 +1170,7 @@ test(
 );
 
 test(
-  '7C dirty same-H review and late metadata error preserve input and show actual H/R',
+  'dirty same-H review and late metadata error preserve input and show actual H/R',
   { skip: process.platform !== 'darwin', timeout: 90_000 },
   async () => {
     const f = createAcceptanceFixture();
@@ -1236,7 +1236,7 @@ test(
 );
 
 test(
-  '7C an old successful review receipt cannot label a later human save reviewed',
+  'an old successful review receipt cannot label a later human save reviewed',
   { skip: process.platform !== 'darwin', timeout: 90_000 },
   async () => {
     const f = createAcceptanceFixture();
@@ -1278,7 +1278,7 @@ test(
 );
 
 test(
-  '7C five locales keep the in-flow review filter, full list focus and real writing caret usable at native zoom',
+  'five locales keep the in-flow review filter, full list focus and real writing caret usable at native zoom',
   { skip: process.platform !== 'darwin', timeout: 180_000 },
   async () => {
     const f = createAcceptanceFixture();
@@ -1381,7 +1381,7 @@ test(
 );
 
 test(
-  '7C the existing material disclosure and four creation actions remain in the same keyboard scroll flow',
+  'the existing material disclosure and four creation actions remain in the same keyboard scroll flow',
   { skip: process.platform !== 'darwin', timeout: 120_000 },
   async () => {
     const f = createAcceptanceFixture();
@@ -1461,7 +1461,7 @@ test(
 );
 
 test(
-  '7C a failed Library append keeps its loaded rows and keyboard Retry continues the same filtered cursor',
+  'a failed Library append keeps its loaded rows and keyboard Retry continues the same filtered cursor',
   { skip: process.platform !== 'darwin', timeout: 90_000 },
   async () => {
     const f = createAcceptanceFixture();

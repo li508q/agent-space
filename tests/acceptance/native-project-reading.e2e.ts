@@ -589,7 +589,7 @@ async function historyTabTo(native: NativeHarness, id: string) {
 }
 
 test(
-  '7C History returns preserve usable checkpoints and reveal a moved target after a same-ID save',
+  'History returns preserve usable checkpoints and reveal a moved target after a same-ID save',
   { skip: process.platform !== 'darwin', timeout: 120_000 },
   async () => {
     const outcomes = [];
@@ -859,7 +859,7 @@ test(
 );
 
 test(
-  '7A review reader blocks nested references during current opening without an underlying editor',
+  'review reader blocks nested references during current opening without an underlying editor',
   { skip: process.platform !== 'darwin', timeout: 30_000 },
   async () => {
     const fixture = readingFixture(),
@@ -905,7 +905,7 @@ test(
 );
 
 test(
-  '7A delayed save and reading return preserve later input instead of reinstalling an older body',
+  'delayed save and reading return preserve later input instead of reinstalling an older body',
   { skip: process.platform !== 'darwin', timeout: 30_000 },
   async () => {
     const fixture = readingFixture(),
@@ -952,7 +952,7 @@ test(
 );
 
 test(
-  '7A a failed handoff retains the original human draft and restores it through the reading checkpoint',
+  'a failed handoff retains the original human draft and restores it through the reading checkpoint',
   { skip: process.platform !== 'darwin', timeout: 45_000 },
   async () => {
     const fixture = readingFixture();
@@ -1162,7 +1162,7 @@ test(
 );
 
 test(
-  '7A pagination retry and a later writing route invalidate a waiting reading-position restoration',
+  'pagination retry and a later writing route invalidate a waiting reading-position restoration',
   { skip: process.platform !== 'darwin', timeout: 45_000 },
   async () => {
     const fixture = readingFixture(),
@@ -1313,7 +1313,7 @@ test(
 );
 
 test(
-  '7A archived current originals and missing replies preserve the historical reader and version labels',
+  'archived current originals and missing replies preserve the historical reader and version labels',
   { skip: process.platform !== 'darwin', timeout: 30_000 },
   async () => {
     const fixture = readingFixture();
@@ -1444,7 +1444,7 @@ test(
 );
 
 test(
-  '7A five locales expose project and original-edit controls at 980px and enlarged native text',
+  'five locales expose project and original-edit controls at 980px and enlarged native text',
   { skip: process.platform !== 'darwin', timeout: 120_000 },
   async () => {
     const fixture = readingFixture(),
@@ -1576,7 +1576,7 @@ async function releaseFault(native: NativeHarness) {
 }
 
 test(
-  '7A project overview exposes accumulation and edits K1 through current K2 into the same K3',
+  'project overview exposes accumulation and edits K1 through current K2 into the same K3',
   { skip: process.platform !== 'darwin', timeout: 60_000 },
   async () => {
     const fixture = readingFixture();
@@ -1845,7 +1845,7 @@ test(
 );
 
 test(
-  '7A same-object human draft survives editing current and a cancelled late reply',
+  'same-object human draft survives editing current and a cancelled late reply',
   { skip: process.platform !== 'darwin', timeout: 60_000 },
   async () => {
     const fixture = readingFixture();

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import type {
@@ -37,6 +38,15 @@ for (const era of ['legacy', 'modern'] as const) {
         // Binding/SDK initialization/tools-list do not manufacture tool activity.
         assert.equal(must(human.status()).activitySequence, fixture.status.activitySequence);
         assert.equal(connection.client.getProtocolEra(), era);
+        assert.equal(
+          connection.client.getServerVersion()?.version,
+          (
+            JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
+              version: string;
+            }
+          ).version,
+          'The negotiated server version identifies this application build.',
+        );
         if (era === 'modern') {
           assert.equal(connection.client.getNegotiatedProtocolVersion(), '2026-07-28');
           assert.ok(connection.client.getDiscoverResult());

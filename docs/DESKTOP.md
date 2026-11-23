@@ -1,42 +1,61 @@
-# Desktop runtime
+# Desktop development and packaging
 
-The desktop uses the same `Space` and `HumanServices` implementation as the restricted agent adapter. It stores no second copy of accepted content. A person can create, open, edit and review local material without a model provider or API key.
+The desktop uses the same `Space` and `HumanServices` authority as the agent adapter. A person can create, open, edit and review local material without a provider account or API key. The packaged application includes its own Node runtime.
 
-## Build and run
+## Runtime and development
 
-Use the pinned Node version in `package.json` and the committed npm lockfile:
+Use the committed npm lockfile and a supported exact Node version. `.nvmrc` selects `22.22.3`; `package.json` also permits `24.22.3`. Dependency and Electron pins are in `package.json` and `package-lock.json`.
+
+From the repository root:
 
 ```sh
 npm ci
+npm run dev
+```
+
+`dev` performs a build and launches Electron. It has no watch server. To build and launch separately:
+
+```sh
 npm run build
 npm start
 ```
 
-`npm run dev` builds and launches the application. It does not run a watch server. `npm run build:desktop` builds the core, adapter, main process and preload without replacing or generating renderer content. The full build requires the real `src/renderer/main.tsx` and `index.html` entries.
+| Command/output                 | Contract                                                                                                                                          |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run build`                | Compiles Core and standalone adapters, then bundles Main, preload and the real renderer entries.                                                  |
+| `npm run build:desktop`        | Compiles Core/adapters and bundles Main/preload; leaves existing renderer output untouched. Use the full build before launching a fresh checkout. |
+| `dist/desktop/main.cjs`        | Desktop entry and packaged agent-mode dispatcher.                                                                                                 |
+| `dist/desktop/preload.cjs`     | Named renderer business API.                                                                                                                      |
+| `dist/renderer/index.html`     | Compiled renderer document served through the application protocol.                                                                               |
+| `dist/agent/adapters/entry.js` | Standalone development CLI/MCP process entry.                                                                                                     |
 
-Compiled entries are `dist/desktop/main.cjs`, `dist/desktop/preload.cjs`, `dist/renderer/index.html` and `dist/agent/adapters/index.js`. The start script removes inherited `ELECTRON_RUN_AS_NODE` before launching Electron. A development build is not an installer or a signed release.
+`npm start` requires the compiled Main entry and removes inherited `ELECTRON_RUN_AS_NODE`. If the entry is missing, run the full build and retry. A development build is a launchable application, with packaging and signing handled separately below.
 
-## Desktop boundary
+## Desktop boundary and local state
 
-The sandboxed renderer has context isolation and no Node integration. Its preload exposes named `window.agentSpace` business methods, without raw IPC, filesystem, database, process or shell access. Main checks the exact WebContents, top frame, fixed document origin and strict request schema. Every space-bound call also checks the active binding, space and instance IDs. Reopening the same space generates a fresh binding.
+The sandboxed renderer uses context isolation without Node integration. Preload exposes named `window.agentSpace` methods. Main validates the exact WebContents/top frame, application origin, request schema and active binding/space/instance. Reopening the same space creates a new binding. See [ARCHITECTURE.md](ARCHITECTURE.md) for the authority and security contracts.
 
-Only compiled renderer assets are served at `agentspace://app/index.html`. Source, core, agent and preload files are outside the resource manifest. Scripts are local; inline scripts, evaluation, network connections, remote images, frames, webviews, navigation, new windows and permission requests are denied. Inline styles are permitted for CodeMirror's dynamic styles and React style attributes. HTTP(S) links require a transient human click before main calls the operating system's external-link handler.
+Only compiled renderer assets are served at `agentspace://app/index.html`. Scripts are local; network connections, remote images, frames, webviews, navigation, new windows and permission requests are denied. Inline styles support CodeMirror and React. Validated HTTP(S) links require a transient human action before opening in the system browser.
 
-All space locations come from native dialogs. Canceling a dialog preserves the current space. Preferences and a stable human installation namespace live in the application's private user-data directory. Invalid presentation preferences are preserved separately and reported; they do not delete or repair a user space. An explicit language selection and text zoom persist independently of user-authored content.
+Native dialogs select space, import and transfer locations. Canceling preserves the current space. Preferences and a stable human installation namespace live in application-private user data, outside the application bundle. Locale and text zoom persist without changing authored content. Invalid presentation preferences are retained separately and reported; the application does not repair or delete a space in response.
 
-Window close uses a request nonce. The renderer first saves or durably retains a recovery draft. No response means the window stays open; the fallback offers retry, keeping the window, an accurately labeled copy of text actually received by main, and an explicit discard confirmation. Main cannot claim it has copied newer keystrokes that an unresponsive renderer never sent.
+For isolated verification, the trusted launch environment can set `AGENTSPACE_USER_DATA` to an absolute temporary directory. Renderer and MCP requests cannot choose that path. Tests use private profiles and synthetic spaces; see [TESTING.md](TESTING.md).
 
-Canceling a close emits `onCloseCancelled` with the old nonce, including native Keep open, Retry and error paths. A late ready response cannot bypass a visible native recovery dialog. Retry first ends the old nonce, then starts a new one. Actual closure does not emit a cancellation.
+### Closing with unfinished writing
 
-## Agent entry
+A close request has a nonce. The renderer must save or durably retain its recovery draft before Main closes the window. If the renderer cannot answer, the window remains open and native recovery offers retry, keep open, copy of text actually received by Main, or confirmed discard. Newer input that never reached Main cannot be reported as copied.
 
-The Electron executable recognizes `--agent-server` and `--agent-cli` before creating a window, loading desktop preferences or acquiring the desktop single-instance lock. It loads the restricted adapter in Electron's bundled Node runtime. Multiple agent processes may access the same space through the common transaction guards.
+Keep open, retry and error paths end the old nonce through `onCloseCancelled`. Retry starts another request. A late ready reply cannot bypass an already visible native recovery dialog. Save/draft failure retains the buffer and exposes recovery actions; retained input is not labeled Saved.
 
-Generated configuration uses the actual executable and compiled development entry, or the application executable when packaged. Tokens are passed only in `AGENTSPACE_TOKEN`; they are not command-line arguments. Configuration generation revalidates the active binding and grant without fabricating a tool-call activity. The JSON is a stdio launch-parameter object; the TOML targets Codex's `mcp_servers` format. Neither is written into a host's settings automatically. Copying configuration does not prove a host is connected.
+## Agent process entry
 
-See [Agent protocol](AGENT_PROTOCOL.md) for tool names, scope and operation recovery. The application package and its generated executable configuration have also been verified after ZIP extraction and relocation; see the packaging evidence below. Development-mode integration alone would not establish those claims.
+The executable recognizes `--agent-server` and `--agent-cli` before creating a window, loading normal desktop preferences or acquiring the desktop single-instance lock. These modes use Electron's bundled Node runtime. Independent agent processes can share a local space through Core transaction guards.
 
-## Checks
+Generated configuration uses the actual executable and compiled development entry, or the application executable when packaged. `AGENTSPACE_TOKEN` carries the one-time token; tokens are not command-line arguments. Configuration generation rechecks the binding and grant. JSON contains stdio launch parameters; TOML targets Codex's `mcp_servers` format. The application does not write either into host settings. Copying configuration establishes preparation, while actual tool calls establish connection activity.
+
+After moving an application or restoring a space, create fresh host configuration for its current executable and instance. Restored grants are disabled. [AGENT_PROTOCOL.md](AGENT_PROTOCOL.md) describes tools, grant scope and recovery under the original operation key.
+
+## Checks during development
 
 ```sh
 npm run check
@@ -44,32 +63,33 @@ npm run test:desktop:agent
 npm run test:desktop
 ```
 
-The first runs type/lint and contract, core, editor, localization, desktop unit and real standalone protocol checks. `test:desktop:agent` compiles and invokes real Electron CLI/MCP processes without a window. `test:desktop` builds the real UI and runs desktop files serially. Run it without another GUI acceptance process competing for foreground focus. Native tests substitute selected operating-system dialog, clipboard and external-link results; they do not prove OS picker interaction, a model host's behavior, native IME behavior or release signing. Native menu history remains a separate foreground verification gate; keyboard history alone does not establish it.
+`check` runs type/lint, contract, Core, editor-state, localization, desktop-unit and real standalone protocol checks. `test:desktop:agent` builds Main/preload and invokes real Electron CLI/MCP processes without a window. `test:desktop` builds the UI and runs desktop test files serially; acceptance files have separate commands in [TESTING.md](TESTING.md).
 
-For isolated native verification, trusted launch environments can set `AGENTSPACE_USER_DATA` to an absolute temporary directory before launch. Renderer and MCP requests cannot choose this path. Tests must not reuse a person's normal profile or modify host configuration.
+Native checks need a visible macOS desktop and exclusive foreground focus. Selected OS dialog, clipboard and external-link devices are substituted while real IPC and Core handlers run. Their exact scope, physical-device boundaries and CI coverage are documented in TESTING.
 
-The boundary follows Electron's [context isolation](https://www.electronjs.org/docs/latest/tutorial/context-isolation), [security guidance](https://www.electronjs.org/docs/latest/tutorial/security) and [custom protocol](https://www.electronjs.org/docs/latest/api/protocol) APIs. The actual pinned runtime, rather than system Node alone, is exercised by the native checks.
+## Build a macOS arm64 package
 
-## macOS arm64 package
+Packaging and artifact verification require an Apple Silicon macOS host. The scripts reject other platforms and architectures. Core CI coverage on Linux does not establish a Linux desktop package.
 
-The packaging scripts target Apple Silicon macOS only. Their input checks are separate from building or launching an application:
+Check installed packaging tools and input boundaries:
 
 ```sh
 npm run package:check
-npm run icons:mac
 ```
 
-`package:check` verifies pinned packaging tools, the native icon and strict path/hash/dependency-boundary rules using temporary synthetic inputs. `icons:mac` converts the original SVG mark to PNG/ICNS using AppKit, `sips` and `iconutil`, without opening a window. The generated icon is committed, so normal packaging does not require Swift.
+This checks pinned tools, the committed native icon, path/allowlist/hash rules and bundle dependency boundaries using synthetic temporary inputs. It does not build, package or launch the product.
 
-Build a local app and ZIP on an Apple Silicon Mac:
+Create the local application and ZIP:
 
 ```sh
 npm run package:mac
 ```
 
-This runs the production build, stages only compiled main/preload, a bundled agent entry, renderer resources and license notices, then creates an ASAR application with the pinned Electron runtime. It copies no repository source tree, tests, `.coordination`, spaces, credentials or runtime `node_modules`. A separate agent bundle is necessary because Main loads that entry lazily. Bundling permits only Node built-ins and Electron as runtime externals; Electron supplies `node:sqlite` and Node itself. Source/output hashes reject stale or changed production inputs. Third-party notices come from packages actually present in the bundle graph.
+The command builds production assets, stages compiled Main/preload, a self-contained agent bundle, renderer resources and license notices, then creates an ASAR application using pinned Electron. Runtime dependencies are bundled; only appropriate Node built-ins and Electron remain external. Source/output hashes reject stale or changed production inputs. Third-party notices come from the bundled dependency graph.
 
-For a production build already verified by native tests, use:
+The staged application excludes repository source, tests, private coordination data, spaces, credentials and runtime `node_modules`. The command validates the ASAR allowlist/hashes and ad-hoc signature. ZIP creation preserves macOS framework symlinks. It creates local outputs without installing into `/Applications`, editing host settings or uploading artifacts.
+
+When reusing an already built production input set:
 
 ```sh
 npm run build:production
@@ -77,26 +97,40 @@ npm run package:mac -- --check
 npm run package:mac -- --skip-build
 ```
 
-`--check` reads and verifies the production manifest without building or packaging. `--skip-build` requires matching source/output hashes. Packaging refuses to overwrite a previous artifact for the same version. Normal development `build`/`build:desktop` commands retain their existing behavior; production mode adds minification and the self-contained agent bundle.
+`--check` validates the existing production manifest without building or packaging. `--skip-build` requires unchanged source/output hashes. If validation fails, rebuild production inputs and repeat the check. Packaging refuses an existing application directory or ZIP for the same version; preserve or move the earlier artifact before rebuilding that version.
 
-For version 0.1.1, outputs are:
+The original SVG icon and generated PNG/ICNS live in `assets/packaging/`. Run `npm run icons:mac` only when regenerating the icon; it uses AppKit/Swift, `sips` and `iconutil`. Normal packaging uses the committed ICNS.
 
-- `release/AgentSpace-0.1.4-macOS-arm64/AgentSpace.app`
-- `release/AgentSpace-0.1.4-macOS-arm64.zip`
-- `release/AgentSpace-0.1.4-macOS-arm64.sha256` and `release/SHA256SUMS`
+### Version-derived outputs
 
-The ZIP contains the app, five-language `START.md`, license material and `BUILDINFO.json`. ZIP creation preserves macOS framework symlinks. ASAR entries are checked against the exact staged allowlist and hashes; signature verification fails the package command if invalid. No installer writes `/Applications`, no host configuration is edited, and nothing is uploaded.
+`package.json` is the application-version source. For `<version>`, packaging creates:
 
-The configured signature is explicitly **ad-hoc**, with no Developer ID, notarization or hardened-runtime claim. No signing certificate or account is selected automatically. This is a local distribution artifact, not a claim that downloaded copies pass Gatekeeper. Electron's [signing documentation](https://www.electronjs.org/docs/latest/tutorial/code-signing) explains the separate Developer ID/notarization requirements. Packaging uses the official [Packager options](https://electron.github.io/packager/main/interfaces/Options.html) and [ASAR APIs](https://www.electronjs.org/docs/latest/tutorial/asar-archives).
+- `release/AgentSpace-<version>-macOS-arm64/AgentSpace.app`
+- `release/AgentSpace-<version>-macOS-arm64.zip`
+- `release/AgentSpace-<version>-macOS-arm64.sha256`
+- `release/SHA256SUMS`
 
-Move the app to a chosen local folder and launch it normally. A direct editor session needs no separate Node installation or API key. The executable also provides `--agent-cli`/`--agent-server`; tokens stay in `AGENTSPACE_TOKEN`. Copy a fresh host configuration after moving the app so it references the new executable path. Spaces and preferences remain outside the bundle and require their own backup.
+The ZIP also includes five-language `START.md`, license material and `BUILDINFO.json`. To launch the application for the current package version:
 
-The macOS arm64 production app and ZIP have been built. Actual verification extracts the ZIP into a new private directory, moves the app to a path containing spaces and checks its ASAR, signature and checksum:
+```sh
+package_version=$(node -p "require('./package.json').version")
+open "release/AgentSpace-$package_version-macOS-arm64/AgentSpace.app"
+```
+
+Direct writing and the packaged `--agent-cli`/`--agent-server` modes need no separate system Node installation. Spaces and preferences stay outside the bundle and need their own backup.
+
+## Verify the exact package
+
+After packaging:
 
 ```sh
 npm run package:verify
 ```
 
-The moved executable passes real CLI and simultaneous legacy/modern SDK stdio MCP checks with `PATH=/usr/bin:/bin:/usr/sbin:/sbin`, where system Node does not resolve. Each protocol invokes the ten tools, reconstructs exact pinned Unicode pages, rejects outside-scope reads and creates a proposal whose content remains unapplied until explicit human review. Agent modes create no desktop preferences/installation/instance lock. The tested built-in runtime is Electron45.4.1, Node24.22.3 and SQLite3.54.1. A supplemental Node-mode query reads those runtime versions; the product CLI/MCP checks use the real app entry without Node mode.
+The command verifies the current version's ZIP checksum, extracts it into a private directory, moves the application to a path containing spaces, and checks internal symlinks, ASAR hashes and deep/strict codesign. It then invokes the actual moved executable for CLI and simultaneous legacy/modern SDK stdio clients with a restricted PATH that cannot resolve system Node.
 
-`release/AgentSpace-0.1.4-macOS-arm64.verification.json` records artifact hashes and observed runtime checks without personal paths or tokens. The moved app is retained privately for native acceptance. CI can run `package:verify` after `package:mac`; it requires Apple Silicon macOS and makes no support claim elsewhere. These checks do not launch a GUI. Packaged GUI/five-language/source/import/restore acceptance remains separate, as do Developer ID, notarization and downloaded-copy Gatekeeper acceptance.
+Protocol checks exercise the registered tools, exact pinned Unicode pages, scope denial and proposals that remain unapplied until human review. Agent-only modes must create no desktop preferences, installation identity or singleton lock. The generated `release/AgentSpace-<version>-macOS-arm64.verification.json` records hashes and observed runtime checks without tokens or personal paths.
+
+`package:verify` launches no GUI. Run the relevant packaged native checks from [TESTING.md](TESTING.md) after production inputs change. A report for an earlier artifact does not verify a rebuilt application.
+
+The configured signature is **ad-hoc**. Developer ID signing, notarization, hardened runtime and downloaded-copy Gatekeeper acceptance are unverified. Current native/package verification covers macOS arm64; Windows, Linux and other architectures have no desktop acceptance claim.

@@ -1,6 +1,6 @@
 # Contributing to AgentSpace
 
-AgentSpace helps a person understand and direct work shared with AI agents. A contribution should make writing, context, changes or recovery clearer. Keep the product useful without a model account and keep the first release focused on one person's local space.
+AgentSpace helps a person understand and direct work shared with AI agents. A contribution should make writing, context, changes or recovery clearer. Keep the product useful without a model account and focused on one person's local space.
 
 ## Run locally
 
@@ -48,6 +48,12 @@ Use real SQLite files for persistence changes and a real SDK client for protocol
 Keep primary copy concise and preserve user-authored text. Add product strings to all five dictionaries: English, Simplified Chinese, Japanese, Korean and Spanish. Key and interpolation parity is checked; that does not replace checking the actual controls, long labels, keyboard focus and zoom.
 
 Use the existing local tokens, icons and font stack. Prefer clear document and change views over extra dashboards. Explain declared agent intent, supplied references and durable results; do not imply that the application sees a model's private reasoning or knows an external task has finished.
+
+## Documentation and comments
+
+Write for the person operating the product or maintaining the code. Use prerequisites, actions, results and limits. Comments explain an invariant or a non-obvious mechanism; avoid development chronology and repair narratives.
+
+Keep one maintained reference per topic: requirements in PRD, interaction state in UX, authority and modules in ARCHITECTURE, service contracts in CORE_API/AGENT_PROTOCOL, and commands/coverage in TESTING. Update all five user guides when an operation changes. Use version-derived artifact paths and keep implementation claims tied to current behavior.
 
 ## Before opening a pull request
 

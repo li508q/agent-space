@@ -32,7 +32,10 @@ There are no human save/review/undo/grant, filesystem, SQL or shell commands.
 Only existing supported spaces open. No space is created or migrated.
 CLI exit: 0 success; 1 core/startup failure; 64 arguments/schema; 65 JSON/input limit; 70 unexpected adapter failure.
 --help writes this help to stderr without opening a space.
-Packaged executable agent modes require the desktop entry integration; this development command does not prove packaged or model-host support.
+Packaged:
+  AgentSpace.app/Contents/MacOS/AgentSpace --agent-server --space ABSOLUTE_DIRECTORY --instance UUID --grant UUID
+  AgentSpace.app/Contents/MacOS/AgentSpace --agent-cli --space ABSOLUTE_DIRECTORY --instance UUID --grant UUID --tool TOOL < request.json
+The packaged executable includes its own runtime.
 `;
 
 function parseLaunch(
@@ -65,10 +68,8 @@ function reportFailure(mode: AgentMode, result: Failure): void {
 }
 
 /**
- * Electron main must select this mode BEFORE windows/single-instance locks.
- * argv contains ONLY arguments after --agent-server / --agent-cli.
- * Returns when stdin closes (server), the single call ends (CLI), or on signal.
- * Does not call app APIs, process.exit(), Space.create(), migrations or human().
+ * Select mode before windows or the desktop instance lock; argv starts after its flag.
+ * Owns the Core connection and stdio lifecycle. The caller owns Electron and process exit.
  */
 export async function runAgentMode(
   mode: AgentMode,

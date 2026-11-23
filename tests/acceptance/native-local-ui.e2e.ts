@@ -9,6 +9,7 @@ import type { ImportRunPage } from '../../src/contracts/local.js';
 import { t, type Locale } from '../../src/renderer/i18n/index.js';
 import { createAcceptanceFixture, requireSuccess as ok } from './fixtures.js';
 import { launchNative } from './native-harness.js';
+import { installClipboardFixture } from './clipboard-fixture.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const faultEntry = fileURLToPath(new URL('./native-ipc-fault.cjs', import.meta.url));
@@ -280,17 +281,10 @@ test(
         .getByText(t(locale, 'evidence.noAgentDeclaration'), { exact: true })
         .waitFor();
       assert.equal(await history.getByRole('alert').count(), 0);
-      const clipboard = await n.application.evaluateHandle(({ clipboard }) => {
-        const state = { text: '' },
-          original = clipboard.writeText;
-        clipboard.writeText = async (text) => {
-          state.text = text;
-        };
-        return { state, original, clipboard };
-      });
+      const clipboard = await installClipboardFixture(n, 'local-ui-saved-context');
       try {
         await n.page.getByTestId('copy-saved-context').click();
-        const note = JSON.parse(await clipboard.evaluate((handle) => handle.state.text));
+        const note = JSON.parse(await clipboard.readText());
         assert.equal(note.scope, 'one-saved-object');
         assert.equal(note.object.id, f.ids.retryPolicy);
         assert.equal(note.object.revision, 2);
@@ -311,7 +305,7 @@ test(
         await n.page.getByTestId(`object-row-${f.ids.sample}`).click();
         await n.page.getByTestId('record-fields').waitFor();
         await n.page.getByTestId('copy-saved-context').click();
-        const record = JSON.parse(await clipboard.evaluate((handle) => handle.state.text));
+        const record = JSON.parse(await clipboard.readText());
         assert.equal(record.object.id, f.ids.sample);
         assert.equal(record.object.kind, 'record');
         assert.equal(record.object.properties.attempts.value, 0);
@@ -320,10 +314,7 @@ test(
         assert.equal(record.object.properties.checked.value, false);
         assert.equal(record.object.properties.observation.label, '観察 / 관찰');
       } finally {
-        await clipboard.evaluate((handle) => {
-          handle.clipboard.writeText = handle.original;
-        });
-        await clipboard.dispose();
+        await clipboard.restore();
       }
       assert.deepEqual(n.pageErrors, []);
     } finally {
@@ -555,18 +546,7 @@ test(
 
       // Capture only this controlled copy in private Main memory; do not replace
       // the person's system clipboard to exercise a recovery affordance.
-      const clipboard = await n.application.evaluateHandle(({ clipboard }) => {
-        const original = clipboard.writeText;
-        const state = { text: '' };
-        clipboard.writeText = async (text) => {
-          state.text = text;
-        };
-        return {
-          state,
-          clipboard,
-          original,
-        };
-      });
+      const clipboard = await installClipboardFixture(n, 'local-ui-recovery');
       try {
         await n.page.getByTestId('nav-continue').click();
         await n.page.getByTestId('open-recoverable-drafts').click();
@@ -576,10 +556,7 @@ test(
           .getByRole('heading', { name: 'Retained human thought', exact: true })
           .waitFor();
         await recovery.getByTestId('copy-recovery-text').click();
-        assert.equal(
-          await clipboard.evaluate((handle) => handle.state.text),
-          `Retained human thought\n\n${draftBody}`,
-        );
+        assert.equal(await clipboard.readText(), `Retained human thought\n\n${draftBody}`);
         await recovery.getByTestId('retain-recovered-draft').click();
         await recovery.getByTestId('resume-recovered-draft').click();
         await recovery.waitFor({ state: 'hidden' });
@@ -604,10 +581,7 @@ test(
         );
         assert.equal(ok(f.human.readDraft({ draftId })).generation, 7);
       } finally {
-        await clipboard.evaluate((handle) => {
-          handle.clipboard.writeText = handle.original;
-        });
-        await clipboard.dispose();
+        await clipboard.restore();
       }
       assert.deepEqual(n.pageErrors, []);
     } finally {

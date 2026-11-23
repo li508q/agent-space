@@ -501,7 +501,7 @@ async function accessFormState(settings: Locator) {
 }
 
 test(
-  '7D read and clipboard response loss preserve a human draft, and unknown access operations keep their original retry keys',
+  'read and clipboard response loss preserve a human draft, and unknown access operations keep their original retry keys',
   { skip: process.platform !== 'darwin', timeout: 120000 },
   async () => {
     const f = contextFixture();
@@ -937,7 +937,7 @@ test(
 );
 
 test(
-  '7D import entry requires a current successful unfiltered Library result and returns through the real import flow',
+  'import entry requires a current successful unfiltered Library result and returns through the real import flow',
   { skip: process.platform !== 'darwin', timeout: 90000 },
   async () => {
     const scratch = mkdtempSync(join(tmpdir(), 'agentspace-7d-import-')),
@@ -1033,7 +1033,7 @@ test(
 );
 
 test(
-  '7D a historical saved project prepares bounded exact references and explicitly configures two scoped clients',
+  'a historical saved project prepares bounded exact references and explicitly configures two scoped clients',
   { skip: process.platform !== 'darwin', timeout: 120000 },
   async () => {
     const f = contextFixture();
@@ -1274,7 +1274,7 @@ test(
 );
 
 test(
-  '7D complete 240-character labels and focus paint remain readable through natural Tab in five locales',
+  'complete 240-character labels and focus paint remain readable through natural Tab in five locales',
   { skip: process.platform !== 'darwin', timeout: 120000 },
   async () => {
     const f = contextFixture();
@@ -1454,7 +1454,7 @@ test(
 );
 
 test(
-  '7D a delayed configuration retry cannot replace a newer explicitly created grant',
+  'a delayed configuration retry cannot replace a newer explicitly created grant',
   { skip: process.platform !== 'darwin', timeout: 60000 },
   async () => {
     const f = createAcceptanceFixture();

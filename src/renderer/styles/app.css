@@ -523,9 +523,6 @@ button.primary:hover:not(:disabled) {
 .transfer-row p {
   margin: 0;
 }
-.accepted-evidence > .ref-link {
-  justify-self: start;
-}
 .import-entries,
 .recovery-list {
   display: grid;
@@ -670,7 +667,6 @@ button.primary:hover:not(:disabled) {
 .metadata-edit-actions {
   margin-block-end: 0.85rem;
 }
-.project-summary,
 .record-fields {
   margin-block-end: 1.5rem;
 }
@@ -727,7 +723,6 @@ button.primary:hover:not(:disabled) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
-.project-summary h2,
 .record-fields h2,
 .linked-material h2 {
   font-size: 1rem;

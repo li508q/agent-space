@@ -1,9 +1,9 @@
 import type { HumanServices } from './core.js';
 
-// An active-space bridge only. Platform create/open dialogs and app preferences
-// belong to the later desktop adapter. No raw invoke/path/SQL/process method.
-// A fresh binding ID on every successful space switch also rejects old A→B→A
-// callbacks. Object/editor generations still protect the visible input buffer.
+// Active-space requests only. Native dialogs and app preferences use DesktopApi;
+// no raw invoke/path/SQL/process method is exposed.
+// A fresh binding ID on every successful space switch rejects old A→B→A
+// callbacks. Object/editor generations protect the visible input buffer.
 export type BoundRequest<T> = {
   bindingId: string;
   spaceId: string;

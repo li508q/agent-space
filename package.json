@@ -1,6 +1,6 @@
 {
   "name": "agent-space",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A local workbench for clear human–agent collaboration",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "lint": "eslint src tests scripts eslint.config.mjs --max-warnings 0",
     "test": "npm run build:core && npm run build:agent && tsx --test tests/contracts.test.ts tests/core/*.test.ts tests/ui/*.test.ts tests/desktop/unit.test.ts tests/desktop/local-unit.test.ts tests/protocol/*.test.ts",
     "check": "npm run typecheck && npm run lint && npm test",
-    "format:check": "prettier --check src tests scripts docs/CORE_API.md docs/ARCHITECTURE.md docs/IMPLEMENTATION.md docs/TESTING.md docs/DESKTOP.md docs/design-system.md package.json tsconfig.json tsconfig.core.json tsconfig.desktop.json eslint.config.mjs .prettierrc.json docs/LOCAL_DATA.md tsconfig.local.json",
+    "format:check": "prettier --check src tests scripts \"docs/**/*.md\" \"README*.md\" AGENTS.md CONTRIBUTING.md .agents/skills/agent-space-delivery/SKILL.md assets/packaging/START.md \".github/**/*.{md,yml,yaml}\" package.json tsconfig.json tsconfig.core.json tsconfig.desktop.json tsconfig.adapters.json tsconfig.local.json eslint.config.mjs .prettierrc.json",
     "build:core": "tsc -p tsconfig.core.json",
     "test:core": "npm run build:core && tsx --test tests/core/*.test.ts",
     "build": "node scripts/build.mjs",

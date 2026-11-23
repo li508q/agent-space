@@ -1,41 +1,42 @@
-# Workbench design
+# Design system
 
-Status: workbench structure and tokens used by writing/review, organization and local-data flows. Their executed native/locale checks and limits are tracked in [TESTING.md](TESTING.md). Changed interactions require new evidence rather than inheriting the old result. Detailed interaction states are specified in [UX.md](UX.md).
+AgentSpace is a document workspace. Keep writing central and evidence close to the affected material. Interaction states are defined in [UX](UX.md).
 
-AgentSpace is a document workspace. Writing occupies the center; provenance and proposed changes remain close to the affected material.
+## Tokens
 
-| Token | Value     | Purpose                      |
-| ----- | --------- | ---------------------------- |
-| Ink   | `#202936` | Primary text                 |
-| Slate | `#536170` | Secondary text               |
-| Paper | `#ffffff` | Writing surface              |
-| Mist  | `#f3f5f7` | Navigation and context       |
-| Blue  | `#3658ad` | Selection and primary action |
-| Green | `#246347` | Accepted and added material  |
+The maintained CSS sources are [`tokens.css`](../src/renderer/styles/tokens.css), [`base.css`](../src/renderer/styles/base.css) and [`app.css`](../src/renderer/styles/app.css).
 
-System UI fonts stay offline, with locale-appropriate system fallbacks. Default document reading and prose editing use a comfortable system sans-serif; code uses the platform monospace family. UI text is about 14px, reading text 16–17px with a 1.6 line height and a 60–75-character measure. Spacing follows a 4/8px rhythm. Borders encode pane boundaries and selected objects; shadows are reserved for dialogs. Lucide supplies one outline icon family. These tokens implement the interaction direction in UX.md rather than defining a second competing theme.
+| Role                     | Value                 |
+| ------------------------ | --------------------- |
+| Primary / secondary text | `#202936` / `#536170` |
+| Document / canvas        | `#ffffff` / `#f3f5f7` |
+| Action / selection text  | `#3658ad`             |
+| Accepted / added         | `#246347`             |
+| Attention / failure      | `#805600` / `#b42318` |
+| Divider                  | `#d9e0e7`             |
 
-```text
-┌ Space / project / material                         Language ┐
-├───────────────┬────────────────────────────┬────────────────┤
-│ Continue work │ Title / saved state        │ Details        │
-│ Projects      │                            │ Relationships  │
-│ Library       │ Markdown or typed records  │ Pinned sources │
-│ Review        │                            │ Versions       │
-│               │                            │                │
-└───────────────┴────────────────────────────┴────────────────┘
-```
+Use local system fonts with locale-appropriate CJK fallbacks. UI text is 14px; prose is 17px at 1.6 line height, with a 70ch measure. Code uses the platform monospace family. Spacing follows a 4/8px rhythm. Lucide provides one outline icon family.
 
-All content is left aligned. Follow UX.md's responsive behavior: at medium widths Details replaces the list, and below 1100px use collapsible navigation and list/detail routes instead of squeezing more panes into the editor. Panels scroll independently without hiding focused controls. Review pairs removed and added lines, retains unchanged context, and shows the current revision beside the proposal base. Text and labels identify conflict and acceptance in addition to color.
+## Layout
 
-This structure puts actual material ahead of counts or decorative cards. Source evidence sits beside writing; proposed changes replace the central reading surface while preserving a return path to cited material. Show creation candidates as proposed new documents/records, not as already saved objects. Current project links and pinned evidence need visibly distinct meanings in details.
+- Keep prose continuous and left aligned. Use rows and dividers for collections; reserve shadows for dialogs.
+- At medium widths, Details replaces the list. Below 1100 CSS pixels, use compact list/detail and panel return controls rather than compressing every pane.
+- Reflow actions and long translated labels. Scroll tables within a named region; surrounding controls remain reachable.
+- Keep project overview entries before the complete project body. Display counts as loaded or checked material, not inferred totals.
+- Keep original/base, proposal and accepted/current result visibly distinct. Show all changed properties and links, with text or symbols alongside color.
 
-Organization extends the same workspace. Project goals use ordinary prose, with optional authored fields and a restrained list of accumulated material. Record fields use labeled controls in a bounded editing dialog; rows are separated by rules rather than repeated cards. Preserve an explicit unapplied state until validated values enter the main editor. Field identity belongs in optional technical disclosure, while labels and values remain primary. New material choices stay beside the material list, and independent notes retain their global action.
+## Input and feedback
 
-The record table occupies the writing surface, uses a selected record as its column reference, and states its 50-row limit and loaded/query scope. Missing, unset, and differently defined fields have text labels rather than ambiguous blank cells. Use semantic headers, an individually named keyboard-scrollable table region, and wrapping surrounding controls. At narrow widths or native zoom, the table scrolls inside its region; its controls remain above it and may scroll vertically when space is limited. Asset reference inspection uses ordinary links with an explicit checked-result range, without a graph or unverified coverage count.
+- Use semantic controls, explicit labels and complete focus paint. Fixed chrome must not cover text, caret, diff or focused actions.
+- Trap modal focus and restore its trigger on close. Preserve input and selection through language changes; defer destructive transitions during composition.
+- Distinguish unsaved, saving, saved, failed, unknown and retained-draft states. Keep recovery actions beside persistent errors.
+- Animate only state feedback. Respect reduced motion and avoid movement beneath a focused pointer target.
+- Use a percentage only for an observed positive total. Otherwise show the reported stage/count. Prepared context and copied configuration do not imply an external task's progress.
 
-Use visible focus, semantic buttons, announced errors and retained input. Dialogs must trap focus and restore it on close. Defer disruptive transitions during composition, respect reduced motion, and keep controls visible under localized wrapping and zoom. The keyboard-focus and error-recovery guidance was matched in the UI/UX reference; earlier marketing-layout matches were not adopted. Native screenshot and interaction evidence is recorded in TESTING; changed controls require fresh checks.
+## Content hierarchy
 
-Local operations extend the same hierarchy: space-level actions in the space menu, object lifecycle/location in Details, version explanations in History, and other-installation recovery in Continue working. Import entries and per-item outcomes use wrapping rows separated by rules; relative paths identify otherwise repeated filenames. Suggested grouping is editable, with the reused-object limitation visible beside it. Keep long localized controls reachable within the dialog's vertical scroll. Two-column group controls become one column below 640 CSS pixels, including under native zoom.
+Put authored titles, content, reasons and source versions before technical identifiers. Show record field definitions, differing/missing values and table limits explicitly. Keep the saved-context action subordinate to writing and label its one-version scope.
 
-Use a plain progress element only for a reported positive total. An unknown total gets a processed count, and an uncertain outcome gets a persistent explanation with check/retry actions. A checked restore receipt and the result of opening its space are separate regions. Incoming links and accepted evidence use compact link lists with scope/limit text. They do not introduce graph canvases, decorative status cards or another permanent pane. The saved-context action is subordinate to writing and explicitly states its one-version scope.
+Use the space menu for import/portability, Details for fields/relationships/lifecycle and History for versions. Do not add a permanent pane, graph or dashboard for an operation served by the existing workspace.
+
+Verify composed contrast, wrapping, focus, caret and hit areas in the native application; token values alone do not establish accessibility. See [Testing](TESTING.md).

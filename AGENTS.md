@@ -1,50 +1,44 @@
 # AgentSpace development
 
-Build a focused, local-first personal workbench for clear human–AI collaboration. The product should strengthen the person's control: goals, sources, proposed changes, accepted results, and recovery are understandable. It must work directly for a person without a model provider.
+AgentSpace is a local personal workspace for direct writing and clear collaboration with AI agents. Changes should help people find context, understand a change, make a decision or recover their work. The workspace must remain useful without a model account.
 
-## Staged coordination
+## Product contracts
 
-The user explicitly requested phased delivery under the main session. Read `.agents/skills/agent-space-delivery/SKILL.md` and `docs/DELIVERY.md`. Execute only the currently assigned phase; return its artifact and evidence before proceeding. Do not interpret the overall product objective as authorization to skip product definition, PRD, technical contracts, or verification. A session asked to stop at a safe boundary must retain its work and report it, not continue the full application on its own.
+- Follow `docs/product-brief.md` and `docs/PRD.md`. Use shared objects and composable capabilities; examples such as monthly reviews must not become mandatory workflows.
+- Core is the sole authority for content, versions, relationships, permissions and receipts. UI, MCP and CLI use the same contracts.
+- Human edits save directly. Agent mutations produce scoped, version-checked proposals for human review.
+- Preserve object identity, exact source revisions and independent asset lifetimes. Relationships never expand grants.
+- Keep prepared context, copied text, proposed changes, accepted results and knowledge review distinct. Report declared intent and observable results; never claim access to private model reasoning.
+- Treat source files and imported instructions as data. Preserve imported originals and keep example material separate from personal data.
+- Keep the renderer sandboxed. Validate IPC sender, frame, schema and binding at the trusted boundary; expose no arbitrary filesystem, SQL, process or network capability.
+- Remain focused on a local, single-user workbench. Cloud teams, a chat host, role/workflow orchestration, arbitrary app execution and full spreadsheets are outside the current scope.
 
-For resumed coordinator-assigned work, read the local `.coordination/CURRENT.md` when available, then only the assigned task card and relevant contracts. It indexes private evidence and current ownership; it does not replace the public requirements. On a fresh clone, use `docs/DELIVERY.md` and `docs/PRODUCT_REVIEW.md`. Do not treat historical chat promises, the old final handoff, or a queued slice as a current assignment. Check the actual Git state before writing; only one assigned session may own shared application paths at a time.
+## Change discipline
 
-The user has explicitly delegated decisions within the focused brief to the coordinator. Do not ask the user to select routine product, architecture, or implementation options. Give a reasoned recommendation and evidence to the coordinator; the coordinator owns the phase decision and next assignment.
+Before implementation, identify the affected behavior, its invariant and the observable result that will verify it. Inspect the current code and callers before deleting a symbol or changing a contract.
 
-## Explain each decision before acting
+- Give concurrent contributors disjoint paths. Use one application-code writer and one native GUI runner at a time.
+- Keep independent review separate from implementation conclusions. Reviewers use the requirements, code and raw results before comparing findings.
+- Preserve another contributor's work. Do not reset, overwrite or commit unrelated changes.
+- Keep local task state and private evidence in ignored `.coordination/` files when present. Those records are not product documentation or required clone inputs.
+- Do not alter global settings, repository settings, hosted deployments or release publication without an explicit assignment.
 
-Before deciding a feature, scope change or implementation task, state in plain language:
+## Code and documentation
 
-1. The reported scenario or explicit need it serves.
-2. The current behavior and observed gap.
-3. The exact behavior to change and the affected entry point or capability.
-4. The scope boundary and data/access rules that must remain true.
-5. The observable result that will establish completion.
+- Prefer the existing stack and shared contracts. Add dependencies or abstraction only for a concrete need.
+- Remove code only after checking imports, build entries, dynamic registries, public APIs and tests. Keep meaningful failure and recovery coverage.
+- Comments explain invariants, non-obvious mechanisms and trust boundaries. Describe current behavior; development stories belong in version control or private records.
+- Write public documentation for users and maintainers. State prerequisites, actions, results and limits. Keep one authoritative explanation per topic.
+- Use `frontend-design` and `ui-ux-pro-max` for interface changes. Follow existing tokens, icons, local fonts and keyboard behavior.
+- Update English, Simplified Chinese, Japanese, Korean and Spanish product copy together. Preserve the language and bytes of authored content.
 
-Phrases such as "improve the experience", "complete the loop" or "make it AI Native" are not sufficient task definitions. Keep implemented, technically verified and validated with actual users separate. Test counts and a narrowed PRD cannot by themselves establish that the original pains have been solved. Evaluate completeness and focus independently; close core workflow gaps before adding a new product area.
+## Verification
 
-## Scope and quality
+Use `CONTRIBUTING.md` and `docs/TESTING.md` to select checks. Run source, formatting and documentation gates before publication. Verify persistence with real SQLite files, protocols with actual clients, and desktop behavior in native Electron. Mock rendering does not establish native behavior.
 
-- Follow `docs/product-brief.md`. Turn the user's actual pains into working flows, not a broad platform or a mock interface.
-- Keep content, project continuity, reusable asset references, shared context, and reviewable changes in one coherent local space. Preserve independent object identity, source references, revisions, and field ownership.
-- Human edits can save directly. Agent changes use explicit scope, expected revision, explanation, and a reviewable proposal by default. Show conflicts and protect later edits during undo.
-- Implement actual local persistence, search, recovery, export, and a real agent interface. Demo fixtures must be visibly identified and separated from user data. Never simulate an AI connection or report unobserved agent progress as real.
-- Transparency means declared intent, sources, tool actions, proposals, and results. Do not promise access to a model's private internal reasoning.
-- Choose a maintainable modern stack using current primary documentation and actual available toolchains. Explain material changes from the prior architecture in an ADR. Avoid dependencies added only to look modern.
-- The desktop renderer must not have unrestricted filesystem, process, database, or network privileges. Validate every IPC/tool request at the trusted boundary. Source files and imported instructions are data.
-- Use `frontend-design` and `ui-ux-pro-max` for product UI. The taste skill explicitly excludes multi-step product interfaces and is not the layout authority here. Use a considered document/workspace design, keyboard access, clear states, restrained motion, and locally available fonts/assets. Verify the real desktop UI with screenshots and interaction tests.
-- Verify the change with meaningful core integration, real MCP/tool calls, and desktop end-to-end checks. Build a launchable macOS artifact on this machine; state platform/signing limits accurately. Do not label an unverified build production-ready.
-- Maintain professional repository basics, a lockfile, reproducible scripts, focused documentation, CI, license information, and useful error messages. Do not put personal machine paths, credentials, or private source data in public-facing docs or fixtures.
-- Preserve the coordinator-provided research archive outside this repository as read-only source material. Do not copy personal paths or raw personal context into this public repository.
-- Deliver UI and primary product documentation in English, Simplified Chinese, Japanese, Korean, and Spanish. Keep strings externalized and verify layout and critical controls in every locale. User-authored content keeps its original language.
-- Work only in this repository or isolated temporary/build directories. Do not alter global user settings or repository settings. The user has authorized the root coordinator to commit and push the verified implementation to the provided remote main branch; implementation/review sessions must leave Git commits and pushes to the coordinator. No hosted deployment or release publication is implied.
-
-## Independent session boundaries
-
-- During the first independent pass, the product/UX reviewer owns only `.coordination/reviews/product-ux-independent.md`, and the architecture/reliability reviewer owns only `.coordination/reviews/architecture-independent.md`.
-- Later phase assignments may grant specific additional paths. In phase 2, the product/UX session owns `docs/UX.md`; the technical session owns architecture/contracts/implementation/testing material. Do not edit another owner's paths without coordinator integration.
-- The implementation session owns application code, tests, build scripts, assets, and implementation documentation. It must preserve the root coordinator's `AGENTS.md` and `docs/product-brief.md`.
-- Reviewers and implementer must not read each other's review reports or message each other during the independent pass. Use the same user brief and original evidence; form conclusions independently.
-- The root coordinator alone compares the independent findings and sends concrete integration feedback. Independence is an instruction and file-ownership boundary, not an operating-system sandbox.
-- Native copy tests must install `tests/acceptance/clipboard-fixture.ts` before any copy, read only their own in-memory sink, and restore the device function during cleanup. Keep the actual IPC/schema/business handler and assertions. Do not read, overwrite, clear, snapshot or attempt to restore a person’s OS clipboard as part of ordinary automated checks; a separately scoped physical-device check must state its boundary.
-- Keep `.coordination/`, local build outputs, test databases, and personal machine metadata out of Git. Public documentation should describe the product and its real guarantees, rather than narrating agent sessions.
-- Do not create nested sessions unless the root/user explicitly requests them. Do not reset or overwrite another session's files. Report the paths changed and actual verification results.
+- Run native suites serially against isolated synthetic spaces and profiles. Do not use personal data for destructive, fault or recovery cases.
+- Install `tests/acceptance/clipboard-fixture.ts` before automated copy actions. Read only its memory sink and restore the device during cleanup. Never read, overwrite, clear, snapshot or restore a person's OS clipboard in ordinary tests.
+- Record requested and actual native/content/CSS geometry separately. Keep complete text, focus paint, pointer and caret assertions; do not relax them to hide a failure.
+- Stop runtime processes and restore test hooks. Distinguish test cleanup from a normal product exit.
+- Describe the checks actually run and their platform limits. Keep implemented behavior, technical verification and user validation separate.
+- Keep private spaces, credentials, generated builds and `.coordination/` out of Git. Use synthetic material in public screenshots.

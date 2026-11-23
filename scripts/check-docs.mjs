@@ -12,6 +12,11 @@ const files = [
   'README.ko.md',
   'README.es.md',
   'CONTRIBUTING.md',
+  'AGENTS.md',
+  '.agents/skills/agent-space-delivery/SKILL.md',
+  '.github/pull_request_template.md',
+  'assets/packaging/START.md',
+  'src/renderer/i18n/README.md',
 ];
 function collect(directory) {
   for (const entry of readdirSync(resolve(root, directory), { withFileTypes: true })) {

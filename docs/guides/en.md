@@ -2,92 +2,131 @@
 
 [English](en.md) · [简体中文](zh-CN.md) · [日本語](ja.md) · [한국어](ko.md) · [Español](es.md)
 
-AgentSpace is a local place for your work and the agents helping with it. You can write, organize and recover material without a model account. An external agent can use the same space through explicit access and reviewable proposals.
+AgentSpace keeps your writing, project material and agent proposals in a local space. You can read, edit, organize and recover work without a model account.
 
-## Open a space
+## Open or create a space
 
-Create a space in a new local folder, or open an existing AgentSpace folder. The selected space stays visible in the header. The example space is separate and visibly labeled; its material is synthetic.
+Choose **Create space** for a new local folder, **Open space** for an existing AgentSpace folder, or **Open example space** to try synthetic material stored separately from your work. The header identifies the selected space.
 
-The application and a space are separate. Moving the application does not move your data. Generate agent configuration after putting the application in its intended location; regenerate it if the executable later moves.
+The application and your space are separate: moving the application does not move your data. Put the application in its intended location before generating agent configuration; regenerate the configuration if its executable moves.
 
-This first delivery is verified on macOS Apple Silicon. The local build is ad-hoc signed, without Developer ID or notarization. Other operating systems are not claimed as verified releases. Source development uses the exact supported Node versions from the repository.
+Choose the interface language and text size in **Settings**. Changing language keeps authored titles, text and field labels as written.
 
-## Write and connect material
+## Return to work or find material
 
-Use **Continue working** to resume a recovery draft, reopen up to ten recent objects in this space instance, or **View recent changes**. **Library** is the complete browsing entry; search and **New material** stay in the same scrolling list. Recent positions contain IDs/times, not document copies. A missing recent item can be removed from this list, while a temporary error offers retry. Restored/new instances keep their own recent list.
+**Continue working** offers recovery drafts, up to ten recent items in this space instance and **View recent changes**. The list points to the same material rather than keeping document copies. Removing an unavailable item from this list does not delete material. Temporary errors offer retry; a restored instance has its own recent list.
 
-In Library, **Review status** offers all states, **Never reviewed**, **Current version reviewed**, and **Changed since review**. Never reviewed is neutral. In Details, **Version review** names the current saved version and the last version reviewed by a person. Unsaved draft edits stay separate. You can mark only the freshly checked saved current version; a save or an accepted proposal does not mark it reviewed or certify truth. After another saved revision, find it under **Changed since review**. Reading an old source still shows its fixed content.
+Use **Library** to browse, search and filter saved material, or choose **New material**. A space can contain material even when it has no recent work. Loaded counts and paged results describe the checked scope; use the more-results controls to continue.
 
-Create an independent note whenever you need one. Projects group work through relationships; a note can belong to several projects while retaining one identity. A reusable asset can be referenced by different projects.
+## Import existing material
 
-Human edits save after a short quiet interval. **Save now** is also available. **Saved** means the visible generation was persisted. A retained recovery draft is a separate state. If saving conflicts or fails, use the available retry, draft or copy path; a later human revision is never silently replaced.
+Open **Import existing material** from Continue, the space menu or an empty Library view without filters.
 
-A project opens with an overview: an excerpt of its text, continuation references, direct asset references and a paginated material list. Section buttons stay outside the full text. Choose **Edit project text** to write; an empty project offers **Edit project goal**. Counts name loaded items or recorded references, not space-wide totals. Typed fields and continuation links do not impose a fixed routine.
+1. Choose files or a folder.
+2. Inspect the preview: text copies, proposed project groups, external references, skipped items and scan limits.
+3. Confirm your choices, then inspect each item's result.
 
-From a source reader, **Edit current original** opens the current internal object through the normal save/draft protection. Reading K1 and editing current K2 saves K3 on the same ID; K1 and its citations remain fixed. Existing unsaved edits for that object stay in their editor with their original base and any conflict visible. **Return to reading** restores the cited version and calling position. An archived or missing current object leaves the readable history intact. This edits the managed object, not an external original file.
+Valid UTF-8 Markdown and plain text become editable managed copies with origin information. Original files remain unchanged. Repositories and other native formats can be explicit external references; their contents are not copied, run or synchronized. The knowledge/project/HANDOFF/repository layout profile helps suggest grouping; it is optional.
 
-Records use text, finite numbers, booleans, calendar dates and select values. A label can use any language; renaming it preserves its stable field key. Unset, empty text, zero and false remain distinct. Reusing a record's field definitions creates a new row with cleared values. The table shows a bounded view of those same records; it is not a global spreadsheet schema.
+A limited preview covers only the reported scan. If a source changes after preview, inspect and confirm it again. Import commits items separately, so successful items survive a partial failure. Retrying or importing the same source version reuses its original object and preserves later human edits and existing relationships. New grouping applies to new copies; edit a reused object's relationships explicitly. A different source version creates a separate copy.
 
-Relationships distinguish current objects from pinned evidence. A source link preserves the cited revision even when its object is edited later. A human knowledge-review mark applies to a particular revision; saving or accepting an edit does not certify it as true.
+There is no background file synchronization. Resume an interrupted import explicitly after restart. Restoring a space requires choosing and confirming old import sources again.
 
-## Bring existing folders in
+## Write and save
 
-**Import existing material** is available in Continue, an empty unfiltered Library view, and the space menu. No recent work means no recorded locations, rather than an empty space.
+Create an independent note, project, record or reusable asset through **New material**. A note can remain outside any project. Use **Details** to edit fields and relationships; one note or asset can be referenced by several projects without duplicating it.
 
-Choose files or a folder through the application. Preview the proposed copies, project groups and external references before confirming. The knowledge/project/HANDOFF/repository profile is a convenience for an existing folder layout, not a required way to store every space.
+Human edits save directly after a short pause; **Save now** is also available. Read the state beside the editor:
 
-Supported UTF-8 Markdown and plain text become managed copies with origin information. Original bytes remain unchanged. Repositories and unsupported native formats can be explicit external references; their contents are not copied or synchronized. Imported knowledge is not automatically marked reviewed.
+- **Saved** confirms that the displayed edits are saved as current content.
+- **Recovery draft kept** confirms a retained draft, separately from a successful content save.
+- **Not saved** or **Checking save result…** requires attention. Keep the editor open and use the offered retry to resolve the original request.
 
-Inspect traversal limits and skipped items. The first release bounds depth, visited entries, selected source bytes and object size. A limited preview does not mean the rest was scanned. Source changes after preview require renewed review. Import results are per item: successful work survives a partial failure, and retry recovers committed items without replacing later human edits.
+On a conflict, your edits and the newer saved version remain separate. Inspect the current original before deciding how to continue. If a draft cannot be retained, **Copy edits** copies the body text so you can preserve it before closing. Resume retained drafts from Continue; resuming a draft does not by itself accept its content.
 
-Grouping choices apply to newly created copies. A previously imported source version reuses its original object and keeps its existing relationships; this import does not regroup that object. Open it to change relationships explicitly.
+Records support text, finite numbers, booleans, calendar dates and choices. Unset (`null`), empty text, `0` and `false` are distinct. Renaming a field keeps its identity; changing its type clears its value. Reusing field definitions creates a new record with unset values, without copying text or links. The record table is a bounded view of the same records, with columns taken from a selected reference record.
 
-There is no background two-way file synchronization. After a restart, resume explicitly. A restored run needs renewed source authorization rather than silently reopening old paths.
+## Read project material and sources
 
-## Give an agent context
+A project opens with its goal excerpt, continuation references, direct asset references and paged material. Choose **Edit project text**, or **Edit project goal** when empty, to write its full text. Counts describe loaded material or recorded references. You can use fields and continuation links without adopting a fixed routine.
 
-From a saved document or the source reader, choose **Prepare context**. Add an optional task of up to 1,000 Unicode code points and select up to 20 saved versions. Only the starting item is selected initially. Its direct links and the project's current active material appear separately, with **Load more** for bounded pages. A historical project is not a complete snapshot of its past membership. A selected project's goal excerpt is limited to 280 characters; unchecking it removes its title and excerpt from the brief.
+Relationships can **Follow current** content or point to a **Pinned version**. A source citation keeps the exact saved version even after its original is edited. A historical project's links and today's project material are separate views, rather than a complete snapshot of past membership.
 
-Use **Inspect brief and references**, then **Copy brief and references**. Missing selected versions need retry or removal; they are never replaced by a later version. Copying confirms clipboard success. Your preparation stays in memory while this space is open, including visits to Settings or Import; it is not a saved document or a restart-recoverable draft.
+In the source reader, **Edit current original** opens the current managed object. For example, reading version 1 while editing current version 2 produces version 3 on the same object; version 1 and its citations remain intact. Existing unsaved edits stay in their editor with their original base and any conflict visible. **Return to reading** returns to the cited version and calling position. An archived or unavailable current original does not remove readable retained history. This action edits the managed copy, not an external source file.
 
-**Set up agent access** carries selected objects to the existing form, including objects beyond its first page. Nothing is granted until **Create access**. Existing choices are retained; **Use selected material** explicitly changes them. Access covers an object's readable versions, including later ones, while the brief fixes particular versions. An uncertain access operation keeps its original Retry available and freezes the form until resolved. Known one-time configuration survives ordinary Settings round trips in the same space.
+## Prepare context for an agent
 
-Open **Settings → Agent access** and create a labeled grant. Choose the whole space or selected objects, reading and proposal capabilities, and whether a whole-space client with read and proposal access may propose new notes or records. Object-specific grants cannot create new objects. Links do not extend access to another object.
+From a saved document or the source reader, choose **Prepare context**.
 
-Copy the generated launch configuration into your MCP host, or use the documented CLI. It points to the actual executable, space, instance and grant. The token is issued once; only its hash is retained by AgentSpace. If it is unavailable, revoke that grant and issue another. Configuration contains a credential, so share it deliberately.
+1. Optionally describe the task in up to 1,000 Unicode code points.
+2. Select up to **20 unique saved-version references**. The starting item is selected initially. Candidates come from that version's direct links and, for a project, its current active material. Load more within these groups as needed.
+3. Open **Inspect brief and references**, check the visible text, then **Copy brief and references**.
 
-An agent starts with small discovery and model-description calls. It can combine structured filtering, literal search, bounded links and exact-version reads for the current task. A monthly retrospective is one possible task, not a built-in workflow. Search reports limits and does not promise semantic completeness.
+The brief contains the task and fixed references, plus up to 280 characters of the starting project's goal when that project is selected. Deselecting it removes its title and excerpt. Linked document bodies are not recursively included. An unavailable selection needs retry or removal; it is never replaced with a newer version.
 
-You can inspect and copy a saved version with its references. Unsaved text remains a draft.
+Copy success means the text reached the clipboard. It does not create a grant or confirm an agent received it. Preparation stays in memory while this space is open, including visits to Settings or Import; it is not a saved document or a draft recoverable after restart.
 
-- **Activity → Actual changes.** Find human saves and proposal decisions after reopening. Each event shows its time and actor, with an entry to that version or the original proposal.
-- **Prepared context.** Inspect the references and ranges assembled for tool results. Preparation alone does not confirm host receipt, understanding or external task completion.
-- **Review → Pending / Processed.** Browse each status with loaded counts, more and retry controls. Inspect the original differences, reason and fixed source versions. **Read accepted version** opens the saved result; a separate action opens the current original. Returning from a source keeps your proposal selection and reading position.
+## Connect an agent with explicit access
 
-Creating or rejecting a proposal leaves accepted content unchanged. Rejected suggestions remain available for inspection.
+Choose **Set up agent access** from context preparation or open it in **Settings**.
 
-## Review and continue work
+1. Label the access and choose selected objects or the whole space. Select reading and proposal capabilities.
+2. Inspect the choices, including prepared items beyond the first page. Existing form choices are kept; **Use selected material** explicitly replaces them.
+3. Choose **Create access**, copy the Codex configuration or stdio launch JSON, add the corresponding MCP settings in your host and reconnect. Then give the agent the brief. The [protocol guide](../AGENT_PROTOCOL.md) also documents CLI use.
 
-A proposal shows what the agent wants to change, why, the expected base version and declared sources. Current content remains unchanged until you apply it. Read the diff, open a source at the cited version, then return to the review.
+The brief fixes particular versions; an object grant covers the object's readable versions, **including future versions**. New links and project membership do not add objects to a fixed selection. Proposing new notes or records needs separate creation permission on a whole-space grant with read and proposal capabilities. Object-specific grants cannot create new objects. Agent access does not include your direct-save or proposal-acceptance authority.
 
-Accept, reject or continue with your own draft. If the base changed, both the proposal and current human version remain intact. Revoking the originating grant does not prevent a person from rejecting its old candidate. Guarded undo refuses to overwrite later work; an older version can also be inspected or copied into a new note.
+The configuration contains a token shown once; AgentSpace stores its hash. Copy it while available. If it is lost, revoke that access and create another. An uncertain access operation keeps the form locked until the original retry resolves it. Ordinary Settings round trips in the same open space retain a known one-time configuration.
 
-Accepted explanations and source pins remain available through history and context tools. Another authorized agent can trace them without the first agent's private chat or operation key. Permission to read a changed object does not automatically grant permission to its evidence.
+An agent can discover the space, filter and search within its grant, follow bounded relationships and read exact versions. Search reports limits and does not guarantee semantic completeness. Prepared context records the references and ranges assembled for tool results; it does not prove host receipt, model understanding or task completion.
 
-## Keep data recoverable
+## Review proposals and inspect changes
 
-Archive material when it should leave the active view. Archiving a project does not erase its notes or shared assets. Restoring reactivates its current retained content. If an external asset moves, relink it explicitly and inspect the old and new location; the asset retains its identity and history. Generic undo does not revert an external-location relink; explicitly relink to the previous location if needed.
+Open **Review → Pending** to inspect a proposal.
 
-A full backup preserves the consistent space database, retained versions, proposals, receipts and drafts. A readable export contains current accepted content and typed metadata, including declared references; it does not include historical bodies, proposals or recovery drafts. Neither copies external repositories or original files. Exports and backups can include origin paths and other personal metadata.
+1. Read its purpose, reason, target, base version and full differences. Open sources at their cited versions; returning keeps your proposal selection and reading position.
+2. For an update, choose **Apply proposal**. For a new object, choose **Create note** or **Create record**. **Reject proposal** leaves accepted content unchanged.
+3. Use **Draft for new material** on a creation proposal to start your own draft of the same type. For an update, edit the current object. The original proposal remains separate.
 
-Restore a backup into a new destination. The restored copy has a new instance and old agent access is disabled there. Original data and its access are not changed. Reconnect agents explicitly. Drafts from another installation are discoverable and can be copied into a new recoverable draft without moving or rewriting the original.
+Reading a proposal does not resolve it. Read/unread, pending/applied/rejected/conflicted and human knowledge review are separate states. If the base has advanced, applying is blocked and both versions are preserved. Use **Copy proposed content** and edit the current object, or ask the agent for a new proposal. You can reject an old candidate after revoking its originating access.
 
-Wait for the verified completion result before calling an artifact complete. A lost response is an unknown result; inspect its operation or transfer status. A filesystem error opening a completed restore does not mean the restored data disappeared.
+Use **Review → Processed** to inspect applied or rejected proposals. **Read accepted version** opens the saved result at acceptance; a separate action opens the current original. Rejected proposals retain their reason, differences and sources.
 
-## Current boundaries
+**Activity → Actual changes** shows saved edits and proposal decisions, with time, actor and links to the event's version or original proposal. Accepted explanations and source references remain traceable by another authorized agent without the original chat. Access to a result does not automatically authorize its sources.
 
-The release limits a managed object to 1 MiB and a space database, including history and receipts, to 512 MiB. Import defaults include depth 12, 1,000 visited entries and 50 MiB of managed source bytes. Context tools use explicit byte and result limits. A full database can still be exported or backed up to a writable destination.
+In **History**, use **Preview undo** before undoing a change. Guarded undo refuses to overwrite later edits. You can inspect an old version or create a new note from it instead.
 
-Data is not encrypted by AgentSpace. Protect local files and copies using the operating system. An external agent's provider and permissions outside these tools are controlled by its host. Cloud sync, team accounts, semantic truth checking, arbitrary app execution and a full spreadsheet engine are outside this release.
+## Mark knowledge you have reviewed
 
-See [data boundaries](../SECURITY.md), [agent protocol](../AGENT_PROTOCOL.md) and [verification evidence](../TESTING.md). Unsupported development formats are rejected without modifying their files; compatibility begins with this release's documented format.
+In **Details → Version review**, compare the current saved version with the last version reviewed by a person. After checking the saved current version, choose **Mark as reviewed**. Unsaved edits remain separate.
+
+Find material through Library's **Review status** filter: **Never reviewed**, **Current version reviewed** or **Changed since review**. Never reviewed is neutral. Importing, saving, reading or applying a proposal does not mark knowledge reviewed. A review mark records a person's review of that version; it does not certify truth or maintain knowledge automatically.
+
+## Archive material or reconnect an external asset
+
+Use **Details → Archive material** to remove an item from active views while keeping its identity and history. **Restore from archive** reactivates it. Archiving a project does not archive or delete its notes and shared assets.
+
+If an external asset moves, use **Choose asset location** and confirm the old and new locations. The asset keeps its identity and history; relinking does not move the external file. Generic undo does not reverse a location change. To return to the old location, choose it explicitly.
+
+## Back up, export and restore
+
+Open **Back up, export and restore** from the space menu.
+
+| Choose          | Use it for                             | Included                                                                                            |
+| --------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Full backup     | Restoring a space with its history     | Consistent database, retained versions, proposals, operation history, drafts and import progress    |
+| Readable export | Reading current content in other tools | Current accepted content, including archived items, typed fields, relationships and origin metadata |
+
+A readable export excludes historical bodies, proposals and recovery drafts; it is not a full-history restore source. A historical citation may refer to a body outside the export. Neither option copies external files or repositories. Both may contain origin paths and other personal metadata.
+
+Wait for **Completed and checked**. A lost response means an unknown result: check the original operation or retry it. If a completed restore cannot be opened, retry opening separately; that does not cancel the verified restore.
+
+Restore a backup into a **new destination**. It receives a new instance identity and old agent grants are disabled in that copy. The original space and its access remain unchanged; reconnect agents explicitly. Recovery can find drafts from another installation and copy a selected draft into a new local draft while preserving the original.
+
+## Privacy, limits and further help
+
+AgentSpace does not encrypt local data. Protect the space and its copies with operating-system controls. A connected agent can receive authorized content, which its host may send to a model provider under the host's settings. Local storage does not prevent that transfer. Revocation stops future tool access and cannot recall material already shared.
+
+A managed object is limited to 1 MiB; the space database, including history, to 512 MiB. Import bounds include depth 12, 1,000 visited entries and 50 MiB of selected text. Context tools have explicit result and byte limits. A full space can still be backed up or exported to a writable destination.
+
+See [product scope](../PRD.md), [local data and recovery](../LOCAL_DATA.md) and [trust boundaries](../SECURITY.md). The current desktop target is macOS Apple Silicon; [desktop setup](../DESKTOP.md) and [verification](../TESTING.md) explain signing, platform and input-method verification limits.

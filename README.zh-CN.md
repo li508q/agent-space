@@ -2,30 +2,26 @@
 
 <p align="center"><a href="README.md">English</a> · 简体中文 · <a href="README.ja.md">日本語</a> · <a href="README.ko.md">한국어</a> · <a href="README.es.md">Español</a></p>
 
-**让人始终掌握方向，让智能充分发挥。**
+AgentSpace 是一个本地工作空间，用来写作、积累项目资料，并与不同 Agent 协作。你可以阅读来源、检查提案，由自己决定哪些修改进入正式内容。
 
-AgentSpace 是你拥有的本地工作空间。你可以直接写作，也可以与不同 Agent 共用上下文。修改的原因、引用的版本和实际变化清楚可见，由你决定哪些内容进入长期积累。
+无需模型账号或 API key 即可使用。需要协助阅读或修改资料时，再连接外部 Agent。
 
-**当前状态：** 本地早期版本。协作基础已实现，核心使用路径仍在完善。[查看验收范围与待办](docs/PRODUCT_REVIEW.md)。
+<img src="docs/assets/workbench.zh-CN.png" alt="AgentSpace 桌面界面，使用合成示例资料" width="1200">
 
-<img src="docs/assets/workbench.zh-CN.png" alt="AgentSpace 真实桌面界面，使用合成示例内容" width="1200">
+## 可以做什么
 
-## 核心能力
+- **写作与接续。** 编辑 Markdown，保留恢复草稿，回到最近的工作。
+- **积累项目资料。** 连接笔记、文档、结构化记录和可复用资产；打开项目即可查看正文、接续引用和关联资料。
+- **准备协作起点。** 检查任务说明与固定版本引用，再明确创建 MCP 或 CLI 访问授权。
+- **审阅修改。** 阅读提案理由、差异和引用来源，再采纳或拒绝；查看采纳时的版本，使用保护后续编辑的条件撤销。
+- **保留与带走数据。** 导入可编辑副本并保留原件，创建完整备份或当前内容的可阅读导出。
+- **选择界面语言。** 支持英文、简体中文、日文、韩文和西班牙文，自己写的内容保留原语言。
 
-- **直接写作与组织。** 统一笔记、文档、项目、轻量记录与可复用资产引用。
-- **准确提供上下文。** 用带权限范围的 MCP 或 CLI 连接 Agent；按任务组合筛选、搜索、关系遍历与精确版本读取。
-- **看懂每次修改。** 查看提案目的、理由、差异与证据，再决定是否采纳。采纳后的说明可以由下一个有权限的 Agent 继续追溯。
-- **保留自己的工作。** 恢复草稿、检查历史；撤销时保护后续修改。
-- **带入与带走资料。** 先预览目录导入；按需生成完整历史备份或当前内容的可阅读导出。
-- **使用熟悉的语言。** 支持英文、简体中文、日文、韩文和西班牙文；你写的内容保留原语言。
+<img src="docs/assets/review.zh-CN.png" alt="Agent 提案及其理由、差异和引用的来源版本" width="1200">
 
-无需模型账号即可独立使用。需要 Agent 协助时，再连接你已经使用的工具。
+## 从本地开始
 
-<img src="docs/assets/review.zh-CN.png" alt="真实 Agent 提案：修改理由、差异与精确来源" width="1200">
-
-## 本地开始
-
-首次交付面向 macOS Apple Silicon。可以使用本地构建的应用，或从源码运行：
+当前桌面版面向 **macOS Apple Silicon**。从源码运行：
 
 ```sh
 git clone https://github.com/li508q/agent-space.git
@@ -34,28 +30,22 @@ npm ci
 npm run dev
 ```
 
-使用 [`.nvmrc`](.nvmrc) 指定的 Node 版本。打开有明确标识的示例空间，或创建自己的本地空间。[使用指南 →](docs/guides/zh-CN.md)
+使用 [`.nvmrc`](.nvmrc) 指定的 Node 版本。创建自己的空间、打开已有空间，或先试用独立的示例空间。[使用指南 →](docs/guides/zh-CN.md)
 
-在 Apple Silicon Mac 上运行 `npm run package:mac` 可构建独立应用，内置运行时。[桌面构建说明 →](docs/DESKTOP.md)
+在 Apple Silicon Mac 上运行 `npm run package:mac` 可构建内置运行时的独立应用。构建、签名与平台说明见[桌面设置](docs/DESKTOP.md)。
 
-连接 Agent 时，在设置的 Agent 访问区域选择权限范围，复制生成的配置。创建新笔记或记录需要单独启用权限；Agent 提案经过你的审阅后才会成为正式内容。[MCP 与 CLI →](docs/AGENT_PROTOCOL.md)
+连接 Agent 时，打开**设置 → 设置 Agent 接入**，选择对象和权限，把生成的配置复制到自己的 MCP 宿主。新建笔记或记录需要单独启用权限。[MCP 与 CLI →](docs/AGENT_PROTOCOL.md)
 
-## 一份数据，清楚的边界
+## 数据与授权
 
-Electron 桌面与真实 MCP/CLI 共用事务性 SQLite 内核。稳定对象 ID、带类型的关系、精确来源版本和持久操作回执，让不同入口协作于同一份数据。React 与 CodeMirror 承载写作界面，受限的沙箱桥接负责原生操作。
+空间保存在你掌握的本地文件中。AgentSpace 不自行加密数据，请用操作系统保护本地资料和备份。外部资产引用连接到由你另行管理的文件。
 
-数据保存在本地。外部 Agent 只能通过授权工具请求相应资料；其模型服务设置仍由你连接的宿主管理。工具准备了哪些引用可以追溯，这不代表捕获模型的私有思考，也不代表外部任务已经完成。
+连接的 Agent 可以取得授权范围内的资料，其宿主可能按自身设置把资料发送给模型服务商。本地保存不阻止这种分享。撤销授权会阻止后续工具请求，无法收回已经提供的内容。上下文已准备或已复制，也不代表模型已理解或任务已完成。
 
-[架构](docs/ARCHITECTURE.md) · [数据与信任边界](docs/SECURITY.md) · [验证说明](docs/TESTING.md)
+[数据与信任边界](docs/SECURITY.md) · [备份与恢复](docs/LOCAL_DATA.md)
 
-## 参与贡献
+## 开发与贡献
 
-```sh
-npm run check
-npm run format:check
-npm run build
-```
+开发流程和检查见[贡献指南](CONTRIBUTING.md)，共享内核设计见[架构](docs/ARCHITECTURE.md)，自动检查结果见 [CI](https://github.com/li508q/agent-space/actions)。
 
-参阅[贡献指南](CONTRIBUTING.md)、[需求](docs/PRD.md)和[文档索引](docs/README.md)。首版聚焦个人本地工作；云端协作、通用聊天、广泛集成与应用执行不在本次范围内。
-
-[MIT 许可证](LICENSE)。平台与本地构建的验证边界见使用指南。
+[文档索引](docs/README.md) · [产品范围](docs/PRD.md) · [验证与限制](docs/TESTING.md) · [MIT 许可证](LICENSE)

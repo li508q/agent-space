@@ -13,7 +13,7 @@ import {
   writeFileSync,
   appendFileSync,
 } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { setImmediate } from 'node:timers/promises';
 import { z } from 'zod';
 import {
@@ -26,7 +26,6 @@ import {
   RestoredArtifactSchema,
 } from '../../contracts/local.js';
 import type {
-  ArtifactKind,
   ArtifactReceipt,
   BackupManifest,
   ExportManifest,
@@ -548,10 +547,3 @@ function countGrants(path: string): number {
     db.close();
   }
 }
-export const localArtifactName = (kind: ArtifactKind) =>
-  kind === 'sqlite-backup'
-    ? 'backup.json'
-    : kind === 'readable-export'
-      ? 'manifest.json'
-      : 'space.sqlite';
-export const destinationLabel = (path: string) => basename(path);

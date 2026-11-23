@@ -2,91 +2,131 @@
 
 [English](en.md) · [简体中文](zh-CN.md) · [日本語](ja.md) · [한국어](ko.md) · [Español](es.md)
 
-AgentSpace reúne tu trabajo y la ayuda de agentes en un espacio local. Puedes escribir, organizar y recuperar contenido sin una cuenta de un proveedor de modelos. Un agente externo accede mediante permisos explícitos y propone cambios que puedes revisar.
+AgentSpace reúne tus textos, material de proyectos y propuestas de agentes en un espacio local. Puedes leer, editar, organizar y recuperar trabajo sin una cuenta de un proveedor de modelos.
 
-## Abrir un espacio
+## Crear o abrir un espacio
 
-Crea un espacio en una carpeta local nueva o abre una carpeta de AgentSpace existente. El encabezado identifica el espacio activo. El ejemplo se guarda por separado y está marcado como material sintético.
+Elige **Crear espacio** para una carpeta local nueva, **Abrir espacio** para una carpeta de AgentSpace existente o **Abrir espacio de ejemplo** para probar material ficticio guardado por separado de tu trabajo. El encabezado identifica el espacio seleccionado.
 
-La aplicación y los datos son independientes. Mover la aplicación no mueve tu espacio. Genera la configuración del agente después de colocar la aplicación en su ubicación habitual; vuelve a generarla si cambia la ruta del ejecutable.
+La aplicación y el espacio son independientes: mover la aplicación no mueve los datos. Colócala en su ubicación habitual antes de generar la configuración del agente; vuelve a generarla si cambia la ruta del ejecutable.
 
-La primera entrega está verificada en macOS Apple Silicon. La compilación local tiene firma ad-hoc, sin Developer ID ni notarización. No se presentan otros sistemas como distribuciones verificadas. El desarrollo usa las versiones de Node indicadas en el repositorio.
+En **Ajustes** puedes elegir el idioma y el tamaño del texto. Cambiar el idioma no traduce los títulos, textos ni etiquetas de campos que hayas escrito.
 
-## Escribir y relacionar contenido
+## Retomar el trabajo o encontrar material
 
-Usa **Continuar trabajando** para recuperar borradores, abrir hasta diez objetos recientes de esta instancia o **Ver cambios recientes**. **Biblioteca** conserva la exploración completa y acotada; búsqueda, filtros y material nuevo comparten una sola zona de desplazamiento. Las posiciones recientes solo guardan ID y hora, sin copiar documentos. Puedes quitar una entrada no disponible o reintentar un error temporal. Una instancia restaurada mantiene su propia lista.
+**Continuar trabajando** ofrece borradores de recuperación, hasta diez elementos recientes de esta instancia y **Ver cambios recientes**. La lista apunta al mismo material, sin guardar copias de documentos. Quitar un elemento no disponible de la lista no borra el material. Puedes reintentar errores temporales; una instancia restaurada mantiene su propia lista.
 
-**Estado de revisión** ofrece todos los estados, **Sin revisar**, **Versión actual revisada** y **Cambios desde la revisión**. Sin revisar es información neutral. En Detalles, **Revisión de versiones** indica la versión guardada actual y la última revisada por una persona; el borrador sin guardar sigue separado. Solo puedes marcar la versión guardada actual recién comprobada. Guardar o aceptar una propuesta no la marca ni certifica la verdad. Después de guardar una nueva versión, encuéntrala en **Cambios desde la revisión**. Las fuentes antiguas conservan su contenido fijado.
+Usa **Biblioteca** para explorar, buscar y filtrar material guardado, o elige **Nuevo material**. Puede haber contenido aunque no aparezca trabajo reciente. Los recuentos y las páginas describen el ámbito consultado; carga más resultados si los necesitas.
 
-Crea notas independientes cuando las necesites. Los proyectos agrupan contenido mediante relaciones: una nota puede pertenecer a varios proyectos y conservar una sola identidad. Los recursos también pueden reutilizarse desde distintos proyectos.
+## Importar material existente
 
-Las ediciones se guardan tras una pausa breve; también puedes guardar de inmediato. «Guardado» significa que la generación visible se ha persistido. Conservar un borrador de recuperación es un estado distinto. Ante un conflicto o un fallo, usa las opciones de reintento, borrador o copia. Una revisión posterior no se sobrescribe en silencio.
+Abre **Importar material existente** desde Continuar, el menú del espacio o una vista vacía de Biblioteca sin filtros.
 
-Un proyecto abre con un resumen: extracto de su texto, referencias para continuar, referencias directas a recursos y material paginado. Los botones de sección quedan fuera del texto completo. Elige **Editar texto del proyecto** para escribir; un proyecto vacío ofrece **Editar objetivo del proyecto**. Los recuentos indican elementos cargados o referencias registradas, no totales de todo el espacio. No se impone una rutina fija.
+1. Selecciona archivos o una carpeta.
+2. Comprueba la vista previa: copias de texto, grupos de proyectos, referencias externas, elementos omitidos y límites del recorrido.
+3. Confirma la selección y consulta el resultado de cada elemento.
 
-En el lector de fuentes, **Editar original actual** abre la versión actual del mismo objeto interno tras proteger el guardado o borrador. Leer K1 y editar K2 guarda K3 con el mismo ID; K1 y sus citas siguen fijados. Los cambios sin guardar de ese objeto permanecen en su editor, con su base y cualquier conflicto visibles. **Volver a la lectura** recupera la versión citada y la posición anterior. Si el original actual está archivado o no disponible, el historial legible se conserva. Esta acción modifica el objeto gestionado, no un archivo externo.
+Markdown y texto plano en UTF-8 válido se convierten en copias gestionadas editables con información de origen. Los archivos originales no cambian. Los repositorios y otros formatos pueden seleccionarse como referencias externas; su contenido no se copia, ejecuta ni sincroniza. El perfil que reconoce knowledge, projects, HANDOFF y repos ayuda a sugerir grupos y es opcional.
 
-Los registros admiten texto, números finitos, booleanos, fechas y opciones. Las etiquetas pueden estar en cualquier idioma y conservan su clave al renombrarlas. Sin valor, texto vacío, cero y false son valores distintos. Reutilizar las definiciones crea un registro nuevo con valores vacíos. La tabla es una vista limitada de esos mismos registros, no un esquema global independiente.
+Una vista previa limitada solo cubre el recorrido indicado. Si cambia una fuente después, vuelve a comprobarla y confirmarla. La importación guarda cada elemento por separado, por lo que los éxitos se conservan ante fallos parciales. Reintentar o importar la misma versión de origen reutiliza el objeto inicial y conserva las ediciones humanas posteriores y las relaciones actuales. La agrupación nueva se aplica a las copias nuevas; cambia explícitamente las relaciones de un objeto reutilizado. Otra versión de origen crea una copia independiente.
 
-Las relaciones distinguen objetos actuales y pruebas fijadas a una revisión. Editar una fuente no cambia la versión citada. La marca de revisión humana también corresponde a una versión concreta; guardar o aceptar no demuestra que el contenido sea verdadero.
+No hay sincronización de archivos en segundo plano. Tras reiniciar, reanuda explícitamente una importación incompleta. Un espacio restaurado requiere volver a seleccionar y confirmar las fuentes de sus importaciones anteriores.
 
-## Importar carpetas existentes
+## Escribir y guardar
 
-**Importar material existente** está disponible en Continuar, en una vista vacía de Biblioteca sin filtros y en el menú del espacio. La ausencia de trabajo reciente significa que no hay ubicaciones registradas, no que todo el espacio esté vacío.
+Desde **Nuevo material** puedes crear una nota independiente, un proyecto, un registro o un recurso reutilizable. Una nota no tiene que pertenecer a un proyecto. Edita campos y relaciones en **Detalles** para usar una misma nota o recurso desde varios proyectos sin duplicarlo.
 
-Selecciona archivos o una carpeta y revisa las copias, los grupos de proyectos y las referencias externas antes de confirmar. Reconocer knowledge, projects, HANDOFF y repos es un perfil opcional, no una estructura obligatoria.
+Las ediciones humanas se guardan directamente tras una pausa breve; también puedes usar **Guardar ahora**. Comprueba el estado junto al editor:
 
-Markdown y texto plano en UTF-8 válido se convierten en copias editables. Los originales no cambian. Los repositorios y los formatos no admitidos pueden seleccionarse como referencias externas; sus bytes no se copian, ejecutan ni sincronizan. Importar conocimiento no lo marca como revisado.
+- **Guardado** confirma que las ediciones visibles están guardadas como contenido actual.
+- **Borrador de recuperación conservado** confirma que hay un borrador retenido, separado del guardado del contenido.
+- **Sin guardar** o **Comprobando el resultado del guardado…** requiere atención. Mantén abierto el editor y usa el reintento disponible para resolver la solicitud original.
 
-Comprueba los límites del recorrido, los elementos omitidos y los avisos de truncamiento. Lo que no aparece no se considera inspeccionado. Si una fuente cambia tras la vista previa, debes revisarla de nuevo. Cada elemento se confirma por separado: los éxitos se conservan ante fallos parciales. Reintentar recupera la referencia original sin sobrescribir correcciones humanas posteriores. Una versión distinta de la fuente produce otra copia.
+En un conflicto, tus ediciones y la versión guardada más reciente se mantienen separadas. Consulta el original actual antes de decidir cómo seguir. Si tampoco se puede conservar el borrador, **Copiar cambios** copia el texto del cuerpo para guardarlo aparte antes de cerrar. Retoma los borradores conservados desde Continuar; abrir un borrador no lo convierte en contenido aceptado.
 
-La agrupación elegida se aplica a las copias nuevas. Una versión ya importada reutiliza su objeto original y conserva sus relaciones actuales; esta importación no lo reasigna. Abre el objeto para cambiar sus relaciones de forma explícita.
+Los registros admiten texto, números finitos, booleanos, fechas y opciones. Sin establecer (`null`), texto vacío, `0` y `false` son valores distintos. Cambiar la etiqueta conserva la identidad del campo; cambiar su tipo deja el valor sin establecer. Reutilizar campos crea un registro nuevo con valores sin establecer, sin copiar texto ni enlaces. La tabla es una vista acotada de los mismos registros y toma sus columnas del registro de referencia elegido.
 
-No hay sincronización bidireccional en segundo plano. Continúa explícitamente después de reiniciar. Un espacio restaurado necesita una nueva selección y confirmación de sus antiguas fuentes.
+## Consultar un proyecto y sus fuentes
 
-## Conectar un agente y revisar cambios
+El resumen del proyecto muestra el extracto de su objetivo, referencias para continuar, referencias directas a recursos y material por páginas. Elige **Editar texto del proyecto** para escribir el texto completo, o **Editar objetivo del proyecto** si está vacío. Los recuentos indican material cargado o referencias registradas. Usa campos y enlaces de continuidad según lo necesites, sin una rutina obligatoria.
 
-Desde un documento guardado o el lector de fuentes, elige **Preparar contexto**. Añade una tarea opcional de hasta 1.000 caracteres Unicode (puntos de código) y selecciona hasta 20 versiones guardadas. Al principio solo se selecciona el material de partida. Sus enlaces directos y el material activo vinculado actualmente al proyecto aparecen separados, con más resultados por páginas acotadas. Un proyecto histórico no es una instantánea completa de sus miembros anteriores. El objetivo del proyecto seleccionado puede incluir un extracto de hasta 280 caracteres; al desmarcarlo se eliminan su título y extracto de la explicación.
+Las relaciones pueden **Seguir versión actual** o apuntar a una **Versión fijada**. Una cita conserva la versión guardada exacta aunque después edites la fuente. Los enlaces de un proyecto histórico y el material actual del proyecto se muestran por separado; no forman una instantánea completa de sus relaciones pasadas.
 
-Usa **Revisar explicación y referencias** y después **Copiar explicación y referencias**. Reintenta o quita las versiones seleccionadas no disponibles; nunca se sustituyen por una versión posterior. El éxito confirma la copia al portapapeles. La preparación se conserva en memoria mientras el espacio está abierto, incluso al visitar ajustes o importación; no es un documento guardado ni un borrador recuperable tras reiniciar.
+En el lector de fuentes, **Editar original actual** abre la versión actual del mismo objeto gestionado. Por ejemplo, leer la versión 1 y editar la versión 2 actual crea la versión 3 del mismo objeto; la versión 1 y sus citas no cambian. Si ya hay ediciones sin guardar, permanecen en su editor con su versión de base y cualquier conflicto visibles. **Volver a la lectura** recupera la versión citada y la posición anterior. Que el original actual esté archivado o no disponible no elimina el historial que siga siendo legible. Esta acción edita la copia gestionada, no el archivo de origen externo.
 
-**Configurar acceso de agentes** lleva los objetos seleccionados al formulario existente, incluidos los que están fuera de su primera página. Solo **Crear permiso de acceso** concede el permiso. Las elecciones existentes se conservan; **Usar material seleccionado** las cambia de forma explícita. El acceso abarca las versiones legibles del objeto, incluidas las posteriores, mientras que la explicación fija versiones concretas. Una operación de acceso incierta congela el formulario y conserva el reintento de la petición original. La configuración conocida de una sola visualización se mantiene al volver de los ajustes dentro del mismo espacio.
+## Preparar contexto para un agente
 
-Crea un permiso con nombre en la sección de acceso de agentes de los ajustes. Elige todo el espacio o ciertos objetos y las capacidades de lectura y propuesta. Solo un permiso para todo el espacio con lectura y propuestas puede habilitar además la creación de notas o registros. Los permisos limitados a objetos concretos no permiten crear objetos nuevos. Los enlaces no amplían el acceso a otros objetos.
+Desde un documento guardado o el lector de fuentes, elige **Preparar contexto**.
 
-Copia la configuración MCP generada al anfitrión o usa la [CLI](../AGENT_PROTOCOL.md). El token se devuelve una sola vez; la base conserva únicamente su hash. Si lo pierdes, revoca el permiso y emite otro. La configuración contiene una credencial.
+1. Si lo necesitas, describe la tarea en hasta 1.000 puntos de código Unicode.
+2. Selecciona hasta **20 referencias únicas a versiones guardadas**. Al principio solo está seleccionado el elemento de partida. Los candidatos son los enlaces directos de esa versión y, si partes de un proyecto, su material activo actual. Puedes cargar más dentro de cada grupo.
+3. Abre **Revisar explicación y referencias**, comprueba el texto visible y usa **Copiar explicación y referencias**.
 
-El agente combina descripción del modelo, filtros, búsqueda literal, relaciones acotadas y lectura de versiones concretas. Una retrospectiva mensual es un ejemplo, no un flujo incorporado. La búsqueda informa de su alcance y no garantiza exhaustividad semántica.
+La explicación contiene la tarea y referencias fijadas. Si está seleccionado el proyecto de partida, puede incluir hasta 280 caracteres de su objetivo; al desmarcarlo se eliminan su título y extracto. No incorpora recursivamente los textos enlazados. Una selección no disponible requiere reintento o eliminación; nunca se sustituye por una versión nueva.
 
-Puedes inspeccionar y copiar una versión guardada con sus referencias. El texto sin guardar sigue siendo un borrador.
+El éxito de la copia significa que el texto llegó al portapapeles. No crea permisos ni confirma que un agente lo haya recibido. La preparación queda en memoria mientras el espacio está abierto, incluso al visitar Ajustes o Importar; no es un documento guardado ni un borrador recuperable tras reiniciar.
 
-- **Actividad → Cambios reales.** Encuentra guardados humanos y decisiones sobre propuestas tras reiniciar. Cada evento muestra su fecha, autor y acceso a esa versión o a la propuesta original.
-- **Contexto preparado.** Consulta las referencias y los rangos reunidos para los resultados de herramientas. La preparación por sí sola no confirma recepción, comprensión ni finalización de una tarea externa.
-- **Revisión → Pendientes / Procesadas.** Consulta los registros cargados de cada estado, carga más o reintenta. Revisa las diferencias, el motivo y las fuentes fijadas originales. **Leer la versión aceptada** abre el resultado guardado; otra acción abre el original actual. Volver de una fuente conserva la propuesta seleccionada y la posición de lectura.
+## Conectar un agente con permisos explícitos
 
-Crear o rechazar una propuesta deja intacto el contenido aceptado. Las sugerencias rechazadas siguen disponibles para consulta.
+Elige **Configurar acceso de agentes** desde la preparación o abre esa sección en **Ajustes**.
 
-Revisa el propósito, el motivo, las diferencias, la versión de base y las fuentes de la propuesta. Abre una fuente en la revisión citada y vuelve a la misma revisión de cambios. El contenido aceptado no cambia hasta que aplicas la propuesta. Si cambia la base, ambas versiones se conservan. Puedes rechazar un candidato incluso después de revocar su permiso. Deshacer protege el trabajo posterior; también puedes copiar una versión antigua a una nota nueva.
+1. Da un nombre al permiso, elige objetos concretos o todo el espacio y selecciona lectura y propuestas.
+2. Comprueba la selección, incluido el material preparado fuera de la primera página. Se conservan las elecciones del formulario; **Usar material seleccionado** las sustituye de forma explícita.
+3. Pulsa **Crear permiso de acceso**, copia la configuración de Codex o el JSON de inicio stdio, añádelo a los ajustes MCP del anfitrión y vuelve a conectar. Después entrega la explicación al agente. La [guía del protocolo](../AGENT_PROTOCOL.md) también documenta la CLI.
 
-Los motivos y las fuentes aceptados siguen disponibles en el historial. Otro agente autorizado puede consultarlos sin el chat ni la clave de operación del primero. Leer el resultado no concede acceso automático a sus pruebas.
+La explicación fija versiones concretas, pero el permiso de un objeto abarca sus versiones legibles, **incluidas las futuras**. Los enlaces nuevos y el material del proyecto no añaden objetos a una selección fija. Proponer notas o registros nuevos requiere un permiso de creación adicional en un acceso a todo el espacio con lectura y propuestas. Un permiso limitado a ciertos objetos no permite crear otros. El agente no recibe tu autoridad para guardar directamente ni aplicar propuestas.
 
-## Conservar y recuperar datos
+La configuración contiene un token que se muestra una sola vez; AgentSpace guarda su hash. Cópialo mientras esté disponible. Si lo pierdes, revoca el acceso y crea otro. Una operación de acceso incierta bloquea el formulario hasta resolver el reintento de la solicitud original. Ir y volver de Ajustes en el mismo espacio abierto conserva la configuración de una sola visualización ya recibida.
 
-Archivar retira el contenido de la vista activa sin eliminar su identidad ni su historial. Archivar un proyecto no borra sus notas o recursos compartidos. Si un recurso externo se mueve, elige su nueva ubicación tras comprobar la anterior; conserva su identidad e historial. Deshacer no revierte un cambio de ubicación externa; elige explícitamente la ubicación anterior si quieres volver a ella.
+Un agente puede descubrir material, filtrar, buscar, seguir relaciones acotadas y leer versiones exactas dentro de su permiso. La búsqueda indica límites y no garantiza exhaustividad semántica. “Contexto preparado” registra las referencias y los rangos reunidos para resultados de herramientas; no demuestra recepción, comprensión del modelo ni finalización de la tarea.
 
-| Método                      | Incluye                                                                                         | Excluye                                                                |
-| --------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Copia de seguridad completa | Base coherente, versiones retenidas, propuestas, recibos, borradores e historial de importación | Archivos originales y contenido de repositorios externos               |
-| Exportación legible         | Contenido actual, incluidos archivados, campos, relaciones y metadatos de origen                | Textos históricos, propuestas, recibos, borradores y archivos externos |
+## Revisar propuestas y consultar cambios
 
-La exportación sirve para intercambiar datos, no para restaurar todo el historial. Ambos artefactos pueden contener rutas de origen y otros metadatos personales. Espera a la confirmación verificada. Si se pierde la respuesta, el resultado es desconocido: consulta el estado o reintenta la misma operación.
+Abre **Revisión → Pendientes** para consultar una propuesta.
 
-Restaura en un destino nuevo. La copia recibe una identidad de instancia nueva y sus permisos antiguos se desactivan. El espacio original y sus permisos no cambian. Vuelve a conectar los agentes explícitamente. Los borradores de otra instalación se pueden consultar y copiar a un borrador nuevo; los originales permanecen intactos.
+1. Lee el propósito, el motivo, el destino, la versión de base y todas las diferencias. Abre las fuentes en sus versiones citadas; al volver se conserva la propuesta seleccionada y la posición de lectura.
+2. Para una actualización, elige **Aplicar propuesta**. Para un objeto nuevo, elige **Crear nota** o **Crear registro**. **Rechazar propuesta** no cambia el contenido aceptado.
+3. Usa **Borrador de material nuevo** en una propuesta de creación para iniciar tu propio borrador del mismo tipo. Para una actualización, edita el objeto actual. La propuesta original se conserva por separado.
 
-## Límites actuales
+Leer una propuesta no la resuelve. Leída/no leída, pendiente/aplicada/rechazada/en conflicto y la revisión humana del conocimiento son estados distintos. Si la versión de base ha avanzado, se bloquea la aplicación y se conservan ambas versiones. Usa **Copiar contenido propuesto** y edita el objeto actual, o pide una propuesta nueva al agente. Puedes rechazar un candidato antiguo después de revocar su acceso de origen.
 
-Un objeto completo admite hasta 1 MiB y la base, incluido el historial y los recibos, hasta 512 MiB. La importación inspecciona una profundidad de 12, hasta 1.000 entradas y 50 MiB de texto seleccionado. Los servicios de contexto tienen límites explícitos de bytes y resultados. Al alcanzar el máximo de la base aún puedes exportar o crear una copia en un destino con espacio disponible.
+En **Revisión → Procesadas** consulta propuestas aplicadas o rechazadas. **Leer la versión aceptada** abre el resultado guardado al aplicarla; otra acción abre el original actual. Las propuestas rechazadas conservan su motivo, diferencias y fuentes.
 
-AgentSpace no cifra sus archivos. Usa la protección del sistema operativo. El anfitrión externo controla su proveedor y sus permisos fuera de estas herramientas. La sincronización en la nube, los equipos, la verificación semántica de hechos, la ejecución arbitraria de aplicaciones y una hoja de cálculo completa quedan fuera de esta versión. La primera versión pública usa el formato 2; los formatos de desarrollo no admitidos se rechazan sin modificar el original.
+**Actividad → Cambios reales** muestra guardados y decisiones sobre propuestas, con fecha, autor y enlaces a la versión de ese evento o a la propuesta original. Otro agente autorizado puede consultar las explicaciones aceptadas y sus fuentes sin el chat original. El permiso para leer un resultado no concede acceso automático a sus fuentes.
 
-[Confianza](../SECURITY.md) · [Datos locales](../LOCAL_DATA.md) · [Protocolo](../AGENT_PROTOCOL.md) · [Verificación](../TESTING.md)
+En **Historial**, usa **Revisar antes de deshacer**. Deshacer rechaza sobrescribir ediciones posteriores. También puedes leer una versión antigua o crear una nota nueva a partir de ella.
+
+## Marcar el conocimiento que has revisado
+
+En **Detalles → Revisión de versiones**, compara la versión guardada actual con la última revisada por una persona. Después de comprobar la versión guardada actual, elige **Marcar como revisado**. Los cambios sin guardar quedan separados.
+
+En Biblioteca, **Estado de revisión** permite buscar **Sin revisar**, **Versión actual revisada** y **Cambios desde la revisión**. Sin revisar es información neutral. Importar, guardar, leer o aplicar propuestas no marca el conocimiento como revisado. La marca registra la revisión humana de esa versión; no certifica la verdad ni mantiene el conocimiento automáticamente.
+
+## Archivar material o reconectar un recurso externo
+
+**Detalles → Archivar material** lo retira de las vistas activas conservando su identidad e historial. **Restaurar del archivo** lo reactiva. Archivar un proyecto no archiva ni elimina sus notas o recursos compartidos.
+
+Si un recurso externo se mueve, usa **Elegir ubicación del recurso** y confirma la ubicación anterior y la nueva. Conserva su identidad e historial; volver a enlazarlo no mueve el archivo externo. Deshacer no revierte la ubicación. Para volver a la anterior, selecciónala explícitamente.
+
+## Crear copias, exportar y restaurar
+
+Abre **Copias, exportación y restauración** desde el menú del espacio.
+
+| Opción                      | Uso                                          | Incluye                                                                                                           |
+| --------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Copia de seguridad completa | Restaurar el espacio con su historial        | Base coherente, versiones conservadas, propuestas, historial de operaciones, borradores y progreso de importación |
+| Exportación legible         | Leer contenido actual con otras herramientas | Contenido aceptado actual, incluidos archivados, campos tipados, relaciones y metadatos de origen                 |
+
+La exportación legible excluye textos históricos, propuestas y borradores de recuperación; no sirve para restaurar todo el historial. Una cita histórica puede apuntar a un texto fuera de la exportación. Ninguna opción copia archivos o repositorios externos. Ambas pueden contener rutas de origen y otros metadatos personales.
+
+Espera a **Completado y verificado** antes de dar la operación por terminada. Si se pierde la respuesta, el resultado es desconocido: comprueba la operación original o reinténtala. Si no puedes abrir una restauración completada, reintenta la apertura por separado; eso no anula la restauración verificada.
+
+Restaura una copia en un **destino nuevo**. Recibe una identidad de instancia nueva y los permisos antiguos se desactivan en esa copia. El espacio original y sus permisos no cambian; conecta los agentes de nuevo de forma explícita. La recuperación puede encontrar borradores de otra instalación y copiar uno seleccionado a un borrador local nuevo, conservando el original.
+
+## Privacidad, límites y ayuda
+
+AgentSpace no cifra los datos locales. Protege el espacio y sus copias con el sistema operativo. Un agente conectado puede recibir contenido autorizado, que su anfitrión puede enviar a un proveedor de modelos según sus ajustes. Guardar en local no impide ese envío. Revocar el acceso bloquea futuras llamadas, pero no recupera material ya compartido.
+
+Un objeto gestionado admite hasta 1 MiB y la base, incluido el historial, hasta 512 MiB. La importación tiene límites de profundidad 12, 1.000 entradas visitadas y 50 MiB de texto seleccionado, entre otros. Las herramientas de contexto también limitan resultados y bytes. Un espacio lleno aún puede copiarse o exportarse a un destino con permiso de escritura.
+
+Consulta el [alcance del producto](../PRD.md), los [datos locales y la recuperación](../LOCAL_DATA.md) y los [límites de confianza](../SECURITY.md). El entorno actual es macOS Apple Silicon; [configuración de escritorio](../DESKTOP.md) y [verificación](../TESTING.md) explican los límites de firma, plataforma y comprobación de métodos de entrada.

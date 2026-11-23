@@ -11,7 +11,6 @@ import {
   localLimits,
 } from '../../contracts/local.js';
 import type {
-  ConfirmImportInput,
   ImportManifest,
   ImportManifestItem,
   ImportPreviewPage,
@@ -19,7 +18,7 @@ import type {
   PreparedSource,
   ScanSummary,
 } from '../../contracts/local.js';
-import { bytes, canonical, digest, fail, measured, parse } from '../support.js';
+import { bytes, digest, fail, measured, parse } from '../support.js';
 import { fingerprint, jsonBytes, readSource, resultOf } from './files.js';
 
 const excluded = new Set([
@@ -524,5 +523,3 @@ export function captureImportItem(item: ImportManifestItem): string | undefined 
 }
 
 export const importManifestDigest = (manifest: ImportManifest): string => digest(manifest);
-export const importChoiceDigest = (choices: ConfirmImportInput): string =>
-  digest(JSON.parse(canonical(choices)));

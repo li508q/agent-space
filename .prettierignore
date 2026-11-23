@@ -4,7 +4,10 @@ release
 .coordination
 test-results
 playwright-report
-AGENTS.md
-docs/product-brief.md
 package-lock.json
-assets
+docs/assets
+src/renderer/assets
+assets/packaging/AppIcon.icns
+assets/packaging/AppIcon.png
+assets/packaging/AppIcon.svg
+assets/packaging/entitlements.plist

@@ -14,7 +14,7 @@ import { z } from 'zod';
 import { SourceFingerprintSchema, localLimits } from '../../contracts/local.js';
 import type { Result } from '../../contracts/errors.js';
 import type { z as Zod } from 'zod';
-import { asFailure, canonical, digest, fail } from '../support.js';
+import { asFailure, digest, fail } from '../support.js';
 
 export const sha256 = (value: string | Uint8Array): string =>
   createHash('sha256').update(value).digest('hex');
@@ -128,4 +128,3 @@ export async function resultOf<T>(work: () => T | Promise<T>): Promise<Result<T>
     return asFailure(error);
   }
 }
-export { canonical };

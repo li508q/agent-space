@@ -82,7 +82,7 @@ async function selectProcessed(native: NativeHarness) {
 }
 
 test(
-  '7B real SDK decisions, human saves, restart and fixed evidence remain discoverable without search',
+  'real SDK decisions, human saves, restart and fixed evidence remain discoverable without search',
   { skip: process.platform !== 'darwin', timeout: 120_000 },
   async () => {
     const fixture = createAcceptanceFixture();
@@ -621,7 +621,7 @@ function bulkFixture(wrappedPinTitles = false) {
 }
 
 test(
-  '7B numerical windows, processed append retries, sparse prepared and old replies use actual Core records',
+  'numerical windows, processed append retries, sparse prepared and old replies use actual Core records',
   { skip: process.platform !== 'darwin', timeout: 120_000 },
   async () => {
     const fixture = bulkFixture(true);
@@ -818,7 +818,7 @@ async function waitHeld(native: NativeHarness) {
 }
 
 test(
-  '7B an old pending detail released after a real decision cannot revive actions or replace the accepted head',
+  'an old pending detail released after a real decision cannot revive actions or replace the accepted head',
   { skip: process.platform !== 'darwin', timeout: 60_000 },
   async () => {
     const fixture = createAcceptanceFixture();
@@ -1014,7 +1014,7 @@ async function visibleControl(native: NativeHarness, id: string) {
 }
 
 test(
-  '7B five locales keep activity and processed controls keyboard reachable at 980px and native 200% zoom',
+  'five locales keep activity and processed controls keyboard reachable at 980px and native 200% zoom',
   { skip: process.platform !== 'darwin', timeout: 120_000 },
   async () => {
     const fixture = createAcceptanceFixture();
@@ -1234,7 +1234,7 @@ test(
 );
 
 test(
-  '7B activity reading and current editing return to the same retained human draft after a save failure',
+  'activity reading and current editing return to the same retained human draft after a save failure',
   { skip: process.platform !== 'darwin', timeout: 60_000 },
   async () => {
     const fixture = createAcceptanceFixture();
@@ -1664,7 +1664,7 @@ async function tabTo(native: NativeHarness, testId: string, reverse = false, max
 }
 
 test(
-  '7B real Tab preserves complete list outlines and original-source focus across locales and viewports',
+  'real Tab preserves complete list outlines and original-source focus across locales and viewports',
   { skip: process.platform !== 'darwin', timeout: 180_000 },
   async () => {
     const fixture = bulkFixture(),
