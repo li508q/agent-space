@@ -14,6 +14,10 @@ La primera entrega está verificada en macOS Apple Silicon. La compilación loca
 
 ## Escribir y relacionar contenido
 
+Usa **Continuar trabajando** para recuperar borradores, abrir hasta diez objetos recientes de esta instancia o **Ver cambios recientes**. **Biblioteca** conserva la exploración completa y acotada; búsqueda, filtros y material nuevo comparten una sola zona de desplazamiento. Las posiciones recientes solo guardan ID y hora, sin copiar documentos. Puedes quitar una entrada no disponible o reintentar un error temporal. Una instancia restaurada mantiene su propia lista.
+
+**Estado de revisión** ofrece todos los estados, **Sin revisar**, **Versión actual revisada** y **Cambios desde la revisión**. Sin revisar es información neutral. En Detalles, **Revisión de versiones** indica la versión guardada actual y la última revisada por una persona; el borrador sin guardar sigue separado. Solo puedes marcar la versión guardada actual recién comprobada. Guardar o aceptar una propuesta no la marca ni certifica la verdad. Después de guardar una nueva versión, encuéntrala en **Cambios desde la revisión**. Las fuentes antiguas conservan su contenido fijado.
+
 Crea notas independientes cuando las necesites. Los proyectos agrupan contenido mediante relaciones: una nota puede pertenecer a varios proyectos y conservar una sola identidad. Los recursos también pueden reutilizarse desde distintos proyectos.
 
 Las ediciones se guardan tras una pausa breve; también puedes guardar de inmediato. «Guardado» significa que la generación visible se ha persistido. Conservar un borrador de recuperación es un estado distinto. Ante un conflicto o un fallo, usa las opciones de reintento, borrador o copia. Una revisión posterior no se sobrescribe en silencio.

@@ -33,6 +33,7 @@ test(
         BrowserWindow.getAllWindows()[0]!.setBounds({ width: 1440, height: 900 }),
       );
       const locale = (await native.page.locator('html').getAttribute('lang')) as Locale;
+      await native.page.getByTestId('nav-library').click();
       await native.page.getByTestId(`object-row-${fixture.ids.sample}`).click();
       await native.page.getByTestId('record-edit-fields').click();
       let form = native.page.getByTestId('properties-editor');

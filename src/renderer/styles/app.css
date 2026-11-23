@@ -249,8 +249,15 @@ button.primary:hover:not(:disabled) {
   scroll-padding-block: 2px;
 }
 /* Keep edge-aligned list controls' focus paint inside their scrollport. */
-.list-scroll button:focus-visible {
+.list-scroll :is(button, input, select):focus-visible,
+.list-scroll .material-create > summary:focus-visible {
   outline-offset: -4px;
+}
+.list-scroll > .material-create {
+  margin: 0.3rem 1rem 0.7rem;
+}
+.list-scroll .material-create > summary {
+  padding-inline: 0.5rem;
 }
 .material-row,
 .draft-list > button {
@@ -282,6 +289,27 @@ button.primary:hover:not(:disabled) {
 .list-empty {
   padding: 1rem;
   color: var(--as-text-secondary);
+}
+.review-list-filter,
+.continue-status,
+.recent-work > :is(h3, p, button),
+.continue-links {
+  margin-inline: 1rem;
+  margin-block: 0.5rem;
+}
+.review-list-filter label {
+  display: block;
+  margin-block-end: 0.35rem;
+}
+.review-list-filter select {
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+.continue-links {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--as-space-2);
 }
 .list-scroll > button:not(.material-row) {
   margin: 0.6rem;

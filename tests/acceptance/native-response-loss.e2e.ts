@@ -31,6 +31,7 @@ test(
       await native.focus();
       await native.chooseNextFolder(fixture.directory);
       await native.page.getByTestId('open-space').click();
+      await native.page.getByTestId('nav-library').click();
       await native.page.getByTestId(`object-row-${fixture.ids.retryPolicy}`).click();
       const input = native.page.getByTestId('markdown-input');
       await input.waitFor();

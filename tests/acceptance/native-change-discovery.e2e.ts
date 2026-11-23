@@ -91,6 +91,7 @@ test(
     let client: Client | null = null;
     try {
       await open(native, fixture);
+      await native.page.getByTestId('nav-library').click();
       await native.page.getByTestId(`object-row-${fixture.ids.retryPolicy}`).click();
       const humanBody = 'H1: a human saved this before the proposal.';
       await native.page.getByTestId('markdown-input').fill(humanBody);
@@ -1250,6 +1251,7 @@ test(
       const fixed = requireSuccess(
         fixture.human.readObject({ objectId: fixture.ids.retryPolicy }),
       ).object;
+      await native.page.getByTestId('nav-library').click();
       await native.page.getByTestId(`object-row-${original.id}`).click();
       await arm(native, 'saveObject');
       const draft = 'An unsaved human draft survives activity, current editing and return.';

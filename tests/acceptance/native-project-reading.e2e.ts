@@ -240,6 +240,7 @@ type Fault = {
   draftFailure: boolean;
   readFailure: boolean;
   holdId: string | null;
+  readSkips: number;
   held: boolean;
   release: (() => void) | null;
   creates: number;
@@ -275,6 +276,7 @@ async function installFault(native: NativeHarness) {
       draftFailure: false,
       readFailure: false,
       holdId: null,
+      readSkips: 0,
       held: false,
       release: null,
       creates: 0,
@@ -315,6 +317,10 @@ async function installFault(native: NativeHarness) {
           request.input.objectId === fault.holdId &&
           request.input.revision === undefined
         ) {
+          if (fault.readSkips > 0) {
+            fault.readSkips--;
+            return handler(event, request);
+          }
           if (fault.readFailure)
             return { ok: false, error: { code: 'NOT_FOUND', retryable: false } };
           const result = await handler(event, request);
@@ -1345,6 +1351,7 @@ test(
       await native.focus();
       await native.chooseNextFolder(fixture.directory);
       await native.page.getByTestId('open-space').click();
+      await native.page.getByTestId('nav-library').click();
       await native.page.getByTestId(`object-row-${fixture.k1.id}`).click();
       const input = native.page.getByTestId('markdown-input');
       await input.waitFor();
@@ -1407,7 +1414,11 @@ test(
       );
       await native.page.getByTestId('return-to-reading').click();
       await native.application.evaluate((_electron, objectId) => {
-        (globalThis as unknown as FaultMain).__projectReadingFault.holdId = objectId;
+        const fault = (globalThis as unknown as FaultMain).__projectReadingFault;
+        fault.holdId = objectId;
+        // The failed stale-save retry first refreshes current-head metadata.
+        // Hold the following current-original opening request for cancellation.
+        fault.readSkips = 1;
       }, fixture.k1.id);
       await reader.getByTestId('source-edit-current').click();
       await native.page.waitForFunction(

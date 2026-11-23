@@ -14,6 +14,10 @@ This first delivery is verified on macOS Apple Silicon. The local build is ad-ho
 
 ## Write and connect material
 
+Use **Continue working** to resume a recovery draft, reopen up to ten recent objects in this space instance, or **View recent changes**. **Library** is the complete browsing entry; search and **New material** stay in the same scrolling list. Recent positions contain IDs/times, not document copies. A missing recent item can be removed from this list, while a temporary error offers retry. Restored/new instances keep their own recent list.
+
+In Library, **Review status** offers all states, **Never reviewed**, **Current version reviewed**, and **Changed since review**. Never reviewed is neutral. In Details, **Version review** names the current saved version and the last version reviewed by a person. Unsaved draft edits stay separate. You can mark only the freshly checked saved current version; a save or an accepted proposal does not mark it reviewed or certify truth. After another saved revision, find it under **Changed since review**. Reading an old source still shows its fixed content.
+
 Create an independent note whenever you need one. Projects group work through relationships; a note can belong to several projects while retaining one identity. A reusable asset can be referenced by different projects.
 
 Human edits save after a short quiet interval. **Save now** is also available. **Saved** means the visible generation was persisted. A retained recovery draft is a separate state. If saving conflicts or fails, use the available retry, draft or copy path; a later human revision is never silently replaced.

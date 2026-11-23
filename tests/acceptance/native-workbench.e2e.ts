@@ -43,6 +43,7 @@ test(
       const language = await native.page.locator('html').getAttribute('lang');
       assert.ok(supportedLocales.includes(language as Locale));
       const locale = language as Locale;
+      await native.page.getByTestId('nav-library').click();
       await native.page.getByTestId(`object-row-${fixture.ids.retryPolicy}`).click();
       const input = native.page.getByTestId('markdown-input');
       await input.waitFor();

@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { knowledgeReviewStates, normalizeKnowledgeReviewStates } from './knowledge-review.js';
 
-// Boundary shapes only: core authorization, persistence and range assembly are not implemented.
+// Wire shapes only; Core owns authorization, persistence and range assembly.
 export const LocaleSchema = z.enum(['en', 'zh-CN', 'ja', 'ko', 'es']);
 export const IdSchema = z.uuid().toLowerCase();
 export const RevisionSchema = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
@@ -13,6 +14,13 @@ export const OperationKeySchema = z
   .regex(/^[a-zA-Z0-9._:-]+$/);
 export const FieldKeySchema = z.string().regex(/^[a-z][a-z0-9_]{0,63}$/);
 export const KindSchema = z.enum(['document', 'project', 'record', 'asset']);
+export const KnowledgeReviewStateSchema = z.enum(knowledgeReviewStates);
+export const KnowledgeReviewStatesSchema = z
+  .array(KnowledgeReviewStateSchema)
+  .min(1)
+  .max(3)
+  .refine((values) => new Set(values).size === values.length)
+  .transform(normalizeKnowledgeReviewStates);
 export const AgentCreatableKindSchema = z.enum(['document', 'record']);
 export const PredicateSchema = z.enum([
   'belongs_to',
@@ -202,6 +210,7 @@ export const ReadPageSchema = z.discriminatedUnion('section', [
     lifecycle: z.enum(['active', 'archived']),
     protectedFields: z.array(z.string().max(80)).max(68),
     knowledgeReviewedRevision: RevisionSchema.nullable(),
+    knowledgeReviewState: KnowledgeReviewStateSchema,
     origin: z.strictObject({
       mode: z.enum(['managed', 'imported-copy', 'external-reference']),
       label: z.string().max(240),
@@ -237,6 +246,7 @@ export const ReadPageSchema = z.discriminatedUnion('section', [
 export const QuerySchema = z.strictObject({
   filter: z.strictObject({
     kind: KindSchema.optional(),
+    knowledgeReviewStates: KnowledgeReviewStatesSchema.optional(),
     projectId: IdSchema.optional(),
     text: z.string().min(1).max(200).optional(),
     property: z

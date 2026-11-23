@@ -29,12 +29,12 @@ export const toolDefinitions = {
   objects_query: {
     schema: QuerySchema,
     description:
-      'Query authorized current objects with kind/project/property and literal text filters. Follow nextCursor; restart on CURSOR_STALE. Search does not prove semantic completeness.',
+      'Query authorized current objects with kind/project/property, literal text and knowledgeReviewStates filters. Review states are never-reviewed, current-reviewed and changed-since-review; they describe the current head against its highest human-reviewed revision, not truth. State sets use OR and other filters use AND. Follow nextCursor; restart on CURSOR_STALE.',
   },
   object_read: {
     schema: ReadSchema,
     description:
-      'Read an explicit summary/body/properties/relations section within maxBytes. Continue with nextCursor to retain the same pinned revision. Ranges count Unicode code points or entries.',
+      "Read an explicit summary/body/properties/relations section within maxBytes. Summary review metadata describes this read's current head, even for a historical pin; ref/title/digest still identify the exact revision. Continue with nextCursor to retain the pin. Ranges count Unicode code points or entries.",
   },
   proposal_create: {
     schema: ProposeSchema,
@@ -59,7 +59,7 @@ export const toolDefinitions = {
   text_search: {
     schema: TextSearchSchema,
     description:
-      'Find authorized current object summaries with literal NFKC/lowercase text and optional exact filters. Not semantic search. Use maxBytes:16384; read returned pins and follow nextCursor, restarting on CURSOR_STALE.',
+      'Find authorized current object summaries with literal NFKC/lowercase text and optional exact filters including knowledgeReviewStates. Review metadata is current-head human version review, not truth certification. Not semantic search. Use maxBytes:16384; read returned pins and follow nextCursor, restarting on CURSOR_STALE.',
   },
   relations_expand: {
     schema: RelationsExpandSchema,

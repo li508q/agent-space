@@ -9,6 +9,10 @@ import type {
 } from '../../contracts/core.js';
 import type { ErrorCode } from '../../contracts/errors.js';
 import type { ObjectContent } from '../../contracts/schema.js';
+import {
+  deriveKnowledgeReview,
+  type KnowledgeReviewMetadata,
+} from '../../contracts/knowledge-review.js';
 import { bound } from './binding.js';
 import { OperationTask } from './operation.js';
 
@@ -18,6 +22,12 @@ type EditorApi = Pick<
 >;
 type SaveState = 'saved' | 'dirty' | 'saving' | 'checking' | 'conflict' | 'error';
 type DraftState = 'none' | 'writing' | 'kept' | 'checking' | 'error';
+export type HeadReview = Readonly<{
+  data: (KnowledgeReviewMetadata & { reviewedAt: string | null }) | null;
+  fresh: boolean;
+  loading: boolean;
+  error: ErrorCode | null;
+}>;
 export type EditorSnapshot = Readonly<{
   editorId: string;
   objectId: string | null;
@@ -35,6 +45,7 @@ export type EditorSnapshot = Readonly<{
   composing: boolean;
   locked: boolean;
   remote: ObjectView | null;
+  headReview: HeadReview;
 }>;
 type SaveAttempt = { task: OperationTask<WriteResult>; generation: number };
 type DraftAttempt = { task: OperationTask<DraftReceipt>; input: SaveDraftInput };
@@ -76,6 +87,9 @@ export class EditorSession {
       timers?: boolean;
       id?: () => string;
       onSaved?: (object: ObjectSnapshot) => void;
+      onSaveStarting?: () => void;
+      onSaveFailed?: () => void;
+      headVerified?: boolean;
     } = {},
   ) {
     this.id = options.id ?? (() => crypto.randomUUID());
@@ -104,7 +118,9 @@ export class EditorSession {
       composing: false,
       locked: false,
       remote: view && revision !== view.currentRevision ? view : null,
+      headReview: { data: null, fresh: false, loading: false, error: null },
     });
+    if (view && options.headVerified !== false) this.observeHead(view);
     if (options.draft?.retained) this.retained.set(options.draft.draftId, options.draft);
   }
 
@@ -196,6 +212,7 @@ export class EditorSession {
       view.object.revision < (this.state.revision ?? 0)
     )
       return;
+    if (!this.observeHead(view)) return;
     if (this.dirty || this.state.composing || this.activeSave) {
       if (view.currentRevision !== this.state.revision) this.publish({ remote: view });
       return;
@@ -215,6 +232,52 @@ export class EditorSession {
       error: null,
       remote: null,
     });
+  }
+
+  invalidateHeadReview() {
+    this.publish({
+      headReview: { ...this.state.headReview, fresh: false, loading: false, error: null },
+    });
+  }
+  beginHeadReviewRead() {
+    this.publish({
+      headReview: { ...this.state.headReview, fresh: false, loading: true, error: null },
+    });
+  }
+  failHeadReviewRead(error: ErrorCode) {
+    this.publish({ headReview: { ...this.state.headReview, fresh: false, loading: false, error } });
+  }
+  finishHeadReviewRead() {
+    if (this.state.headReview.loading)
+      this.publish({ headReview: { ...this.state.headReview, loading: false } });
+  }
+  private observeHead(view: ObjectView) {
+    const review = deriveKnowledgeReview(
+      view.currentRevision,
+      view.object.knowledgeReview?.reviewedRevision ?? null,
+    );
+    if (!review) {
+      this.failHeadReviewRead('INTEGRITY_FAILURE');
+      return false;
+    }
+    const known = this.state.headReview.data;
+    if (
+      known &&
+      (review.currentRevision < known.currentRevision ||
+        (known.knowledgeReviewedRevision !== null &&
+          (review.knowledgeReviewedRevision === null ||
+            review.knowledgeReviewedRevision < known.knowledgeReviewedRevision)))
+    )
+      return false;
+    this.publish({
+      headReview: {
+        data: { ...review, reviewedAt: view.object.knowledgeReview?.reviewedAt ?? null },
+        fresh: true,
+        loading: false,
+        error: null,
+      },
+    });
+    return true;
   }
 
   async saveNow(): Promise<boolean> {
@@ -261,12 +324,15 @@ export class EditorSession {
         this.activeSave = { task, generation };
       }
       const attempt = this.activeSave;
+      this.invalidateHeadReview();
+      this.options.onSaveStarting?.();
       this.publish({ saveState: attempt.task.unknown ? 'checking' : 'saving', error: null });
       let result;
       try {
         result = await attempt.task.run();
       } catch {
         this.publish({ saveState: 'checking', error: 'OPERATION_UNKNOWN' });
+        this.options.onSaveFailed?.();
         return false;
       }
       if (!result.ok) {
@@ -275,6 +341,7 @@ export class EditorSession {
           saveState: result.error.code === 'STALE_REVISION' ? 'conflict' : 'error',
           error: result.error.code,
         });
+        this.options.onSaveFailed?.();
         return false;
       }
       const value = result.value;
@@ -284,6 +351,7 @@ export class EditorSession {
         value.object.instanceId !== this.session.status.instanceId
       ) {
         this.publish({ saveState: 'error', error: 'INTEGRITY_FAILURE' });
+        this.options.onSaveFailed?.();
         return false;
       }
       this.activeSave = null;

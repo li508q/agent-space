@@ -1,4 +1,4 @@
-import { useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { X } from 'lucide-react';
 import type { DesktopApi, SpaceSession } from '../../contracts/app.js';
 import type { ObjectRef } from '../../contracts/schema.js';
@@ -27,6 +27,7 @@ export function DetailsPane({
   onClose,
   onOpen,
   onRefresh,
+  onMutationStarting,
   onFields,
   onRelations,
   hidden,
@@ -39,7 +40,8 @@ export function DetailsPane({
   editor: EditorSession;
   onClose: () => void;
   onOpen: (ref: ObjectRef, trigger?: string) => void;
-  onRefresh: () => void;
+  onRefresh: () => Promise<void>;
+  onMutationStarting: () => void;
   onFields: () => void;
   onRelations: () => void;
   hidden?: boolean;
@@ -53,26 +55,59 @@ export function DetailsPane({
   const task = useRef<OperationTask<KnowledgeReview> | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ErrorCode | null>(null);
-  const reviewed = state.object?.knowledgeReview;
-  const currentReviewed = reviewed?.reviewedRevision === state.revision && !editor.dirty;
-  async function markReviewed() {
-    if (!state.objectId || !state.revision || editor.dirty) return;
+  const active = useRef(true),
+    epoch = useRef(0);
+  const refreshCurrent = useRef(onRefresh);
+  refreshCurrent.current = onRefresh;
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+      epoch.current++;
+    };
+  }, [editor]);
+  const head = state.headReview;
+  const reviewed = head.data;
+  const currentReviewed = head.fresh && reviewed?.knowledgeReviewState === 'current-reviewed';
+  const canMark =
+    head.fresh &&
+    !!reviewed &&
+    !!state.objectId &&
+    state.revision === reviewed.currentRevision &&
+    !editor.dirty &&
+    !state.composing &&
+    !state.locked &&
+    !currentReviewed;
+  async function markReviewed(retryOriginal = false) {
+    if ((!retryOriginal || !task.current || task.current.settled) && !canMark) return;
     if (!task.current || task.current.settled) {
-      const input = { operationKey: newKey('knowledge'), ref: pin(state.objectId, state.revision) };
+      if (!state.objectId || !reviewed) return;
+      const input = {
+        operationKey: newKey('knowledge'),
+        ref: pin(state.objectId, reviewed.currentRevision),
+      };
       task.current = makeTask(input.operationKey, () =>
         api.markKnowledgeReviewed(bound(session, input)),
       );
     }
+    const selected = task.current,
+      ticket = ++epoch.current;
+    const current = () => active.current && ticket === epoch.current && selected === task.current;
+    onMutationStarting();
     setBusy(true);
     setError(null);
     try {
-      const result = await task.current.run();
+      const result = await selected.run();
+      if (!current()) return;
       if (!result.ok) setError(result.error.code);
-      else onRefresh();
+      await refreshCurrent.current();
     } catch {
-      setError('OPERATION_UNKNOWN');
+      if (current()) {
+        setError('OPERATION_UNKNOWN');
+        await refreshCurrent.current();
+      }
     } finally {
-      setBusy(false);
+      if (current()) setBusy(false);
     }
   }
   return (
@@ -85,37 +120,77 @@ export function DetailsPane({
       </header>
       <div className="context-scroll as-scroll-region">
         <section>
-          <h3>{t(locale, 'knowledge.knowledge')}</h3>
-          <p className={currentReviewed ? 'positive' : 'secondary'}>
+          <h3>{t(locale, 'knowledge.versionReview')}</h3>
+          <p
+            className={currentReviewed ? 'positive' : 'secondary'}
+            data-testid="knowledge-review-state"
+            role={head.loading ? 'status' : undefined}
+          >
             {t(
               locale,
-              currentReviewed
-                ? 'knowledge.reviewed'
-                : reviewed
-                  ? 'knowledge.needsReview'
-                  : 'knowledge.notReviewed',
+              !head.fresh
+                ? head.loading
+                  ? 'knowledge.refreshing'
+                  : 'knowledge.headUnknown'
+                : currentReviewed
+                  ? 'knowledge.reviewed'
+                  : reviewed?.knowledgeReviewedRevision !== null
+                    ? 'knowledge.needsReview'
+                    : 'knowledge.notReviewed',
             )}
           </p>
-          {reviewed && (
+          {head.fresh && reviewed && (
+            <p className="secondary" data-testid="knowledge-review-versions">
+              <span data-testid="knowledge-head-revision">
+                {t(locale, 'knowledge.headVersion', { version: reviewed.currentRevision })}
+              </span>
+              {' · '}
+              <span data-testid="knowledge-reviewed-revision">
+                {reviewed.knowledgeReviewedRevision === null
+                  ? t(locale, 'knowledge.noReviewedVersion')
+                  : t(locale, 'knowledge.reviewedVersion', {
+                      version: reviewed.knowledgeReviewedRevision,
+                    })}
+              </span>
+            </p>
+          )}
+          {head.fresh && reviewed?.reviewedAt && (
             <small>
               <Time value={reviewed.reviewedAt} />
             </small>
           )}
           <p className="secondary">{t(locale, 'knowledge.reviewNotice')}</p>
+          {editor.dirty && <p className="secondary">{t(locale, 'knowledge.dirtyNotice')}</p>}
           <button
             onClick={() => {
               void markReviewed();
             }}
-            disabled={busy || editor.dirty || !state.objectId || currentReviewed}
+            data-testid="mark-knowledge-reviewed"
+            disabled={busy || !canMark || (!!task.current && !task.current.settled)}
           >
             {t(locale, 'knowledge.markReviewed')}
           </button>
           <ErrorNotice
             code={error}
             onRetry={() => {
-              void markReviewed();
+              void markReviewed(true);
             }}
           />
+          <ErrorNotice
+            code={head.error}
+            onRetry={() => {
+              void onRefresh();
+            }}
+          />
+          {!head.fresh && !head.loading && !head.error && (
+            <button
+              onClick={() => {
+                void onRefresh();
+              }}
+            >
+              {t(locale, 'knowledge.refresh')}
+            </button>
+          )}
         </section>
         {state.object?.lifecycle !== 'archived' && (
           <div className="as-actions metadata-edit-actions">
@@ -163,7 +238,9 @@ export function DetailsPane({
             session={session}
             object={state.object}
             disabled={editor.dirty || state.composing || state.locked || busy}
-            onChanged={onRefresh}
+            onChanged={() => {
+              void onRefresh();
+            }}
           />
         )}
         {state.object && (

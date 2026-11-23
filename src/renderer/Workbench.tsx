@@ -24,13 +24,13 @@ import type {
   DraftReceipt,
   DraftSnapshot,
   GrantSummary,
-  ObjectSnapshot,
   ObjectSummary,
   ObjectView,
   ProposalView,
   SpaceStatus,
   WriteResult,
   Kind,
+  KnowledgeReviewState,
 } from '../contracts/core.js';
 import type { ErrorCode } from '../contracts/errors.js';
 import type { Result } from '../contracts/errors.js';
@@ -45,6 +45,7 @@ import {
   type TransitionTicket,
 } from './state/transition.js';
 import { OperationTask } from './state/operation.js';
+import { RecentWork } from './state/recent.js';
 import {
   ProposalLists,
   collectionFor,
@@ -108,6 +109,8 @@ type EditorReadOptions = {
   sourceEntryId?: string;
   requireWritable?: boolean;
   returning?: boolean;
+  recordRecent?: boolean;
+  readingCheckpoint?: Pick<ReaderOrigin, 'materialCount' | 'referenceCounts'>;
 };
 export type WorkbenchHandle = {
   bindingId: string;
@@ -129,14 +132,18 @@ type Props = {
   onScale: (factor: AppPreferences['textScale']) => void;
 };
 
-const summary = (object: ObjectSnapshot): ObjectSummary => ({
-  ref: { mode: 'pinned', objectId: object.id, revision: object.revision },
-  title: object.content.title,
-  kind: object.kind,
-  lifecycle: object.lifecycle,
-  digest: object.digest,
-  updatedAt: object.createdAt,
-});
+function positionStorage(): Pick<Storage, 'getItem' | 'setItem'> {
+  try {
+    return localStorage;
+  } catch {
+    return {
+      getItem: () => {
+        throw new Error('UI position storage unavailable');
+      },
+      setItem: () => {},
+    };
+  }
+}
 const positionKey = (session: SpaceSession) =>
   `agentspace.position.${session.status.spaceId}.${session.status.instanceId}`;
 function remembered(session: SpaceSession): string | null {
@@ -159,6 +166,12 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   const [text, setText] = useState(''),
     [kind, setKind] = useState<QueryInput['filter']['kind']>(),
     [projectId, setProjectId] = useState<string | null>(null);
+  const [reviewFilter, setReviewFilter] = useState<KnowledgeReviewState | ''>('');
+  const recentWork = useMemo(
+    () => new RecentWork(api, session, positionStorage()),
+    [api, session.bindingId, session.status.spaceId, session.status.instanceId],
+  );
+  const recent = useSyncExternalStore(recentWork.subscribe, recentWork.getSnapshot);
   const proposalLists = useMemo(
     () => new ProposalLists(api, session),
     [api, session.bindingId, session.status.spaceId, session.status.instanceId],
@@ -195,8 +208,11 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     useState<ReaderOrigin['referenceCounts']>();
   const [drafts, setDrafts] = useState<DraftReceipt[]>([]),
     [draftNext, setDraftNext] = useState<string | null>(null);
+  const [draftLoading, setDraftLoading] = useState(false),
+    [draftError, setDraftError] = useState<ErrorCode | null>(null);
   const [activity, setActivity] = useState<ActivityEntry[]>([]),
     [activityOpen, setActivityOpen] = useState(false);
+  const [activityChangesRequest, setActivityChangesRequest] = useState(0);
   const [status, setStatus] = useState<SpaceStatus>(session.status);
   const [grants, setGrants] = useState<GrantSummary[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -208,6 +224,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   const [error, setError] = useState<ErrorCode | null>(null),
     [feedback, setFeedback] = useState(false);
   const [activityError, setActivityError] = useState<ErrorCode | null>(null);
+  const [queryError, setQueryError] = useState<ErrorCode | null>(null);
   const [activityReturn, setActivityReturn] = useState<'reader' | 'proposal' | null>(null);
   const [leaveAction, setLeaveAction] = useState<{
     action: (ticket: TransitionTicket) => Promise<void>;
@@ -219,7 +236,30 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   const compact = narrow || scale >= 1.5;
   const alive = useRef(true),
     queryGate = useRef(new RequestGate()),
-    objectGate = useRef(new RequestGate());
+    objectGate = useRef(new RequestGate()),
+    headGate = useRef(new RequestGate());
+  const objectFilter: HumanQueryInput['filter'] = {
+    lifecycle,
+    ...(destination === 'projects' ? { kind: 'project' as const } : kind ? { kind } : {}),
+    ...(text ? { text } : {}),
+    ...(projectId ? { projectId } : {}),
+    ...(destination === 'library' && reviewFilter ? { knowledgeReviewStates: [reviewFilter] } : {}),
+  };
+  const objectQueryKey = JSON.stringify({
+    binding: session.bindingId,
+    destination,
+    filter: objectFilter,
+  });
+  const queryScope = useRef(objectQueryKey);
+  queryScope.current = objectQueryKey;
+  const queryChain = useRef<{
+    key: string;
+    cursor: string | null;
+    authority: number;
+    scope: string;
+  } | null>(null);
+  const failedQueryCursor = useRef<string | undefined>(undefined);
+  const knownAuthority = useRef(session.status.authoritySequence);
   const draftEpoch = useRef(0),
     grantEpoch = useRef(0);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -230,7 +270,11 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     navigationRef.current = new EditorTransitions(
       {
         current: () => editorRef.current,
-        invalidateReads: () => objectGate.current.invalidate(),
+        invalidateReads: () => {
+          objectGate.current.invalidate();
+          headGate.current.invalidate();
+          editorRef.current?.invalidateHeadReview();
+        },
         changed: (stage) => {
           if (alive.current) setTransitionStage(stage);
         },
@@ -244,7 +288,11 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     tasks.current.set(key, task);
     return task;
   });
-  const currentActions = useRef({ refreshAll: () => {}, pollObject: () => {} });
+  const currentActions = useRef({
+    refreshAll: () => {},
+    pollObject: () => {},
+    invalidateKnowledgeReads: () => {},
+  });
 
   async function resolveOperations() {
     for (const task of tasks.current.values()) {
@@ -330,6 +378,9 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       kind?: 'document' | 'record';
       ticket?: TransitionTicket;
       preserveReaders?: boolean;
+      headVerified?: boolean;
+      recordRecent?: boolean;
+      readingCheckpoint?: EditorReadOptions['readingCheckpoint'];
     } = {},
   ) {
     if (!alive.current || !navigation.claimInstall(options.ticket)) return null;
@@ -339,32 +390,39 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       content,
       kind,
       source: proposalId ? { kind: 'proposal', proposalId } : undefined,
+      headVerified: options.headVerified,
+      onSaveStarting: () => {
+        if (alive.current && editorRef.current === own)
+          currentActions.current.invalidateKnowledgeReads();
+      },
+      onSaveFailed: () => {
+        if (alive.current && editorRef.current === own) currentActions.current.refreshAll();
+      },
       onSaved: (object) => {
         if (!alive.current || editorRef.current !== own) return;
         remember(object.id);
-        setObjects((old) =>
-          old.map((entry) => (entry.ref.objectId === object.id ? summary(object) : entry)),
-        );
         // Re-evaluate the current kind/search/project scope rather than inserting into a stale filter.
         currentActions.current.refreshAll();
         setRefresh((value) => value + 1);
       },
     });
     navigation.inherit(own);
+    headGate.current.invalidate();
     editorRef.current?.dispose();
     editorRef.current = own;
-    setEditor(own);
     if (!options.preserveReaders) clearReaders();
     setWritingRequest(0);
     setExistingReaderDraft(false);
-    setRestoreMaterialCount(0);
-    setRestoreReferenceCounts(undefined);
+    setRestoreMaterialCount(options.readingCheckpoint?.materialCount ?? 0);
+    setRestoreReferenceCounts(options.readingCheckpoint?.referenceCounts);
+    setEditor(own);
     setSelectedProposal(null);
     setListOpen(false);
     setAux(null);
     setTableOpen(false);
     setMetadataDialog(null);
     if (view) remember(view.object.id);
+    if (view && options.recordRecent) recentWork.remember(view.object.id);
     return own;
   }
   async function readEditor(
@@ -416,11 +474,17 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
           own = installEditor(result.value, {
             ticket: transition,
             preserveReaders: options.preserveReaders,
+            recordRecent: options.recordRecent,
+            readingCheckpoint: options.readingCheckpoint,
           });
         if (!own) return null;
         // Review's result/current-object action enters the document workspace.
         // Ordinary project browsing keeps its project destination.
-        if (destination === 'review') setDestination('library');
+        if (options.recordRecent && options.reuseExisting) recentWork.remember(id);
+        if (destination === 'review') {
+          invalidateObjectQuery();
+          setDestination('library');
+        }
         return own;
       } else report(result.error.code);
     } catch {
@@ -431,7 +495,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   }
   function openEditor(id: string) {
     void protect(async (ticket) => {
-      await readEditor(id, ticket);
+      await readEditor(id, ticket, { recordRecent: true });
     });
   }
 
@@ -442,6 +506,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     retryOriginal = false,
   ) {
     if (!ticket || !navigation.isCurrent(ticket)) return;
+    invalidateKnowledgeReads();
     if (
       !commandTask.current ||
       commandTask.current.installed ||
@@ -472,7 +537,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
               currentRevision: result.value.object.revision,
               relationTargets: [],
             },
-            { ticket },
+            { ticket, headVerified: false, recordRecent: true },
           )
         )
           return;
@@ -483,19 +548,20 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
         setText('');
         setKind(undefined);
         setProjectId(null);
-        setObjects((old) => [
-          summary(result.value.object),
-          ...old.filter((entry) => entry.ref.objectId !== result.value.object.id),
-        ]);
+        currentActions.current.refreshAll();
         setRefresh((value) => value + 1);
       } else {
         setError(result.error.code);
         commandTask.current = null;
+        currentActions.current.refreshAll();
       }
     } catch {
-      if (alive.current) setError('OPERATION_UNKNOWN');
+      if (alive.current && navigation.isCurrent(ticket)) {
+        setError('OPERATION_UNKNOWN');
+        currentActions.current.refreshAll();
+      }
     } finally {
-      if (alive.current) setBusy(false);
+      if (alive.current && navigation.isCurrent(ticket)) setBusy(false);
     }
   }
   async function copyVersion(view: ObjectView) {
@@ -560,26 +626,54 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       draft,
       ticket,
       preserveReaders: options.preserveReaders,
+      recordRecent: !options.preserveReaders,
+      readingCheckpoint: options.readingCheckpoint,
     });
     if (own && !options.preserveReaders) setDestination('library');
     return own;
   }
 
   async function loadObjects(next?: string) {
+    if (destination !== 'library' && destination !== 'projects') return;
+    const key = objectQueryKey;
+    if (
+      next &&
+      (!queryChain.current || queryChain.current.key !== key || queryChain.current.cursor !== next)
+    )
+      return;
     const ticket = queryGate.current.begin(session);
-    const filter: HumanQueryInput['filter'] = {
-      lifecycle,
-      ...(destination === 'projects' ? { kind: 'project' as const } : kind ? { kind } : {}),
-      ...(text ? { text } : {}),
-      ...(projectId ? { projectId } : {}),
-    };
+    const current = () =>
+      alive.current && queryGate.current.accepts(ticket, session) && queryScope.current === key;
     setLoading(true);
+    setQueryError(null);
+    failedQueryCursor.current = undefined;
+    if (!next) {
+      queryChain.current = null;
+      setCursor(null);
+    }
     try {
       const result = await api.query(
-        bound(session, { filter, limit: 50, maxBytes: 65_536, ...(next ? { cursor: next } : {}) }),
+        bound(session, {
+          filter: objectFilter,
+          limit: 50,
+          maxBytes: 65_536,
+          ...(next ? { cursor: next } : {}),
+        }),
       );
-      if (!alive.current || !queryGate.current.accepts(ticket, session)) return;
+      if (!current()) return;
       if (result.ok) {
+        const page = result.value;
+        if (
+          page.authoritySequence < knownAuthority.current ||
+          (next &&
+            (queryChain.current?.authority !== page.authoritySequence ||
+              queryChain.current.scope !== page.scope.digest))
+        ) {
+          invalidateObjectQuery();
+          void loadObjects();
+          return;
+        }
+        knownAuthority.current = Math.max(knownAuthority.current, page.authoritySequence);
         setObjects((old) =>
           next
             ? [
@@ -591,17 +685,55 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
             : result.value.items,
         );
         setCursor(result.value.nextCursor);
-        setError(null);
+        queryChain.current = {
+          key,
+          cursor: page.nextCursor,
+          authority: page.authoritySequence,
+          scope: page.scope.digest,
+        };
+        setQueryError(null);
       } else {
-        setError(result.error.code);
-        if (result.error.code === 'CURSOR_STALE') setCursor(null);
+        failedQueryCursor.current = next;
+        setQueryError(result.error.code);
+        if (result.error.code === 'CURSOR_STALE') {
+          invalidateObjectQuery();
+          void loadObjects();
+        }
       }
     } catch {
-      if (alive.current && queryGate.current.accepts(ticket, session))
-        setError('OPERATION_UNKNOWN');
+      if (current()) {
+        failedQueryCursor.current = next;
+        setQueryError('OPERATION_UNKNOWN');
+      }
     } finally {
-      if (alive.current && queryGate.current.accepts(ticket, session)) setLoading(false);
+      if (current()) setLoading(false);
     }
+  }
+  function invalidateObjectQuery() {
+    queryGate.current.invalidate();
+    queryChain.current = null;
+    failedQueryCursor.current = undefined;
+    setCursor(null);
+    setObjects([]);
+    setLoading(destination === 'library' || destination === 'projects');
+    setQueryError(null);
+  }
+  function invalidateKnowledgeReads() {
+    invalidateObjectQuery();
+    headGate.current.invalidate();
+    editorRef.current?.invalidateHeadReview();
+    recentWork.invalidate();
+    draftEpoch.current++;
+    setDraftLoading(false);
+  }
+  async function refreshKnowledgeDiscovery() {
+    invalidateKnowledgeReads();
+    await Promise.all([
+      loadObjects(),
+      pollObject(),
+      loadDrafts(),
+      destination === 'continue' ? recentWork.refresh() : Promise.resolve(),
+    ]);
   }
   async function loadProposals() {
     await proposalLists.refresh();
@@ -632,25 +764,50 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   }
   async function loadDrafts(next?: string) {
     const ticket = ++draftEpoch.current;
-    const result = await api
-      .listDrafts(bound(session, { limit: 20, ...(next ? { beforeId: next } : {}) }))
-      .catch(() => null);
-    if (!alive.current || ticket !== draftEpoch.current) return;
-    if (result?.ok) {
+    const current = () => alive.current && ticket === draftEpoch.current;
+    setDraftLoading(true);
+    setDraftError(null);
+    try {
+      const result = await api.listDrafts(
+        bound(session, { limit: 20, ...(next ? { beforeId: next } : {}) }),
+      );
+      if (!current()) return;
+      if (!result.ok) {
+        setDraftError(result.error.code);
+        return;
+      }
       setDrafts((old) =>
         next
           ? [...old, ...result.value.items.filter((entry) => entry.retained)]
           : result.value.items.filter((entry) => entry.retained),
       );
       setDraftNext(result.value.nextBeforeId);
+    } catch {
+      if (current()) setDraftError('OPERATION_UNKNOWN');
+    } finally {
+      if (current()) setDraftLoading(false);
     }
   }
   async function pollObject() {
     const current = editorRef.current;
     const id = current?.getSnapshot().objectId;
     if (!current || !id) return;
-    const result = await api.readObject(bound(session, { objectId: id })).catch(() => null);
-    if (alive.current && editorRef.current === current && result?.ok) current.observe(result.value);
+    const ticket = headGate.current.begin(session, id);
+    const accepts = () =>
+      alive.current &&
+      editorRef.current === current &&
+      headGate.current.accepts(ticket, session, id);
+    current.beginHeadReviewRead();
+    try {
+      const result = await api.readObject(bound(session, { objectId: id }));
+      if (!accepts()) return;
+      if (result.ok) current.observe(result.value);
+      else current.failHeadReviewRead(result.error.code);
+    } catch {
+      if (accepts()) current.failHeadReviewRead('OPERATION_UNKNOWN');
+    } finally {
+      if (accepts()) current.finishHeadReviewRead();
+    }
   }
   async function loadGrants() {
     const ticket = ++grantEpoch.current;
@@ -659,22 +816,30 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   }
   currentActions.current = {
     refreshAll: () => {
-      void loadObjects();
+      void refreshKnowledgeDiscovery();
       void loadProposals();
-      void loadDrafts();
       void loadGrants();
     },
     pollObject: () => {
       void pollObject();
     },
+    invalidateKnowledgeReads,
   };
   useEffect(() => {
     void loadObjects();
-  }, [destination, kind, text, projectId, lifecycle]);
+  }, [destination, kind, text, projectId, lifecycle, reviewFilter]);
+  useEffect(() => {
+    recentWork.activate();
+    if (destination === 'continue') {
+      void recentWork.refresh();
+      void loadDrafts();
+    } else recentWork.invalidate();
+  }, [destination, recentWork]);
   useEffect(() => {
     alive.current = true;
     navigation.activate();
     proposalLists.activate();
+    recentWork.activate();
     void loadProposals();
     void loadDrafts();
     void loadGrants();
@@ -689,10 +854,10 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
         const now = await api.status(bound(session, null));
         if (!alive.current || !now.ok) return;
         setStatus(now.value);
+        knownAuthority.current = Math.max(knownAuthority.current, now.value.authoritySequence);
         if (now.value.authoritySequence !== authority) {
           authority = now.value.authoritySequence;
           currentActions.current.refreshAll();
-          currentActions.current.pollObject();
           setRefresh((value) => value + 1);
         }
         const result = await api.activity(
@@ -726,10 +891,12 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       alive.current = false;
       navigation.dispose();
       proposalLists.dispose();
+      recentWork.dispose();
       clearInterval(timer);
       window.removeEventListener('focus', onFocus);
       queryGate.current.invalidate();
       objectGate.current.invalidate();
+      headGate.current.invalidate();
       editorRef.current?.dispose();
     };
   }, [session.bindingId]);
@@ -780,11 +947,14 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       return;
     }
     void protect(async () => {
+      invalidateKnowledgeReads();
       setDestination('library');
+      setReviewFilter('');
       clearReaders();
       setAux(null);
       setTableOpen(false);
       setListOpen(true);
+      if (destination === 'library' && !reviewFilter) void loadObjects();
       requestAnimationFrame(() => searchRef.current?.focus());
     });
   }
@@ -1032,12 +1202,14 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
               preserveReaders: true,
               sourceEntryId: current?.entryId,
               returning: true,
+              readingCheckpoint: origin,
             });
           else if (origin.objectId && own?.getSnapshot().objectId !== origin.objectId)
             own = await readEditor(origin.objectId, ticket, {
               preserveReaders: true,
               sourceEntryId: current?.entryId,
               returning: true,
+              readingCheckpoint: origin,
             });
           if (!own) return;
         }
@@ -1080,15 +1252,23 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   }
   function chooseDestination(value: Destination) {
     void protect(async () => {
+      invalidateKnowledgeReads();
       setDestination(value);
       setText('');
       setKind(undefined);
       setProjectId(null);
+      setReviewFilter('');
       clearReaders();
       setAux(null);
       setTableOpen(false);
       setListOpen(true);
       if (value !== 'review') setSelectedProposal(null);
+      if (value === destination) {
+        if (value === 'continue') {
+          void recentWork.refresh();
+          void loadDrafts();
+        } else if (!kind && !text && !projectId && !reviewFilter) void loadObjects();
+      }
     });
   }
   function openMetadata(mode: 'fields' | 'relations' | 'lifecycle' | 'relink') {
@@ -1117,14 +1297,18 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     await protect(async (ticket) => {
       const current = editorRef.current;
       if (!current) return;
+      invalidateKnowledgeReads();
       result = await perform(current.getSnapshot());
-      if (!result.ok) return;
+      if (!result.ok) {
+        currentActions.current.refreshAll();
+        return;
+      }
       const object = result.value.object;
       const view = await api.readObject(bound(session, { objectId: object.id })).catch(() => null);
       if (!navigation.isCurrent(ticket)) return;
       installEditor(
         view?.ok ? view.value : { object, currentRevision: object.revision, relationTargets: [] },
-        { ticket },
+        { ticket, headVerified: !!view?.ok },
       );
       setMetadataDialog(null);
       currentActions.current.refreshAll();
@@ -1252,6 +1436,8 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                   <ChevronLeft size={18} />
                 </button>
               )}
+            </header>
+            <div className="list-scroll as-scroll-region">
               {destination !== 'review' && (
                 <details className="material-create">
                   <summary aria-label={t(locale, 'org.newMaterial')} data-testid="new-material">
@@ -1284,75 +1470,123 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                   </div>
                 </details>
               )}
-            </header>
-            {destination !== 'review' && (
-              <div className="list-filters">
-                <label className="search-field">
-                  <Search size={16} />
-                  <input
-                    ref={searchRef}
-                    value={text}
-                    maxLength={200}
-                    placeholder={t(locale, 'ui.search')}
-                    aria-label={t(locale, 'ui.search')}
-                    data-testid="space-search"
-                    onChange={(event) => setText(event.target.value)}
-                  />
-                </label>
-                {destination !== 'projects' && (
+              {(destination === 'library' || destination === 'projects') && (
+                <div className="list-filters">
+                  <label className="search-field">
+                    <Search size={16} />
+                    <input
+                      ref={searchRef}
+                      value={text}
+                      maxLength={200}
+                      placeholder={t(locale, 'ui.search')}
+                      aria-label={t(locale, 'ui.search')}
+                      data-testid="space-search"
+                      onChange={(event) => {
+                        if (event.target.value === text) return;
+                        invalidateObjectQuery();
+                        setText(event.target.value);
+                      }}
+                    />
+                  </label>
+                  {destination !== 'projects' && (
+                    <select
+                      aria-label={t(locale, 'ui.type')}
+                      value={kind ?? ''}
+                      onChange={(event) => {
+                        if (event.target.value === (kind ?? '')) return;
+                        invalidateObjectQuery();
+                        setKind((event.target.value || undefined) as QueryInput['filter']['kind']);
+                        setTableOpen(false);
+                      }}
+                    >
+                      <option value="">{t(locale, 'ui.allMaterial')}</option>
+                      <option value="document">{t(locale, 'ui.notes')}</option>
+                      <option value="record">{t(locale, 'object.record')}</option>
+                      <option value="asset">{t(locale, 'object.asset')}</option>
+                      <option value="project">{t(locale, 'org.project')}</option>
+                    </select>
+                  )}
                   <select
-                    aria-label={t(locale, 'ui.type')}
-                    value={kind ?? ''}
+                    aria-label={t(locale, 'lifecycle.filter')}
+                    data-testid="lifecycle-filter"
+                    value={lifecycle}
                     onChange={(event) => {
-                      setKind((event.target.value || undefined) as QueryInput['filter']['kind']);
+                      if (event.target.value === lifecycle) return;
+                      invalidateObjectQuery();
+                      setLifecycle(event.target.value as typeof lifecycle);
                       setTableOpen(false);
                     }}
                   >
-                    <option value="">{t(locale, 'ui.allMaterial')}</option>
-                    <option value="document">{t(locale, 'ui.notes')}</option>
-                    <option value="record">{t(locale, 'object.record')}</option>
-                    <option value="asset">{t(locale, 'object.asset')}</option>
-                    <option value="project">{t(locale, 'org.project')}</option>
+                    <option value="active">{t(locale, 'lifecycle.active')}</option>
+                    <option value="archived">{t(locale, 'ui.archived')}</option>
+                    <option value="all">{t(locale, 'lifecycle.all')}</option>
                   </select>
-                )}
-                <select
-                  aria-label={t(locale, 'lifecycle.filter')}
-                  data-testid="lifecycle-filter"
-                  value={lifecycle}
-                  onChange={(event) => {
-                    setLifecycle(event.target.value as typeof lifecycle);
-                    setTableOpen(false);
-                  }}
-                >
-                  <option value="active">{t(locale, 'lifecycle.active')}</option>
-                  <option value="archived">{t(locale, 'ui.archived')}</option>
-                  <option value="all">{t(locale, 'lifecycle.all')}</option>
-                </select>
-                {text && <small>{t(locale, 'ui.searchLiteral')}</small>}
-                {kind === 'record' && destination === 'library' && (
-                  <button
-                    data-testid="show-record-table"
-                    onClick={() => {
-                      void protect(async () => {
-                        setTableOpen(true);
-                        clearReaders();
-                        setAux(null);
-                        setSelectedProposal(null);
-                        setListOpen(false);
-                      });
+                  {text && <small>{t(locale, 'ui.searchLiteral')}</small>}
+                  {kind === 'record' && destination === 'library' && (
+                    <button
+                      data-testid="show-record-table"
+                      onClick={() => {
+                        void protect(async () => {
+                          setTableOpen(true);
+                          clearReaders();
+                          setAux(null);
+                          setSelectedProposal(null);
+                          setListOpen(false);
+                        });
+                      }}
+                    >
+                      {t(locale, 'records.table')}
+                    </button>
+                  )}
+                  {projectId && (
+                    <button
+                      onClick={() => {
+                        invalidateObjectQuery();
+                        setProjectId(null);
+                      }}
+                    >
+                      {t(locale, 'common.remove')} · {t(locale, 'relation.inProject')}
+                    </button>
+                  )}
+                </div>
+              )}
+              {destination === 'library' && (
+                <div className="review-list-filter">
+                  <label htmlFor="knowledge-review-filter">{t(locale, 'knowledge.filter')}</label>
+                  <select
+                    id="knowledge-review-filter"
+                    data-testid="knowledge-review-filter"
+                    value={reviewFilter}
+                    onChange={(event) => {
+                      if (event.target.value === reviewFilter) return;
+                      invalidateObjectQuery();
+                      setReviewFilter(event.target.value as typeof reviewFilter);
+                      setTableOpen(false);
                     }}
                   >
-                    {t(locale, 'records.table')}
-                  </button>
-                )}
-                {projectId && (
-                  <button onClick={() => setProjectId(null)}>
-                    {t(locale, 'common.remove')} · {t(locale, 'relation.inProject')}
-                  </button>
-                )}
-              </div>
-            )}
-            <div className="list-scroll as-scroll-region">
+                    <option value="">{t(locale, 'knowledge.all')}</option>
+                    <option value="never-reviewed">{t(locale, 'knowledge.notReviewed')}</option>
+                    <option value="current-reviewed">{t(locale, 'knowledge.reviewed')}</option>
+                    <option value="changed-since-review">
+                      {t(locale, 'knowledge.needsReview')}
+                    </option>
+                  </select>
+                </div>
+              )}
+              {destination === 'continue' && (
+                <section className="continue-status">
+                  {draftLoading && <p role="status">{t(locale, 'ui.loading')}</p>}
+                  <ErrorNotice
+                    code={draftError}
+                    onRetry={() => {
+                      void loadDrafts();
+                    }}
+                  />
+                  {!draftLoading && !draftError && drafts.length === 0 && (
+                    <p className="secondary">{t(locale, 'continue.emptyDrafts')}</p>
+                  )}
+                </section>
+              )}
               {destination === 'continue' && drafts.length > 0 && (
                 <section className="draft-list">
                   <h3>{t(locale, 'ui.drafts')}</h3>
@@ -1386,9 +1620,95 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                 </section>
               )}
               {destination === 'continue' && (
-                <button data-testid="open-recoverable-drafts" onClick={() => setRecoveryOpen(true)}>
-                  {t(locale, 'recovery.title')}
-                </button>
+                <>
+                  <button
+                    data-testid="open-recoverable-drafts"
+                    onClick={() => setRecoveryOpen(true)}
+                  >
+                    {t(locale, 'recovery.title')}
+                  </button>
+                  <section className="recent-work" data-testid="recent-work">
+                    <h3>{t(locale, 'continue.recent')}</h3>
+                    <button
+                      onClick={() => {
+                        void recentWork.refresh();
+                      }}
+                      disabled={recent.loading}
+                    >
+                      {t(locale, 'continue.refresh')}
+                    </button>
+                    {recent.loading && <p role="status">{t(locale, 'continue.checking')}</p>}
+                    {recent.storageUnavailable && (
+                      <p className="attention">{t(locale, 'continue.storageUnavailable')}</p>
+                    )}
+                    {!recent.loading && !recent.storageUnavailable && recent.items.length === 0 && (
+                      <p className="secondary">{t(locale, 'continue.noRecent')}</p>
+                    )}
+                    {recent.items.map((item) => (
+                      <div key={item.objectId}>
+                        {item.summary ? (
+                          <button
+                            className="material-row"
+                            data-testid={`recent-row-${item.objectId}`}
+                            disabled={!item.fresh}
+                            onClick={() => openEditor(item.objectId)}
+                          >
+                            <span className="row-title">
+                              {titleText(locale, item.summary.title, item.summary.kind)}
+                            </span>
+                            <small>
+                              {item.summary.lifecycle === 'archived'
+                                ? t(locale, 'ui.archived')
+                                : t(locale, 'source.version', {
+                                    version: item.summary.ref.revision,
+                                  })}
+                            </small>
+                            {item.lastOpenedAt > 0 && (
+                              <small>
+                                <Time value={new Date(item.lastOpenedAt).toISOString()} />
+                              </small>
+                            )}
+                          </button>
+                        ) : item.missing ? (
+                          <p>{t(locale, 'continue.unavailable')}</p>
+                        ) : (
+                          <ErrorNotice
+                            code={item.error}
+                            onRetry={() => {
+                              void recentWork.refresh();
+                            }}
+                          />
+                        )}
+                        {(item.error || item.missing) && (
+                          <button onClick={() => recentWork.remove(item.objectId)}>
+                            {t(locale, 'continue.removeRecent')}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </section>
+                  <div className="continue-links">
+                    <button
+                      data-testid="continue-changes"
+                      onClick={() => {
+                        setActivityError(null);
+                        setActivityChangesRequest((value) => value + 1);
+                        setActivityOpen(true);
+                      }}
+                    >
+                      {t(locale, 'continue.changes')}
+                    </button>
+                    <button
+                      data-testid="continue-library"
+                      onClick={() => chooseDestination('library')}
+                    >
+                      {t(locale, 'continue.openLibrary')}
+                    </button>
+                    <button onClick={() => chooseDestination('projects')}>
+                      {t(locale, 'continue.openProjects')}
+                    </button>
+                  </div>
+                </>
               )}
               {destination === 'review' ? (
                 <>
@@ -1404,10 +1724,12 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                         data-testid={`review-${collection}`}
                         onClick={() => {
                           void protect(async () => {
+                            invalidateKnowledgeReads();
                             clearReaders();
                             setSelectedProposal(null);
                             setListOpen(true);
-                            void proposalLists.select(collection);
+                            await proposalLists.select(collection);
+                            void refreshKnowledgeDiscovery();
                           });
                         }}
                       >
@@ -1500,8 +1822,14 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                     );
                   })}
                 </>
-              ) : (
+              ) : destination !== 'continue' ? (
                 <>
+                  <ErrorNotice
+                    code={queryError}
+                    onRetry={() => {
+                      void loadObjects(failedQueryCursor.current);
+                    }}
+                  />
                   {objects.map((object) => (
                     <button
                       className={`material-row ${activeObject === object.ref.objectId ? 'selected' : ''}`}
@@ -1526,17 +1854,32 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                         · {t(locale, 'source.version', { version: object.ref.revision })}
                       </small>
                       <small>
-                        <Time value={object.updatedAt} />
+                        {destination === 'library' ? (
+                          <span data-testid={`object-review-state-${object.ref.objectId}`}>
+                            {t(
+                              locale,
+                              object.knowledgeReviewState === 'current-reviewed'
+                                ? 'knowledge.reviewed'
+                                : object.knowledgeReviewState === 'changed-since-review'
+                                  ? 'knowledge.needsReview'
+                                  : 'knowledge.notReviewed',
+                            )}
+                          </span>
+                        ) : (
+                          <Time value={object.updatedAt} />
+                        )}
                       </small>
                     </button>
                   ))}
-                  {!objects.length && !loading && (
+                  {!objects.length && !loading && !queryError && (
                     <p className="list-empty">
-                      {t(locale, text ? 'context.noMatches' : 'ui.emptyMaterial')}
+                      {t(locale, text || reviewFilter ? 'context.noMatches' : 'ui.emptyMaterial')}
                     </p>
                   )}
                   {cursor && (
                     <button
+                      data-testid="library-more"
+                      disabled={loading}
                       onClick={() => {
                         void loadObjects(cursor);
                       }}
@@ -1546,7 +1889,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                   )}
                   {loading && <p role="status">{t(locale, 'ui.loading')}</p>}
                 </>
-              )}
+              ) : null}
             </div>
           </aside>
           <main className="working-surface" id="working-surface">
@@ -1636,6 +1979,10 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                   onChanged={() => {
                     void loadProposals();
                   }}
+                  onDecisionStarting={invalidateKnowledgeReads}
+                  onDecisionFinished={() => {
+                    void refreshKnowledgeDiscovery();
+                  }}
                 />
               ) : editor ? (
                 <DocumentPane
@@ -1651,7 +1998,10 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                   onReturnReading={readerEditing && readers.length ? returnToReading : undefined}
                   onOpen={openReference}
                   onHistory={() => setAux((old) => (old === 'history' ? null : 'history'))}
-                  onDetails={() => setAux('details')}
+                  onDetails={() => {
+                    setAux('details');
+                    void pollObject();
+                  }}
                   onBrowse={() => {
                     void protect(async () => {
                       setAux(null);
@@ -1665,6 +2015,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                   onProjectMaterial={(id) => {
                     void protect(async () => {
                       clearReaders();
+                      invalidateObjectQuery();
                       setDestination('library');
                       setProjectId(id);
                       setAux(null);
@@ -1741,9 +2092,8 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                   document.getElementById('details-button')?.focus();
                 }}
                 onOpen={openReference}
-                onRefresh={() => {
-                  void pollObject();
-                }}
+                onMutationStarting={invalidateKnowledgeReads}
+                onRefresh={refreshKnowledgeDiscovery}
               />
             ) : (
               editor.getSnapshot().objectId && (
@@ -1864,6 +2214,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
             api={api}
             session={session}
             open={activityOpen}
+            changesRequest={activityChangesRequest}
             error={activityError}
             onClose={() => setActivityOpen(false)}
             onOpen={(reference, trigger) =>

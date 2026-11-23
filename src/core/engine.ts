@@ -70,6 +70,10 @@ import {
 } from '../contracts/core.js';
 import type { Result } from '../contracts/errors.js';
 import {
+  deriveKnowledgeReview,
+  type KnowledgeReviewMetadata,
+} from '../contracts/knowledge-review.js';
+import {
   AcceptedChangeReadSchema,
   RelationsExpandSchema,
   SchemaDescribeSchema,
@@ -513,6 +517,27 @@ export class Engine {
     if (current.revision !== expected)
       fail('STALE_REVISION', { currentRevision: current.revision });
   }
+  private reviewMetadata(object: ObjectSnapshot): KnowledgeReviewMetadata {
+    const head = Number(this.store.one('SELECT head FROM objects WHERE id=?', object.id).head);
+    return (
+      deriveKnowledgeReview(head, object.knowledgeReview?.reviewedRevision ?? null) ??
+      fail('INTEGRITY_FAILURE')
+    );
+  }
+  private objectSummary(
+    object: ObjectSnapshot,
+    review = this.reviewMetadata(object),
+  ): ObjectSummary {
+    return {
+      ref: { mode: 'pinned', objectId: object.id, revision: object.revision },
+      title: object.content.title,
+      kind: object.kind,
+      lifecycle: object.lifecycle,
+      digest: object.digest,
+      updatedAt: object.createdAt,
+      ...review,
+    };
+  }
   private validateContent(access: Access, content: ObjectContent, prior?: ObjectContent): void {
     if (bytes(content) > MAX_OBJECT_BYTES) fail('LIMIT_EXCEEDED', { maxBytes: MAX_OBJECT_BYTES });
     if (new Set(content.relations.map((r) => r.id)).size !== content.relations.length)
@@ -731,9 +756,7 @@ export class Engine {
         });
         return {
           object,
-          currentRevision: Number(
-            this.store.one('SELECT head FROM objects WHERE id=?', object.id).head,
-          ),
+          currentRevision: this.reviewMetadata(object).currentRevision,
           relationTargets,
         };
       },
@@ -1398,6 +1421,7 @@ export class Engine {
   private contextReader(access: Access): ContextReader {
     return new ContextReader(this.store, {
       load: (id, revision) => this.load(id, revision),
+      summary: (object) => this.objectSummary(object),
       visible: (id) => this.visible(access, id),
       scope: this.summaryScope(access),
       ownerScope: this.scopedSql(access),
@@ -1408,7 +1432,7 @@ export class Engine {
     if (!p.ok) return p;
     return this.read(context, 'schema_describe', (a, audit) => {
       const page = this.contextReader(a).describe(p.value);
-      audit.details = { returnedBytes: page.returnedBytes, definitionsVersion: 1 };
+      audit.details = { returnedBytes: page.returnedBytes, definitionsVersion: 2 };
       return page;
     });
   }
@@ -1559,22 +1583,34 @@ export class Engine {
           searchMode = 'trigram-literal';
         }
       }
+      const reviewed = '(SELECT MAX(k.revision) FROM knowledge_reviews k WHERE k.object_id=o.id)';
+      if (p.filter.knowledgeReviewStates) {
+        const matches = p.filter.knowledgeReviewStates.map((state) =>
+          state === 'never-reviewed'
+            ? `${reviewed} IS NULL`
+            : state === 'current-reviewed'
+              ? `${reviewed}=o.head`
+              : `${reviewed}<o.head`,
+        );
+        // A corrupt authorized candidate must not disappear behind a review-state filter.
+        predicates.push(`(${matches.join(' OR ')} OR ${reviewed}>o.head)`);
+      }
       const rows = this.store.all(
-        `SELECT o.id FROM objects o JOIN revisions r ON r.object_id=o.id AND r.revision=o.head JOIN search_projection s ON s.object_id=o.id WHERE ${predicates.join(' AND ')} ORDER BY o.id LIMIT ?`,
+        `SELECT o.id,o.head,${reviewed} AS reviewed_revision FROM objects o JOIN revisions r ON r.object_id=o.id AND r.revision=o.head JOIN search_projection s ON s.object_id=o.id WHERE ${predicates.join(' AND ')} ORDER BY o.id LIMIT ?`,
         ...params,
         p.limit + 1,
       );
-      const candidates: ObjectSummary[] = rows.slice(0, p.limit).map((row) => {
-        const object = this.load(String(row.id));
-        return {
-          ref: { mode: 'pinned', objectId: object.id, revision: object.revision },
-          title: object.content.title,
-          kind: object.kind,
-          lifecycle: object.lifecycle,
-          digest: object.digest,
-          updatedAt: object.createdAt,
-        };
-      });
+      // Check even the lookahead using metadata only; no extra full-object read or global audit.
+      const reviews = rows.map(
+        (row) =>
+          deriveKnowledgeReview(
+            Number(row.head),
+            row.reviewed_revision === null ? null : Number(row.reviewed_revision),
+          ) ?? fail('INTEGRITY_FAILURE'),
+      );
+      const candidates = rows
+        .slice(0, p.limit)
+        .map((row, index) => this.objectSummary(this.load(String(row.id)), reviews[index]!));
       const make = (count: number): QueryPage => {
         const truncated = rows.length > count;
         return measured({
@@ -1660,13 +1696,10 @@ export class Engine {
           section,
           title: object.content.title,
           kind: object.kind,
-          currentRevision: Number(
-            this.store.one('SELECT head FROM objects WHERE id=?', objectId).head,
-          ),
+          ...this.reviewMetadata(object),
           origin: object.origin,
           lifecycle: object.lifecycle,
           protectedFields: object.policy.protectedFields,
-          knowledgeReviewedRevision: object.knowledgeReview?.reviewedRevision ?? null,
         });
         if (page.returnedBytes > p.maxBytes)
           fail('LIMIT_EXCEEDED', { requiredBytes: page.returnedBytes });

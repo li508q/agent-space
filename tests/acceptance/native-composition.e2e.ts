@@ -21,6 +21,7 @@ test(
       await native.focus();
       await native.chooseNextFolder(fixture.directory);
       await native.page.getByTestId('open-space').click();
+      await native.page.getByTestId('nav-library').click();
       await native.page.getByTestId(`object-row-${fixture.ids.retryPolicy}`).click();
       const input = native.page.getByTestId('markdown-input');
       await input.waitFor();
@@ -125,6 +126,7 @@ test(
         requireSuccess(await native.bootstrap()).activeSpace?.status.spaceId,
         requireSuccess(fixture.human.status()).spaceId,
       );
+      await native.page.getByTestId('nav-library').click();
       await native.page.getByTestId(`object-row-${fixture.ids.retryPolicy}`).click();
       assert.equal(await native.page.getByTestId('markdown-input').textContent(), second);
     } finally {

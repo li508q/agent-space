@@ -21,6 +21,8 @@ import type {
   AgentTool,
 } from './schema.js';
 import type { Result } from './errors.js';
+import type { KnowledgeReviewMetadata } from './knowledge-review.js';
+export type { KnowledgeReviewMetadata, KnowledgeReviewState } from './knowledge-review.js';
 import type { ContextServices, ContextUsageHint } from './context.js';
 import type {
   LocalHumanServices,
@@ -209,7 +211,7 @@ export type ObjectView = {
   currentRevision: number;
   relationTargets: RelationTarget[];
 };
-export type ObjectSummary = {
+export type ObjectSummary = KnowledgeReviewMetadata & {
   ref: PinnedRef;
   title: string;
   kind: Kind;

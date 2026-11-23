@@ -3,6 +3,7 @@ import {
   DigestSchema,
   IdSchema,
   KindSchema,
+  KnowledgeReviewStateSchema,
   PinnedRefSchema,
   PredicateSchema,
   QuerySchema,
@@ -26,6 +27,9 @@ export const ObjectSummarySchema = z.strictObject({
   lifecycle: z.enum(['active', 'archived']),
   digest: DigestSchema,
   updatedAt: z.iso.datetime(),
+  currentRevision: RevisionSchema,
+  knowledgeReviewedRevision: RevisionSchema.nullable(),
+  knowledgeReviewState: KnowledgeReviewStateSchema,
 });
 export const ContextMetaShape = {
   spaceId: IdSchema,
@@ -41,7 +45,7 @@ export const SchemaDescribeSchema = z.strictObject({
 });
 export const SchemaDescriptionSchema = z.strictObject({
   ...ContextMetaShape,
-  definitionsVersion: z.literal(1),
+  definitionsVersion: z.literal(2),
   describedKind: KindSchema.nullable(),
   kinds: z.array(KindSchema).max(4),
   contentFields: z
@@ -65,7 +69,9 @@ export const SchemaDescriptionSchema = z.strictObject({
       }),
     )
     .length(5),
-  filterKeys: z.array(z.enum(['kind', 'projectId', 'text', 'property.equals'])).length(4),
+  filterKeys: z
+    .array(z.enum(['kind', 'projectId', 'text', 'property.equals', 'knowledgeReviewStates']))
+    .length(5),
   humanOwned: z.array(z.enum(['origin', 'protection', 'grants', 'knowledge-review'])).length(4),
   semantics: z.strictObject({
     nulls: z.literal('null-empty-zero-and-missing-are-distinct'),
@@ -73,6 +79,8 @@ export const SchemaDescriptionSchema = z.strictObject({
     dates: z.literal('authored-date-not-save-time'),
     history: z.literal('accepted-revisions-not-temporal-facts'),
     locators: z.literal('advisory-within-pinned-revision'),
+    knowledgeReview: z.literal('current-head-highest-human-review-not-truth-certification'),
+    reviewMetadata: z.literal('current-read-not-part-of-pinned-revision-digest'),
   }),
   limits: z.strictObject({
     objectBytes: SequenceSchema,

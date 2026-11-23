@@ -77,6 +77,7 @@ type AcceptedRecord = {
 };
 type ContextPorts = {
   load(id: string, revision?: number): ObjectSnapshot;
+  summary(object: ObjectSnapshot): ObjectSummary;
   visible(id: string): boolean;
   scope: ScopeSummary;
   ownerScope: { sql: string; values: SQLInputValue[] };
@@ -87,14 +88,6 @@ const pin = (object: ObjectSnapshot): PinnedRef => ({
   revision: object.revision,
 });
 const pinKey = (ref: PinnedRef): string => `${ref.objectId}:${ref.revision}`;
-const summary = (object: ObjectSnapshot): ObjectSummary => ({
-  ref: pin(object),
-  title: object.content.title,
-  kind: object.kind,
-  lifecycle: object.lifecycle,
-  digest: object.digest,
-  updatedAt: object.createdAt,
-});
 const WORK_EDGES = 5_000;
 
 /** Reject noncanonical base64url spellings before the shared authenticated decoder. */
@@ -176,7 +169,7 @@ export class ContextReader {
     return this.fit(
       measured<SchemaDescription>({
         ...this.meta(),
-        definitionsVersion: 1,
+        definitionsVersion: 2,
         describedKind: input.kind ?? null,
         kinds: input.kind ? [input.kind] : ['document', 'project', 'record', 'asset'],
         contentFields: [
@@ -209,7 +202,7 @@ export class ContextReader {
             meaning: 'continuation',
           },
         ],
-        filterKeys: ['kind', 'projectId', 'text', 'property.equals'],
+        filterKeys: ['kind', 'projectId', 'text', 'property.equals', 'knowledgeReviewStates'],
         humanOwned: ['origin', 'protection', 'grants', 'knowledge-review'],
         semantics: {
           nulls: 'null-empty-zero-and-missing-are-distinct',
@@ -217,6 +210,8 @@ export class ContextReader {
           dates: 'authored-date-not-save-time',
           history: 'accepted-revisions-not-temporal-facts',
           locators: 'advisory-within-pinned-revision',
+          knowledgeReview: 'current-head-highest-human-review-not-truth-certification',
+          reviewMetadata: 'current-read-not-part-of-pinned-revision-digest',
         },
         limits: {
           objectBytes: MAX_OBJECT_BYTES,
@@ -392,7 +387,7 @@ export class ContextReader {
     }
     if (!this.ports.visible(params.seedId)) fail('FORBIDDEN');
     const seed = this.load(params.seedId);
-    const nodes = new Map<string, ObjectSummary>([[pinKey(pin(seed)), summary(seed)]]);
+    const nodes = new Map<string, ObjectSummary>([[pinKey(pin(seed)), this.ports.summary(seed)]]);
     const edges: ExpandedEdge[] = [];
     const edgeKeys = new Set<string>();
     const expanded = new Set<string>();
@@ -471,7 +466,8 @@ export class ContextReader {
               stopReasons.add('max-edges');
               break walk;
             }
-            for (const object of endpoints) nodes.set(pinKey(pin(object)), summary(object));
+            for (const object of endpoints)
+              nodes.set(pinKey(pin(object)), this.ports.summary(object));
             edges.push({
               owner: pin(owner),
               relation,
@@ -503,7 +499,7 @@ export class ContextReader {
       ]);
       return measured({
         ...this.meta(),
-        seed: summary(seed),
+        seed: this.ports.summary(seed),
         direction: params.direction,
         matching: 'object-identity',
         pinnedTargets: 'terminal',

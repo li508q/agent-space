@@ -11,7 +11,7 @@ export function createAgentServer(agent: AgentServices): Server {
   // The SDK's advanced Server API keeps the application's stable Result envelope
   // for schema failures as well as domain failures (instead of English SDK errors).
   const server = new Server(
-    { name: 'AgentSpace', version: '0.1.4' },
+    { name: 'AgentSpace', version: '0.2.0' },
     {
       capabilities: { tools: {} },
       instructions:

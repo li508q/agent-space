@@ -60,6 +60,28 @@ Reference-only activity has `details.resultKind:"reference-metadata"` and includ
 
 ## Result and recovery semantics
 
+### Current-head version review
+
+Every `ObjectSummary` in human/agent query, search and relationship expansion includes `currentRevision`, `knowledgeReviewedRevision:number|null` and `knowledgeReviewState`. `object_read(summary)` includes the same metadata. In one authenticated read transaction, H is the current head and R is the highest human-reviewed revision:
+
+| State                  | Condition | Meaning                                                                     |
+| ---------------------- | --------- | --------------------------------------------------------------------------- |
+| `never-reviewed`       | R is null | No revision has been marked reviewed; ordinary notes may stay in this state |
+| `current-reviewed`     | R = H     | The current saved revision was marked reviewed by a person                  |
+| `changed-since-review` | R < H     | A newer revision exists after the last human review                         |
+
+This is version review, not truth certification or source-freshness analysis. Saving, applying/rejecting a proposal, reading and seen markers do not mark a version reviewed. Updating a source without advancing its referencing target leaves that target's review state unchanged. Only the existing human-only `markKnowledgeReviewed` command records review, using an exact current pin and CAS/idempotency. Repeating a review of the same revision does not advance authority.
+
+`ref`, `title`, `digest` and `updatedAt` still describe the represented exact revision. A historical K1 summary may have H=K2/R=K2 and `current-reviewed`; it does not assert that K1 has its own review. Review metadata is an observation made during this read and is not part of a revision digest. A write/review receipt remains the original operation result; re-read to observe the current head.
+
+Query and search accept `filter.knowledgeReviewStates?: KnowledgeReviewState[]`: 1–3 unique enum values, OR within the set and AND with other filters. Empty, duplicate, null and unknown values fail validation. Sets are normalized in the order shown above before `queryDigest`, `executed` and audit assembly; reordering the same set can continue a page, while changing its members cannot. Explicit all-three remains distinct from an omitted filter.
+
+SQL authorization and filtering precede ordering/limit. A scalar highest-review lookup on the existing composite key avoids duplicate objects from multiple review rows. Invalid R>H in an authorized candidate or lookahead returns `INTEGRITY_FAILURE`, including when a state filter would otherwise hide it; this is a candidate integrity check, not a full-space audit. Summary fields count toward the complete Result budget, including first-item `requiredBytes`, true empty results and the last actually returned ID cursor.
+
+The runtime schema catalogue has `definitionsVersion:2`, the new filter key and explicit current-read semantics. Persistent/Core/local format versions remain 2, with no database migration. Clients using strict old output schemas must update.
+
+### Operation results
+
 Public calls return `{ ok: true, value }` or a stable error code, retry flag and optional field/parameters. A successful response is specific to that operation. `ReviewResult.outcome` is `applied`, `rejected` or `conflicted`; generic success does not mean adoption. Every accepted revision is immutable. `WriteResult.generation` echoes the submitted editor generation; it does not certify a newer visible buffer as saved.
 
 An operation key is scoped to the persistent human namespace or grant ID and includes the command in its canonical request digest. Same-key replay returns the original complete Result even after later edits or proposal decisions. `operationStatus` returns a small original `receipt.business` discriminator (object pin/generation, review outcome, draft generation/retained state, proposal or grant identity) and separately named `currentProposal`. It contains no body or secret. `not_found` is not a failure confirmation; resend/query the same key when the result is unknown.
@@ -84,7 +106,7 @@ Core/local-file tests do not establish physical IME, OS chooser interactions, la
 
 ## Local human and native services
 
-[`local.ts`](../src/contracts/local.ts) defines format-2 request/response schemas. `HumanServices` adds CAS `setLifecycle`, trusted locator-only `relinkExternalAsset`, transactional import run/item control, and foreign-installation draft discovery/read/copy. Human `query` uses independent `HumanQuerySchema` with active(default)/archived/all; Agent query/tools are unchanged. `operationStatus.receipt.business` distinguishes import run state and item outcome/original pin as well as existing object/review/draft results. Original results remain separate from current progress.
+[`local.ts`](../src/contracts/local.ts) defines format-2 request/response schemas. `HumanServices` adds CAS `setLifecycle`, trusted locator-only `relinkExternalAsset`, transactional import run/item control, and foreign-installation draft discovery/read/copy. Human `query` inherits the shared review filter and adds active(default)/archived/all; Agent lifecycle access remains active-only. `operationStatus.receipt.business` distinguishes import run state and item outcome/original pin as well as existing object/review/draft results. Original results remain separate from current progress.
 
 The safe Core bridge exposes `setLifecycle`, `retryImport`, `pauseImport`, `getImport`, `listImports` and recovery draft methods. Main exposes native chooser/opaque-handle `chooseImport`, `readImportPreview`, `confirmImport`, `resumeImport`, `exportCurrent`, `backupSpace`, `chooseBackup`, `restoreBackup`, `readLocalTransfer`, `openRestoredSpace`, `chooseRelink`, `confirmRelink`. It never forwards `startImport`, `commitImportItem`, `getImportManifest` or raw path-bearing relink. `ImportRunPage.coordinatorError?` is a bounded live Main observation when progress could not be persisted; it is not a retained item result.
 

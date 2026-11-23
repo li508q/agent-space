@@ -37,6 +37,7 @@ export function ActivityPane({
   onOpen,
   onProposal,
   error,
+  changesRequest = 0,
 }: {
   api: DesktopApi;
   session: SpaceSession;
@@ -45,6 +46,7 @@ export function ActivityPane({
   onOpen: (reference: ObjectRef, trigger?: string) => void;
   onProposal: (proposalId: string) => void;
   error: ErrorCode | null;
+  changesRequest?: number;
 }) {
   const locale = useLocale();
   const [tab, setTab] = useState<'changes' | 'prepared'>('changes');
@@ -99,6 +101,7 @@ export function ActivityPane({
   const page = tab === 'changes' ? changes : prepared;
   const selected = windows[tab];
   const positions = useRef({ changes: { top: 0, trigger: '' }, prepared: { top: 0, trigger: '' } });
+  const lastChangesRequest = useRef(0);
   function remember(trigger = '') {
     positions.current[tab] = {
       top: document.querySelector('[data-testid="activity-pane"]')?.scrollTop ?? 0,
@@ -121,7 +124,15 @@ export function ActivityPane({
     windows.changes.suspend();
     windows.prepared.suspend();
     if (!open) return;
-    if (selected.getSnapshot().lower === null) void selected.load();
+    if (changesRequest !== lastChangesRequest.current) {
+      if (tab !== 'changes') {
+        setTab('changes');
+        return;
+      }
+      lastChangesRequest.current = changesRequest;
+      positions.current.changes = { top: 0, trigger: '' };
+      void windows.changes.refresh();
+    } else if (selected.getSnapshot().lower === null) void selected.load();
     const frame = requestAnimationFrame(() => {
       const scroll = document.querySelector('[data-testid="activity-pane"]');
       if (scroll) scroll.scrollTop = positions.current[tab].top;
@@ -132,7 +143,7 @@ export function ActivityPane({
       cancelAnimationFrame(frame);
       selected.suspend();
     };
-  }, [open, tab, windows]);
+  }, [open, tab, windows, changesRequest]);
   if (!open) return null;
   const entries = prepared.items.filter((entry) => entry.stage === 'prepared');
   const count = tab === 'changes' ? changes.items.length : entries.length;

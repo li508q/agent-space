@@ -23,7 +23,11 @@ SC-08 does not add a monthly-report view or routine. SC-09 is a longer-term dire
 
 Use a document workspace with four destinations: **Continue working**, **Projects**, **Library**, and **Review**. Search and **New note** remain reachable from every destination. The space name stays visible; an example space carries a persistent **Example space** label. Do not require a model account to create, edit, search, or recover material.
 
-Continue working currently shows a bounded material list, kept drafts and access to unresolved proposals. Reopening remembers the last object's identity; it does not persist text selection or scroll position. In-session source reading preserves its calling position. Project pages show a bounded goal excerpt, continuation, linked material and direct asset references before full-text editing. Library filters the same objects without creating duplicates. Review's count means unresolved proposals, including conflicts; unread is a separate indicator. Global Back/Forward history and pinned-project navigation are not implemented.
+Continue working shows retained recovery drafts, at most ten recent objects from this space instance, and **View recent changes** into the existing Activity view. It does not query or copy the complete material directory. Recent positions store only IDs/times; at most two existing current reads run concurrently to check their live summaries. Missing entries can be removed from recent positions without deleting material; archive remains visible, transient failures expose retry, and unavailable position storage is distinct from empty results. A restored/new instance starts with its own recent positions. Reopening remembers the last object's identity; it does not persist text selection or the source-reading stack.
+
+Library is the complete bounded browsing entry. Its **Review status** select defaults to all and offers **Never reviewed**, **Current version reviewed**, and **Changed since review**. Never reviewed is neutral information, not a warning or a task count. Search/type/lifecycle, the review filter and New material use one ordinary list-scroll flow in every layout so the short viewport retains a complete focused row. State replaces the existing date metadata line rather than adding row height. Project pages retain their bounded goal excerpt, continuation, linked material and direct assets. Review's count still means unresolved proposals, including conflicts; unread remains separate. Global Back/Forward history and pinned-project navigation are not implemented.
+
+Details **Version review** shows the current saved head H and highest human-reviewed revision R, or explicitly no reviewed version. This metadata is separate from the editor's base, dirty buffer, generations and caret. Same-H new-R reads update it without replacing input. Marking reviewed requires fresh current metadata, clean/noncomposing/unlocked input and base=H, using that exact pin. Saving, reviewing and decisions synchronously supersede old query/current-read/MRU epochs for data, error and loading. Re-fetch current results after a mutation; an old write/review receipt never becomes current-head metadata. Historical reader contents and the Activity fixed-pin title map remain exact-version presentation only.
 
 ```text
 ┌ Space name ▾                    Search space ⌘K   New note   ⚙   ┐
@@ -173,7 +177,7 @@ The first release uses the explicit direct-edit path above rather than an ambigu
 | ------------------- | ---------------------------------------------------------------------------------------------------------- |
 | Proposal processing | Pending review / Applied / Rejected / Conflicted; processing/unknown feedback is not a false final outcome |
 | Reading             | Unread / Read, independent of processing                                                                   |
-| Knowledge review    | Not reviewed / Reviewed / Needs review, independent of reading and applying                                |
+| Knowledge review    | Never reviewed / Current version reviewed / Changed since review, independent of reading and applying      |
 
 ## History and conditional undo
 

@@ -6,11 +6,14 @@ import {
   HumanSaveSchema,
   LocaleSchema,
   ProposeSchema,
+  QuerySchema,
   ReadSchema,
   RelationSchema,
   ReviewSchema,
   TypedFieldSchema,
 } from '../src/contracts/schema.js';
+import { HumanQuerySchema } from '../src/contracts/local.js';
+import { TextSearchSchema } from '../src/contracts/context.js';
 
 const targetId = '00000000-0000-4000-8000-000000000001';
 const proposal = {
@@ -141,4 +144,36 @@ test('agent reads require a section and byte budget or a separate continuation',
     { ...request, cursor: 'cannot-mix-start-and-continuation' },
   ])
     assert.equal(ReadSchema.safeParse(invalid).success, false);
+});
+
+test('review-state sets are strict and canonical across human, agent and text search', () => {
+  const filter = {
+    text: '知',
+    knowledgeReviewStates: ['changed-since-review', 'never-reviewed'],
+  };
+  const request = { filter, limit: 2, maxBytes: 4096 };
+  for (const schema of [QuerySchema, HumanQuerySchema, TextSearchSchema]) {
+    const parsed = schema.parse(request);
+    assert.deepEqual(parsed.filter.knowledgeReviewStates, [
+      'never-reviewed',
+      'changed-since-review',
+    ]);
+    for (const states of [
+      [],
+      null,
+      'current-reviewed',
+      ['unknown'],
+      ['never-reviewed', 'never-reviewed'],
+    ])
+      assert.equal(
+        schema.safeParse({ ...request, filter: { ...filter, knowledgeReviewStates: states } })
+          .success,
+        false,
+      );
+  }
+  assert.equal(AgentToolSchema.safeParse('markKnowledgeReviewed').success, false);
+  assert.equal(
+    QuerySchema.safeParse({ ...request, filter: { ...filter, lifecycle: 'all' } }).success,
+    false,
+  );
 });

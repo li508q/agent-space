@@ -32,6 +32,7 @@ test(
       await native.focus();
       await native.chooseNextFolder(fixture.directory);
       await native.page.getByTestId('open-space').click();
+      await native.page.getByTestId('nav-library').click();
       await native.page.getByTestId(`object-row-${fixture.ids.retryPolicy}`).click();
       const input = native.page.getByTestId('markdown-input');
       await input.waitFor();
@@ -123,6 +124,7 @@ for (const cancel of [false, true]) {
         await native.focus();
         await native.chooseNextFolder(fixture.directory);
         await native.page.getByTestId('open-space').click();
+        await native.page.getByTestId('nav-library').click();
         await native.page.getByTestId(`object-row-${fixture.ids.retryPolicy}`).click();
         const input = native.page.getByTestId('markdown-input');
         const baseline = 'A saved one-line note before opening another item.';

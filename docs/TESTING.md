@@ -1,6 +1,6 @@
 # Verification and evidence
 
-Updated 2026-11-23 for the 0.1.4 small-window follow-up, persistent format 2. Checks trace to the interview-origin scenarios SC-01–SC-09 and acceptance targets AS-01–AS-15 in [PRD.md](PRD.md). All fixtures are synthetic. Concurrency, crashes and response loss are engineering risk cases, not incidents attributed to the user.
+Updated 2026-11-23 for knowledge-review discovery source work and the preceding 0.1.4 small-window follow-up, persistent format 2. Checks trace to the interview-origin scenarios SC-01–SC-09 and acceptance targets AS-01–AS-15 in [PRD.md](PRD.md). All fixtures are synthetic. Concurrency, crashes and response loss are engineering risk cases, not incidents attributed to the user.
 
 ## Run the checks
 
@@ -17,7 +17,7 @@ npm run package:mac
 npm run package:verify
 ```
 
-`check` runs strict TypeScript, zero-warning ESLint, compiled Core/agent builds and contract, persistence, UI-state, localization, desktop-unit and actual standalone MCP suites. The latest source integrated run passed **121/121** tests, including six bounded change-discovery state cases. The focused local-data suite passed **19/19**. Node 22's experimental SQLite warning is expected and distinct from an ESLint warning.
+`check` runs strict TypeScript, zero-warning ESLint, compiled Core/agent builds and contract, persistence, UI-state, localization, desktop-unit and actual standalone MCP suites. The preceding 0.1.4 source integrated run passed **121/121** tests, including six bounded change-discovery state cases. The focused local-data suite passed **19/19**. Node 22's experimental SQLite warning is expected and distinct from an ESLint warning.
 
 Native tests require macOS and run serially, with one GUI owner and private `AGENTSPACE_USER_DATA` profiles. They exercise actual Electron, preload, React, CodeMirror, SQLite and SDK processes. OS chooser results and selected fault cases are explicitly substituted; those tests do not establish physical chooser or input-method behavior.
 
@@ -29,6 +29,27 @@ AGENTSPACE_TEST_EXECUTABLE='/path/to/AgentSpace.app/Contents/MacOS/AgentSpace' \
 ```
 
 This omits the development app entry. The separate no-debugger crash observer in `tests/desktop/native.test.ts` uses the development entry; packaged Electron does not execute its development `--require` observer. Do not interpret that observer's absence as a product crash result.
+
+## Knowledge review and rediscovery source checks
+
+```sh
+npx tsx --test tests/contracts.test.ts tests/core/knowledge-review.test.ts tests/ui/knowledge-review.test.ts tests/protocol/knowledge-review.test.ts
+npx tsx --test --test-concurrency=1 tests/acceptance/native-knowledge-discovery.e2e.ts
+AGENTSPACE_TEST_WINDOW_MAX=1024x688 \
+  npx tsx --test --test-concurrency=1 tests/acceptance/native-knowledge-discovery.e2e.ts
+```
+
+The new Core and actual MCP checks cover the three current-head review states, same-revision review and idempotency, source-only changes, proposal/read/seen separation, 90 interleaved objects, multiple reviews without duplicate rows, two grant scopes, revocation, canonical state-set cursors, authorized invalid metadata and complete UTF-8 result budgets. Historical pins retain their original title, digest and content while the review fields describe the current saved head. Schema definitions advance to 2; Core, persistent format and local contracts remain 2.
+
+The focused native flow covers Library filtering, saving, review and reopening; bounded instance-local MRU positions; dirty-buffer H/R display; held old query/error/review replies; and failed append retry with the same cursor. Continue's explicit recent-changes entry refreshes a cached window to the latest authority watermark, including when Prepared was last selected. Reading an original fixed source and returning retains that new window, scroll and trigger even if another human change occurs during reading.
+
+The final integrated source check passed **133/133**. The related default-window serial native run passed **28/28**; the affected 1024×688 and stricter 1024×681 runs passed **15/15** and **9/9**, respectively. After adding a normal-window creation group and synchronizing captures with actual paint, the final focused file passed **7/7 at each cap**, and the expanded creation case passed separately in the default window. These repetitions cover overlapping cases, rather than additional independent scenarios.
+
+The first related run passed 26/28. One returning project mounted its first query before receiving the retained 25-row reading checkpoint; the matched returning install now supplies that checkpoint before mounting the editor. The other cancellation probe held a newly introduced current-head refresh instead of the intended current-original opening; its fault matching now distinguishes those two actual reads. The original body, draft, later-input, cancellation, caret, scroll and focus assertions remain, and both complete cases passed in the default and capped follow-ups.
+
+Actual Tab, Enter, focus paint, center-hit and collapsed text-caret checks cover English, Simplified Chinese, Japanese, Korean and Spanish, widths 1380/1024/980 and native 1×/2× text. The existing material disclosure and search/type/lifecycle/review controls share the one list scrollport in normal flow. An initial short-window layout left about 21px for rows; moving only the filters left 63.67px. Moving the disclosure into that same scrollport leaves 103.67px in English at 1024×688 native bounds / 328 CSS pixels at 2×, sufficient for the original approximately 95px selected row. The stricter 681px cap yields 649px content / 324 CSS pixels. Controls and fonts retain their sizes, and the existing 2px focus outline is drawn inward only for list controls; summary text and SVG geometry are checked separately.
+
+These are development Electron and synthetic-space observations. A new packaged application, its independent acceptance and physical OS IME behavior require separate evidence.
 
 ## Change discovery in the source build
 

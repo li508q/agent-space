@@ -32,6 +32,8 @@ export function ReviewPane({
   onChanged,
   onObserved,
   onReturnActivity,
+  onDecisionStarting,
+  onDecisionFinished,
 }: {
   api: DesktopApi;
   session: SpaceSession;
@@ -44,6 +46,8 @@ export function ReviewPane({
   onChanged: () => void;
   onObserved: (view: ProposalView) => void;
   onReturnActivity?: () => void;
+  onDecisionStarting?: () => void;
+  onDecisionFinished?: () => void;
 }) {
   const locale = useLocale(),
     makeTask = useTaskFactory();
@@ -68,6 +72,15 @@ export function ReviewPane({
     null,
   );
   const readEpoch = useRef(0);
+  const mutationActive = useRef(true),
+    completion = useRef(onDecisionFinished);
+  completion.current = onDecisionFinished;
+  useEffect(() => {
+    mutationActive.current = true;
+    return () => {
+      mutationActive.current = false;
+    };
+  }, [session.bindingId, proposalId]);
   const identity = useRef(proposalId);
   identity.current = proposalId;
   useEffect(() => {
@@ -121,6 +134,7 @@ export function ReviewPane({
     // Invalidate reads synchronously, before React cleanup or the Core decision.
     readEpoch.current++;
     setLoading(false);
+    onDecisionStarting?.();
     const selected = proposalId;
     if (!task.current || task.current.task.settled) {
       const shared = {
@@ -185,7 +199,10 @@ export function ReviewPane({
         setError('OPERATION_UNKNOWN');
       }
     } finally {
-      if (identity.current === selected) setBusy(false);
+      if (identity.current === selected) {
+        setBusy(false);
+        if (mutationActive.current) completion.current?.();
+      }
     }
   }
   if (!view)
