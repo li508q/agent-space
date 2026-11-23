@@ -391,6 +391,7 @@ type DiscoveryFault = {
   release: (() => void) | null;
   calls: number;
   failAfterRelease: boolean;
+  statusSequence: number;
 };
 type FaultMain = typeof globalThis & { __discoveryFault: DiscoveryFault };
 async function installFault(native: NativeHarness) {
@@ -416,6 +417,7 @@ async function installFault(native: NativeHarness) {
       release: null,
       calls: 0,
       failAfterRelease: false,
+      statusSequence: -1,
     };
     (globalThis as FaultMain).__discoveryFault = state;
     for (const method of [
@@ -423,6 +425,7 @@ async function installFault(native: NativeHarness) {
       'listProposals',
       'getProposal',
       'reviewProposal',
+      'status',
       'saveObject',
       'saveDraft',
       'readObject',
@@ -439,6 +442,10 @@ async function installFault(native: NativeHarness) {
         if (match && method === 'saveObject' && state.mode === 'fail')
           return { ok: false, error: { code: 'FORBIDDEN', retryable: false } };
         const result = await handler(event, request);
+        if (method === 'status') {
+          const status = result as Result<{ authoritySequence: number }>;
+          if (status.ok) state.statusSequence = status.value.authoritySequence;
+        }
         if (match) {
           state.calls++;
           state.method = null;
@@ -560,7 +567,7 @@ function bulkFixture() {
       }),
     );
   }
-  return { ...fixture, applied: applied.sort(), rejected: rejected.sort() };
+  return { ...fixture, applied: applied.sort(), rejected: rejected.sort(), agent };
 }
 
 test(
@@ -1146,7 +1153,7 @@ test(
   },
 );
 
-const focusEvidence = join(root, '.coordination/7B-focus');
+const focusEvidence = join(root, '.coordination/7B-outline');
 async function focusGeometry(native: NativeHarness) {
   return native.page.evaluate(() => {
     const element = document.activeElement as HTMLElement;
@@ -1166,6 +1173,22 @@ async function focusGeometry(native: NativeHarness) {
     }
     const style = getComputedStyle(element),
       outset = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
+    const outlineBounds = {
+      left: r.left - outset,
+      top: r.top - outset,
+      right: r.right + outset,
+      bottom: r.bottom + outset,
+    };
+    const componentFullyVisible =
+      r.left >= clip.left - 0.5 &&
+      r.top >= clip.top - 0.5 &&
+      r.right <= clip.right + 0.5 &&
+      r.bottom <= clip.bottom + 0.5;
+    const outlineFullyVisible =
+      outlineBounds.left >= clip.left - 0.5 &&
+      outlineBounds.top >= clip.top - 0.5 &&
+      outlineBounds.right <= clip.right + 0.5 &&
+      outlineBounds.bottom <= clip.bottom + 0.5;
     const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
     const scroll = document.querySelector<HTMLElement>('.review-scroll');
     const scrollStyle = scroll && getComputedStyle(scroll);
@@ -1177,14 +1200,14 @@ async function focusGeometry(native: NativeHarness) {
       clip,
       focusVisible: element.matches(':focus-visible'),
       outline: style.outline,
+      outlineOffset: style.outlineOffset,
+      outlineBounds,
+      componentFullyVisible,
+      outlineFullyVisible,
       outset,
       centerClear: !!hit && (element === hit || element.contains(hit)),
       hit: hit?.className,
-      fullVisible:
-        r.left - outset >= clip.left - 0.5 &&
-        r.top - outset >= clip.top - 0.5 &&
-        r.right + outset <= clip.right + 0.5 &&
-        r.bottom + outset <= clip.bottom + 0.5,
+      fullVisible: componentFullyVisible && outlineFullyVisible,
       scroll: scroll
         ? {
             rect: scroll.getBoundingClientRect().toJSON(),
@@ -1199,9 +1222,10 @@ async function focusGeometry(native: NativeHarness) {
             flex: scrollStyle!.flex,
           }
         : null,
-      header: document.querySelector('.review-pane > header')!.getBoundingClientRect().toJSON(),
-      footer: document.querySelector('.review-actions')!.getBoundingClientRect().toJSON(),
-      review: document.querySelector('.review-pane')!.getBoundingClientRect().toJSON(),
+      header:
+        document.querySelector('.review-pane > header')?.getBoundingClientRect().toJSON() ?? null,
+      footer: document.querySelector('.review-actions')?.getBoundingClientRect().toJSON() ?? null,
+      review: document.querySelector('.review-pane')?.getBoundingClientRect().toJSON() ?? null,
     };
   });
 }
@@ -1260,11 +1284,24 @@ async function tabTo(native: NativeHarness, testId: string, reverse = false) {
 }
 
 test(
-  '7B F-01 real Tab fully exposes original sources and decision controls at 980px in five locales',
+  '7B real Tab preserves complete list outlines and original-source focus across locales and viewports',
   { skip: process.platform !== 'darwin', timeout: 180_000 },
   async () => {
-    const fixture = createAcceptanceFixture(),
-      { agent } = grant(fixture);
+    const fixture = bulkFixture(),
+      { agent } = fixture;
+    const focusTarget = requireSuccess(
+      fixture.human.createObject({
+        operationKey: 'outline:target',
+        id: randomUUID(),
+        kind: 'document',
+        content: {
+          title: 'Focus knowledge',
+          body: 'K1 original focus target.',
+          properties: {},
+          relations: [],
+        },
+      }),
+    ).object;
     const reason =
       'Long original reason: preserve the cited measurements while inspecting a processed result. '.repeat(
         35,
@@ -1287,7 +1324,7 @@ test(
       agent.propose({
         operationKey: 'focus:applied',
         action: 'update',
-        targetId: fixture.ids.retryPolicy,
+        targetId: focusTarget.id,
         baseRevision: 1,
         patch: { body: 'Accepted A2, distinct from current edits.' },
         purpose: 'Inspect original evidence after reopening',
@@ -1323,16 +1360,16 @@ test(
     const results = [];
     try {
       await open(native, fixture);
-      await native.setWindowBounds({ width: 980, height: 841 });
-      const combinations: (readonly [Locale, 1 | 2])[] = [
-        ['en', 2],
+      await installFault(native);
+      const combinations: (readonly [Locale, 1 | 2, 980 | 1380])[] = [
+        ['en', 1, 1380],
+        ['en', 2, 1380],
         ...supportedLocales.flatMap((locale) =>
-          [1, 2]
-            .filter((scale) => locale !== 'en' || scale !== 2)
-            .map((scale) => [locale, scale] as readonly [Locale, 1 | 2]),
+          [1, 2].map((scale) => [locale, scale, 980] as readonly [Locale, 1 | 2, 980 | 1380]),
         ),
       ];
-      for (const [locale, scale] of combinations) {
+      for (const [locale, scale, width] of combinations) {
+        await native.setWindowBounds({ width, height: 841 });
         await native.page.getByTestId('settings-button').click();
         await native.page.getByTestId('locale-select').selectOption(locale);
         await native.page.getByTestId('text-scale-select').selectOption(String(scale));
@@ -1344,7 +1381,96 @@ test(
           { locale, scale },
         );
         await native.page.keyboard.press('Escape');
+        const readySequence = requireSuccess(fixture.human.status()).authoritySequence;
+        for (let attempt = 0; attempt < 100; attempt++) {
+          if (
+            (await native.application.evaluate(
+              () => (globalThis as FaultMain).__discoveryFault.statusSequence,
+            )) >= readySequence
+          )
+            break;
+          await delay(20);
+        }
+        assert.ok(
+          (await native.application.evaluate(
+            () => (globalThis as FaultMain).__discoveryFault.statusSequence,
+          )) >= readySequence,
+          'The real UI authority poll must observe the previous decision before this independent keyboard flow.',
+        );
+        await native.page.evaluate(
+          () =>
+            new Promise<void>((resolve) =>
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+            ),
+        );
         await selectProcessed(native);
+        await native.page.waitForFunction(
+          () =>
+            document.querySelectorAll('[data-testid="proposal-group-applied"] .material-row')
+              .length === 50,
+        );
+        const prefix = `${locale}-${width}-${scale}x`;
+        // Only establish the reported starting point; targets are reached by actual Tab.
+        await native.page.getByTestId('review-processed').focus();
+        await native.page.keyboard.press('Tab');
+        assert.equal(
+          await native.page.evaluate(() => document.activeElement?.getAttribute('data-testid')),
+          'review-refresh',
+        );
+        requireFocus(await recordFocus(native, `${prefix}-refresh-tab`), `${prefix} refresh`);
+        await native.page.keyboard.press('Shift+Tab');
+        requireFocus(
+          await recordFocus(native, `${prefix}-processed-tab`),
+          `${prefix} processed collection`,
+        );
+        await native.page.keyboard.press('Shift+Tab');
+        requireFocus(await focusGeometry(native), `${prefix} pending collection`);
+        await native.page.keyboard.press('Tab');
+        await native.page.keyboard.press('Tab');
+        await native.page.keyboard.press('Tab');
+        const firstRowId = await native.page.evaluate(() =>
+          document.activeElement?.getAttribute('data-testid'),
+        );
+        assert.ok(firstRowId?.startsWith('proposal-row-'));
+        requireFocus(
+          await recordFocus(native, `${prefix}-ordinary-row-tab`),
+          `${prefix} ordinary row`,
+        );
+        await native.page.keyboard.press('Enter');
+        await native.page.getByTestId('proposal-review').waitFor();
+        await native.page.getByTestId('nav-review').click();
+        await native.page.getByTestId('review-processed').focus();
+        await native.page.keyboard.press('Tab');
+        await native.page.keyboard.press('Tab');
+        assert.equal(
+          await native.page.evaluate(() => document.activeElement?.getAttribute('data-testid')),
+          firstRowId,
+        );
+        assert.ok(
+          (await native.page.getByTestId(firstRowId!).getAttribute('class'))?.includes('selected'),
+        );
+        requireFocus(
+          await recordFocus(native, `${prefix}-selected-row-tab`),
+          `${prefix} selected row`,
+        );
+        await arm(native, 'listProposals', 'fail', 'applied', true);
+        await tabTo(native, 'proposal-more-applied');
+        requireFocus(await recordFocus(native, `${prefix}-more-tab`), `${prefix} more`);
+        await native.page.keyboard.press('Enter');
+        await native.page
+          .getByTestId('proposal-group-applied')
+          .getByRole('button', { name: t(locale, 'common.retry'), exact: true })
+          .waitFor();
+        // Loading may disable the More trigger; start this independent retry path at the same collection anchor.
+        await native.page.getByTestId('review-processed').focus();
+        await tabTo(native, t(locale, 'common.retry'));
+        requireFocus(await recordFocus(native, `${prefix}-retry-tab`), `${prefix} retry`);
+        await native.page.keyboard.press('Enter');
+        await native.page.waitForFunction(
+          () =>
+            document.querySelectorAll('[data-testid="proposal-group-applied"] .material-row')
+              .length > 50,
+        );
         await native.page.getByTestId(`proposal-row-${applied.id}`).click();
         const review = native.page.getByTestId('proposal-review');
         await review.getByText(reason, { exact: true }).waitFor();
@@ -1353,7 +1479,10 @@ test(
         await native.page.keyboard.press('Tab');
         const sourceId = `proposal-source-${applied.id}-0`;
         assert.equal(await native.page.evaluate(() => document.activeElement?.id), sourceId);
-        const geometry = await recordFocus(native, `${locale}-${scale}x-applied-source-first-tab`);
+        const geometry = await recordFocus(
+          native,
+          `${locale}-${width}-${scale}x-applied-source-first-tab`,
+        );
         requireFocus(geometry, `${locale}/${scale} applied source`);
         await native.page.keyboard.press('Enter');
         await native.page
@@ -1362,7 +1491,7 @@ test(
             exact: false,
           })
           .waitFor();
-        await tabTo(native, 'source-back');
+        await tabTo(native, 'source-back', true);
         await native.page.keyboard.press('Enter');
         await native.page.waitForFunction((id) => document.activeElement?.id === id, sourceId);
         const returned = await focusGeometry(native);
@@ -1383,7 +1512,7 @@ test(
         const wrappedId = `proposal-source-${applied.id}-1`;
         assert.equal(await native.page.evaluate(() => document.activeElement?.id), wrappedId);
         requireFocus(
-          await recordFocus(native, `${locale}-${scale}x-wrapped-source-tab`),
+          await recordFocus(native, `${locale}-${width}-${scale}x-wrapped-source-tab`),
           `${locale}/${scale} wrapped source`,
         );
         await native.page.keyboard.press('Enter');
@@ -1391,7 +1520,7 @@ test(
           .getByTestId('source-reader')
           .getByText('K1 wrapped source must remain exact.', { exact: true })
           .waitFor();
-        await tabTo(native, 'source-back');
+        await tabTo(native, 'source-back', true);
         await native.page.keyboard.press('Enter');
         await native.page.waitForFunction((id) => document.activeElement?.id === id, wrappedId);
         requireFocus(await focusGeometry(native), `${locale}/${scale} returned wrapped source`);
@@ -1414,7 +1543,7 @@ test(
           .getByTestId('source-reader')
           .getByText('Accepted A2, distinct from current edits.', { exact: true })
           .waitFor();
-        await tabTo(native, 'source-back');
+        await tabTo(native, 'source-back', true);
         await native.page.keyboard.press('Enter');
         await native.page.waitForFunction(
           (id) => document.activeElement?.id === id,
@@ -1423,15 +1552,15 @@ test(
         requireFocus(await focusGeometry(native), `${locale}/${scale} returned fixed result`);
         await tabTo(native, t(locale, 'proposal.copyProposed'));
         requireFocus(
-          await recordFocus(native, `${locale}-${scale}x-processed-footer-tab`),
+          await recordFocus(native, `${locale}-${width}-${scale}x-processed-footer-tab`),
           `${locale}/${scale} processed footer`,
         );
         const target = requireSuccess(
-          fixture.human.readObject({ objectId: fixture.ids.retryPolicy }),
+          fixture.human.readObject({ objectId: focusTarget.id }),
         ).object;
         const pending = requireSuccess(
           agent.propose({
-            operationKey: `focus:pending:${locale}:${scale}`,
+            operationKey: `focus:pending:${locale}:${width}:${scale}`,
             action: 'update',
             targetId: target.id,
             baseRevision: target.revision,
@@ -1452,14 +1581,14 @@ test(
           `proposal-source-${pending.id}-0`,
         );
         requireFocus(
-          await recordFocus(native, `${locale}-${scale}x-pending-source-tab`),
+          await recordFocus(native, `${locale}-${width}-${scale}x-pending-source-tab`),
           `${locale}/${scale} pending source`,
         );
         await tabTo(native, 'reject-proposal');
         requireFocus(await focusGeometry(native), `${locale}/${scale} reject`);
         await tabTo(native, 'accept-proposal');
         requireFocus(
-          await recordFocus(native, `${locale}-${scale}x-accept-tab`),
+          await recordFocus(native, `${locale}-${width}-${scale}x-accept-tab`),
           `${locale}/${scale} accept`,
         );
         const decision = scale === 1 ? 'accept' : 'reject';
@@ -1474,7 +1603,14 @@ test(
               .status === (decision === 'accept' ? 'applied' : 'rejected'),
           'Keyboard decision must persist.',
         );
-        results.push({ locale, scale, source: geometry, returnedSource: returned, decision });
+        results.push({
+          locale,
+          scale,
+          width,
+          source: geometry,
+          returnedSource: returned,
+          decision,
+        });
       }
       assert.equal(
         requireSuccess(fixture.human.readObject({ objectId: originalSource.id, revision: 1 }))

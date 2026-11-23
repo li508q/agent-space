@@ -46,7 +46,13 @@ Copy the generated launch configuration into your MCP host, or use the documente
 
 An agent starts with small discovery and model-description calls. It can combine structured filtering, literal search, bounded links and exact-version reads for the current task. A monthly retrospective is one possible task, not a built-in workflow. Search reports limits and does not promise semantic completeness.
 
-You can inspect and copy a selected saved version with its references. Treat unsaved text as a draft. **Activity → Actual changes** shows persisted events with their time and actor, including human saves and proposal decisions. Open the version at that event or the original proposal; creating or rejecting a proposal does not apply its content. **Prepared context** separately shows the exact references and ranges prepared for tool results, without proving host receipt, understanding or external completion. In **Review**, switch between **Pending** and **Processed**; each status has its own loaded records, more and retry controls. Applied proposals retain their original diff, reason and source pins after restart. **Read accepted version** opens the fixed result; opening the current original is a separate action. Rejected proposals retain the original suggestion without inventing a rejection reason or a new object. Returning from a source preserves the proposal selection and reading position.
+You can inspect and copy a saved version with its references. Unsaved text remains a draft.
+
+- **Activity → Actual changes.** Find human saves and proposal decisions after reopening. Each event shows its time and actor, with an entry to that version or the original proposal.
+- **Prepared context.** Inspect the references and ranges assembled for tool results. Preparation alone does not confirm host receipt, understanding or external task completion.
+- **Review → Pending / Processed.** Browse each status with loaded counts, more and retry controls. Inspect the original differences, reason and fixed source versions. **Read accepted version** opens the saved result; a separate action opens the current original. Returning from a source keeps your proposal selection and reading position.
+
+Creating or rejecting a proposal leaves accepted content unchanged. Rejected suggestions remain available for inspection.
 
 ## Review and continue work
 

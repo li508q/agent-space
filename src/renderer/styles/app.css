@@ -247,6 +247,10 @@ button.primary:hover:not(:disabled) {
   flex: 1;
   padding-block: 0.3rem 1rem;
 }
+/* Keep edge-aligned list controls' focus paint inside their scrollport. */
+.list-scroll button:focus-visible {
+  outline-offset: -4px;
+}
 .material-row,
 .draft-list > button {
   display: flex;

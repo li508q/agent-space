@@ -46,7 +46,13 @@ Copia la configuración MCP generada al anfitrión o usa la [CLI](../AGENT_PROTO
 
 El agente combina descripción del modelo, filtros, búsqueda literal, relaciones acotadas y lectura de versiones concretas. Una retrospectiva mensual es un ejemplo, no un flujo incorporado. La búsqueda informa de su alcance y no garantiza exhaustividad semántica.
 
-Puedes inspeccionar y copiar una versión guardada con sus referencias. El texto sin guardar sigue siendo un borrador. **Actividad → Cambios reales** muestra eventos persistentes con fecha y autor, incluidos guardados humanos y decisiones sobre propuestas. Abre la versión de ese evento o la propuesta original; crear o rechazar una propuesta no aplica su contenido. **Contexto preparado** muestra por separado las referencias y los rangos preparados para herramientas, sin demostrar recepción, comprensión ni finalización externa. En **Revisión**, alterna entre **Pendientes** y **Procesadas**; cada estado conserva sus registros cargados y controles para cargar más o reintentar. Tras reiniciar puedes consultar las diferencias, el motivo y las fuentes fijadas originales. **Leer la versión aceptada** abre el resultado fijo; el original actual tiene otra acción. Las propuestas rechazadas no inventan motivos de rechazo ni objetos nuevos. Volver de una fuente conserva la propuesta seleccionada y la posición de lectura.
+Puedes inspeccionar y copiar una versión guardada con sus referencias. El texto sin guardar sigue siendo un borrador.
+
+- **Actividad → Cambios reales.** Encuentra guardados humanos y decisiones sobre propuestas tras reiniciar. Cada evento muestra su fecha, autor y acceso a esa versión o a la propuesta original.
+- **Contexto preparado.** Consulta las referencias y los rangos reunidos para los resultados de herramientas. La preparación por sí sola no confirma recepción, comprensión ni finalización de una tarea externa.
+- **Revisión → Pendientes / Procesadas.** Consulta los registros cargados de cada estado, carga más o reintenta. Revisa las diferencias, el motivo y las fuentes fijadas originales. **Leer la versión aceptada** abre el resultado guardado; otra acción abre el original actual. Volver de una fuente conserva la propuesta seleccionada y la posición de lectura.
+
+Crear o rechazar una propuesta deja intacto el contenido aceptado. Las sugerencias rechazadas siguen disponibles para consulta.
 
 Revisa el propósito, el motivo, las diferencias, la versión de base y las fuentes de la propuesta. Abre una fuente en la revisión citada y vuelve a la misma revisión de cambios. El contenido aceptado no cambia hasta que aplicas la propuesta. Si cambia la base, ambas versiones se conservan. Puedes rechazar un candidato incluso después de revocar su permiso. Deshacer protege el trabajo posterior; también puedes copiar una versión antigua a una nota nueva.
 

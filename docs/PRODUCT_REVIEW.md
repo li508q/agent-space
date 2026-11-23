@@ -8,7 +8,7 @@ The local collaboration foundation is implemented and technically verified. The 
 
 The expanded CI subsequently found a separate compact-list control defect: an opening request locked the list while its status/Cancel surface was hidden. The 0.1.2 application corrects that presentation and passed source checks, new-package runtime verification and independent follow-up. The earlier 0.1.1 acceptance retains its bounded scope; the newly exercised path is closed by its own 0.1.2 evidence.
 
-The 0.1.3 candidate adds durable recent changes and processed proposals through the existing Activity and Review entries. Source checks and packaged runtime verification passed. The first independent desktop pass found a real keyboard-focus obstruction in a short window at 200% zoom: the review footer covered a focused source control. That candidate is not accepted. The focused layout correction passed source and native regression checks; independent acceptance of its rebuilt package remains pending. The open-work table below describes the earlier acceptance baseline until that gate closes.
+The 0.1.3 candidate adds durable recent changes and processed proposals through the existing Activity and Review entries. Source checks and packaged runtime verification passed. Independent keyboard checks found two layout defects: a review footer obscured a focused source at 200% zoom, and a list boundary clipped an outer focus outline in a wide window. Focused corrections passed source and native regression checks; independent acceptance of the final rebuilt package remains pending. The open-work table below describes the earlier acceptance baseline until that gate closes.
 
 ## The product promise
 
