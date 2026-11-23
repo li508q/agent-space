@@ -103,6 +103,8 @@ A test-only privileged Main fixture wraps already registered real IPC handlers. 
 
 Real CodeMirror composition is driven through Chromium's input protocol. Uncommitted CJK is not autosaved; the actual eight-second native Keep-open fallback invalidates the old close, and a later normal close saves committed text and reopens. Source-mode crash coverage launches a separate real app without a debugging transport, kills only its own renderer PID and observes the native fallback with the window retained. Cleanup termination is never counted as a successful product close.
 
+A later CI run exposed a test-cleanup lifetime error after a successful native quit: looking up Playwright's process channel after it was disposed could hide the result. A separate real-process probe first confirmed exit code 0, reproduced the cleanup error, then passed repeated cleanup after the harness retained the child at launch. The actual native bridge/reopen, local-data boundary and bundled agent-mode step passed 4/4 after correction. This changes the test harness, not the production application or its accepted package.
+
 Named New, Save, Search and Settings menu commands and actual CodeMirror Undo/Redo keyboard shortcuts pass. Foreground Cocoa menu-role clicks and physical IME remain separate from those automated results. Native source/history, asset relink/archive/restore, import, backup/export, explicit restore opening and foreign draft copy/fork/resume have been exercised through visible controls.
 
 ## Actual packaged artifact

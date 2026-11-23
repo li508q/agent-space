@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { once } from 'node:events';
+import type { ChildProcess } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { _electron, type ElectronApplication, type Page } from 'playwright-core';
 import type { AppBootstrap } from '../../src/contracts/app.js';
@@ -85,6 +86,9 @@ export async function launchNative(options: {
     env,
     timeout: 30_000,
   });
+  // Playwright removes the process channel when the app exits. Keep the actual
+  // child while the connection is live so cleanup is safe after a real quit.
+  const child = application.process();
   const pageErrors: string[] = [];
   try {
     const page = await application.firstWindow({ timeout: 30_000 });
@@ -195,26 +199,24 @@ export async function launchNative(options: {
         }, directory);
       },
       close: async () => {
+        if (child.exitCode !== null || child.signalCode !== null) return;
         await geometry('close').catch(() => {});
-        await stopNative(application);
+        await stopNative(application, child);
       },
     };
   } catch (error) {
-    await stopNative(application);
+    await stopNative(application, child);
     throw error;
   }
 }
 
-async function stopNative(application: ElectronApplication): Promise<void> {
-  const child = application.process();
-  const closed = application.close().catch(() => undefined);
-  const orderly = await Promise.race([
-    closed.then(() => true),
-    delay(2_000, undefined, { ref: false }).then(() => false),
-  ]);
-  if (orderly || child.exitCode !== null || child.signalCode !== null) return;
-  // Cleanup of an isolated failed test is not a product close/recovery assertion.
+async function stopNative(application: ElectronApplication, child: ChildProcess): Promise<void> {
+  if (child.exitCode !== null || child.signalCode !== null) return;
   const exited = once(child, 'exit').catch(() => undefined);
+  void application.close().catch(() => undefined);
+  await Promise.race([exited, delay(2_000, undefined, { ref: false })]);
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  // Cleanup of an isolated failed test is not a product close/recovery assertion.
   child.kill('SIGKILL');
   await Promise.race([exited, delay(2_000, undefined, { ref: false })]);
 }
