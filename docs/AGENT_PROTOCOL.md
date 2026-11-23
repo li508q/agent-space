@@ -97,6 +97,25 @@ Search, relationship and evidence cursors bind the current authority sequence, i
 
 Activity stage `prepared` records the exact material the core assembled to return. This adapter adds no emission-confirmation log: it does not claim stdout was received, a model understood the content or an agent finished a task. `committed-change` is a local domain event and may still describe a pending proposal.
 
+## Clipboard start briefs
+
+The desktop's **Prepare context** action produces the independent `agentspace-brief/v1` format. The existing single-object `agentspace-context/v1` format is unchanged. A brief is inspectable clipboard text, not a new tool call, saved object, grant or delivery receipt.
+
+| Field                | Meaning                                                                                                                                                                                         |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `format`             | `agentspace-brief/v1`                                                                                                                                                                           |
+| `scope`              | `kind: "selected-saved-versions"`, `completeProjectSnapshot: false`, `relationTraversal: "none"`                                                                                                |
+| `space`              | The selected space's `id`, `instanceId` and authored `title`                                                                                                                                    |
+| `task`               | Optional human-authored intent, represented as a string of at most 1,000 Unicode code points                                                                                                    |
+| `references`         | 1–20 unique pinned refs, each with its saved `title`, `kind` and `digest`; different revisions of one object remain distinct                                                                    |
+| `referenceGroups`    | Indexes of selected pins: `startingSavedVersion`, `directLinksInStartingVersion`, `currentActiveProjectMaterialAsQueried` and `earlierSelectedResults`; a pin may belong to more than one group |
+| `projectGoalExcerpt` | Optional selected starting project's exact saved-body prefix: `ref`, `text` (at most 280 code points), `unit` and `truncated`                                                                   |
+| `usage`              | Hints `read: "exact-pins"`, `changes: "proposals"`, `delivery: "clipboard-only"`                                                                                                                |
+
+The desktop verifies selected pins before preparing the payload. Current relationship targets are resolved for that preparation; a historical project's declared links and current active membership are separate candidate groups. The brief is not an as-of project snapshot and does not recursively include linked bodies. It omits credentials, recorded filesystem locators and unselected bodies; unchecking the starting project also omits its title and excerpt. Authored task text and the visible excerpt are copied as shown.
+
+Read each pin through the currently authorized `object_read` capability and propose changes through the existing tools. The brief grants no access. An explicitly created object grant covers that object's readable versions, including later versions, rather than only the brief's pin; links never grant their targets. Clipboard success does not establish host receipt, model understanding or task completion.
+
 ## Restricted single-call CLI
 
 The CLI uses the same dispatch, authorization and ten tools. It reads one UTF-8 JSON value from stdin, capped at 2,097,152 bytes, and writes one newline-terminated JSON Result to stdout. It is an agent capability adapter, not a human administration or filesystem CLI.

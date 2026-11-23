@@ -1,6 +1,50 @@
 import type { LocaleErrorDictionary } from '../../contracts/errors.js';
 
 export const en = Object.freeze({
+  'contextPrep.title': 'Prepare context',
+  'contextPrep.intro':
+    'Check the saved versions you want to share, then copy a brief or set up agent access.',
+  'contextPrep.task': 'Short task (optional)',
+  'contextPrep.taskLimit': '{count} / 1,000 characters',
+  'contextPrep.selected': '{count} selected · up to 20 saved versions',
+  'contextPrep.selectionLimit': 'Select up to 20 saved versions.',
+  'contextPrep.seed': 'Starting saved version',
+  'contextPrep.direct': 'Direct links in this version',
+  'contextPrep.directScope':
+    'These links were declared in the starting version. Current targets are resolved to fixed versions for this preparation.',
+  'contextPrep.loaded': '{count} loaded',
+  'contextPrep.unavailableLink': 'This link is unavailable. Retry to check it again.',
+  'contextPrep.goalExcerpt': 'Project goal excerpt (up to 280 characters)',
+  'contextPrep.members': 'Current active project material',
+  'contextPrep.membersScope':
+    'Current active material linked to this project, loaded 20 at a time. This is not the project membership at the historical version.',
+  'contextPrep.retained': 'Selected from earlier results',
+  'contextPrep.unavailableSelection':
+    'Retry unavailable selected versions or remove them before copying or setting up access.',
+  'contextPrep.scope':
+    'Only selected saved versions are included. Direct links and current members do not form a complete historical project snapshot.',
+  'contextPrep.preview': 'Inspect brief and references',
+  'contextPrep.copy': 'Copy brief and references',
+  'contextPrep.import': 'Import existing material',
+  'contextPrep.checking': 'Checking selected saved versions…',
+  'contextPrep.copied': 'Brief and references copied.',
+  'contextPrep.unsavedDraft':
+    'This preparation stays in memory for this space. It is not a saved document.',
+  'contextPrep.resolvedCurrent': 'Current link resolved for this preparation',
+  'contextPrep.referenceDetails': 'Reference identity',
+  'contextPrep.kind.document': 'Note',
+  'contextPrep.kind.project': 'Project',
+  'contextPrep.kind.record': 'Record',
+  'contextPrep.kind.asset': 'Asset',
+  'contextPrep.objectAccess':
+    'Object access covers its readable versions, including later versions. The brief fixes particular versions; it does not restrict access to those pins.',
+  'contextPrep.finishAccess': 'Finish or retry this access operation before closing.',
+  'contextPrep.pendingAccess':
+    'This form already contains your choices or a one-time configuration. You can explicitly use the newly selected material without creating access yet.',
+  'contextPrep.usePrepared': 'Use selected material',
+  'contextPrep.hostSteps':
+    'After creating access, copy the Codex TOML or stdio launch JSON. Add the corresponding MCP settings in your host and reconnect, then give it the brief. Adapt launch JSON to the host’s configuration format.',
+  'contextPrep.savedOnly': 'Use a saved version. Save your changes before preparing context.',
   'activity.changes': 'Actual changes',
   'activity.prepared': 'Prepared context',
   'activity.refresh': 'Refresh',

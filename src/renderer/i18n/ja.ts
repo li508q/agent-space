@@ -1,6 +1,51 @@
 import type { Dictionary } from './types.js';
 
 export const ja = Object.freeze({
+  'contextPrep.title': 'コンテキストを準備',
+  'contextPrep.intro':
+    '共有する保存済みバージョンを確認し、短い説明をコピーするか、エージェントのアクセスを設定します。',
+  'contextPrep.task': '短いタスク（任意）',
+  'contextPrep.taskLimit': '{count} / 1,000 文字',
+  'contextPrep.selected': '{count} 件選択 · 保存済みバージョンは最大 20 件',
+  'contextPrep.selectionLimit': '保存済みバージョンを最大 20 件選択できます。',
+  'contextPrep.seed': '起点の保存済みバージョン',
+  'contextPrep.direct': 'このバージョンに記録された直接リンク',
+  'contextPrep.directScope':
+    '起点のバージョンに記録されたリンクです。現在を参照するリンクは、今回の準備で特定のバージョンに固定されます。',
+  'contextPrep.loaded': '{count} 件読み込み済み',
+  'contextPrep.unavailableLink': 'このリンクは利用できません。再試行して確認できます。',
+  'contextPrep.goalExcerpt': 'プロジェクト目標の抜粋（最大 280 文字）',
+  'contextPrep.members': '現在関連するアクティブな資料',
+  'contextPrep.membersScope':
+    '現在このプロジェクトに関連するアクティブな資料を 20 件ずつ読み込みます。過去のバージョン時点の所属を表すものではありません。',
+  'contextPrep.retained': '以前の結果から選択したバージョン',
+  'contextPrep.unavailableSelection':
+    '利用できない選択済みバージョンを再試行するか、選択を解除してからコピーまたはアクセスを設定してください。',
+  'contextPrep.scope':
+    '選択した保存済みバージョンだけを含みます。直接リンクと現在の資料は、過去のプロジェクト全体のスナップショットではありません。',
+  'contextPrep.preview': '説明と参照を確認',
+  'contextPrep.copy': '説明と参照をコピー',
+  'contextPrep.import': '既存の資料をインポート',
+  'contextPrep.checking': '選択した保存済みバージョンを確認中…',
+  'contextPrep.copied': '説明と参照をコピーしました。',
+  'contextPrep.unsavedDraft':
+    'この準備内容は、このスペースのメモリ内だけに保持されます。文書としては保存されていません。',
+  'contextPrep.resolvedCurrent': '今回の準備で固定した現在参照リンク',
+  'contextPrep.referenceDetails': '参照の識別情報',
+  'contextPrep.kind.document': 'ノート',
+  'contextPrep.kind.project': 'プロジェクト',
+  'contextPrep.kind.record': 'レコード',
+  'contextPrep.kind.asset': 'アセット',
+  'contextPrep.objectAccess':
+    'オブジェクトへのアクセスは、後続のバージョンを含む読み取り可能なバージョンを対象とします。説明の参照は特定バージョンに固定されますが、権限はそのバージョンだけに限定されません。',
+  'contextPrep.finishAccess': '現在のアクセス操作を完了するか再試行してから閉じてください。',
+  'contextPrep.pendingAccess':
+    'このフォームには選択内容または一度だけ表示される設定があります。新しく選んだ資料を明示的に使用できます。この操作だけではアクセスは作成されません。',
+  'contextPrep.usePrepared': '選択した資料を使用',
+  'contextPrep.hostSteps':
+    'アクセス作成後に Codex TOML または stdio 起動 JSON をコピーし、利用するホストの MCP 設定に追加して再接続してから、説明を渡してください。起動 JSON はホストの設定形式に合わせてください。',
+  'contextPrep.savedOnly':
+    '保存済みバージョンを使用します。変更を保存してからコンテキストを準備してください。',
   'activity.changes': '実際の変更',
   'activity.prepared': '準備したコンテキスト',
   'activity.refresh': '更新',

@@ -25,6 +25,7 @@ import type {
   DraftSnapshot,
   GrantSummary,
   ObjectSummary,
+  ObjectSnapshot,
   ObjectView,
   ProposalView,
   SpaceStatus,
@@ -46,6 +47,7 @@ import {
 } from './state/transition.js';
 import { OperationTask } from './state/operation.js';
 import { RecentWork } from './state/recent.js';
+import { preparationKey, type AccessDraft, type AccessObject } from './state/collaboration.js';
 import {
   ProposalLists,
   collectionFor,
@@ -79,6 +81,7 @@ import { RecordsTable } from './components/RecordsTable.js';
 import { ObjectActionsDialog } from './components/ObjectActionsDialog.js';
 import { ImportDialog } from './components/ImportDialog.js';
 import { RecoveryDialog } from './components/RecoveryDialog.js';
+import { ContextPreparation } from './components/ContextPreparation.js';
 
 type Destination = 'continue' | 'projects' | 'library' | 'review';
 type ReaderEntry = {
@@ -217,6 +220,13 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   const [status, setStatus] = useState<SpaceStatus>(session.status);
   const [grants, setGrants] = useState<GrantSummary[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [contextSeed, setContextSeed] = useState<ObjectSnapshot | null>(null),
+    [contextOpen, setContextOpen] = useState(false),
+    [contextReturn, setContextReturn] = useState<'settings' | 'imports' | null>(null),
+    [accessDraft, setAccessDraft] = useState<AccessDraft | null>(null);
+  const accessCloseBlocked = useRef(false),
+    contextTrigger = useRef<string | null>(null),
+    contextRouteEpoch = useRef(0);
   const [importsOpen, setImportsOpen] = useState(false),
     [recoveryOpen, setRecoveryOpen] = useState(false);
   const [refresh, setRefresh] = useState(0),
@@ -912,12 +922,12 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   }, []);
   useEffect(() => {
     function keyboard(event: KeyboardEvent) {
-      if (
-        event.isComposing ||
-        editorRef.current?.getSnapshot().composing ||
-        document.querySelector('dialog[open]')
-      )
+      if (event.isComposing || editorRef.current?.getSnapshot().composing) return;
+      if (event.key === 'Escape' && settingsOpen && accessCloseBlocked.current) {
+        event.preventDefault();
         return;
+      }
+      if (document.querySelector('dialog[open]')) return;
       if ((event.metaKey || event.ctrlKey) && ['s', 'k', 'n'].includes(event.key.toLowerCase())) {
         event.preventDefault();
         command(
@@ -939,8 +949,15 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       return;
     }
     if (value === 'settings') {
-      void editorRef.current?.afterComposition().then(() => setSettingsOpen(true));
-      if (!editorRef.current) setSettingsOpen(true);
+      const route = contextRouteEpoch.current;
+      void (editorRef.current?.afterComposition() ?? Promise.resolve()).then(() => {
+        if (!alive.current || route !== contextRouteEpoch.current) return;
+        if (contextOpen) {
+          setContextOpen(false);
+          setContextReturn('settings');
+        }
+        setSettingsOpen(true);
+      });
       return;
     }
     if (value === 'new-note') {
@@ -959,13 +976,64 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       requestAnimationFrame(() => searchRef.current?.focus());
     });
   }
+  function openImports(fromPreparation = false) {
+    const route = contextRouteEpoch.current;
+    void (editorRef.current?.afterComposition() ?? Promise.resolve()).then(() => {
+      if (
+        !alive.current ||
+        navigation.pending ||
+        navigation.locked ||
+        (fromPreparation && (route !== contextRouteEpoch.current || !contextOpen))
+      )
+        return;
+      if (fromPreparation) {
+        setContextReturn('imports');
+        setContextOpen(false);
+      } else setContextReturn(null);
+      setImportsOpen(true);
+    });
+  }
+  function prepareContext(object: ObjectSnapshot, trigger: string) {
+    if (
+      navigation.pending ||
+      navigation.locked ||
+      object.spaceId !== session.status.spaceId ||
+      object.instanceId !== session.status.instanceId
+    )
+      return;
+    contextRouteEpoch.current++;
+    contextTrigger.current = trigger;
+    setContextSeed((old) =>
+      old && preparationKey(session, old) === preparationKey(session, object) ? old : object,
+    );
+    setContextReturn(null);
+    setContextOpen(true);
+  }
+  function closeContext() {
+    contextRouteEpoch.current++;
+    setContextOpen(false);
+    setContextReturn(null);
+    requestAnimationFrame(() =>
+      document.getElementById(contextTrigger.current ?? '')?.focus({ preventScroll: true }),
+    );
+  }
+  function prepareAccess(objects: AccessObject[]) {
+    setAccessDraft((old) =>
+      old && JSON.stringify(old.objects) === JSON.stringify(objects)
+        ? old
+        : { id: newKey('prepared-access'), objects },
+    );
+    setContextOpen(false);
+    setContextReturn('settings');
+    setSettingsOpen(true);
+    requestAnimationFrame(() => {
+      const heading = document.getElementById('agent-access-heading');
+      heading?.focus();
+    });
+  }
   useImperativeHandle(ref, () => ({
     bindingId: session.bindingId,
-    openImports: () => {
-      void (editorRef.current?.afterComposition() ?? Promise.resolve()).then(() => {
-        if (alive.current && !navigation.pending && !navigation.locked) setImportsOpen(true);
-      });
-    },
+    openImports: () => openImports(),
     prepareToLeave,
     discardEdits,
     copyEdits,
@@ -1793,6 +1861,9 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                     <button onClick={() => chooseDestination('projects')}>
                       {t(locale, 'continue.openProjects')}
                     </button>
+                    <button data-testid="continue-import" onClick={() => openImports()}>
+                      {t(locale, 'contextPrep.import')}
+                    </button>
                   </div>
                 </>
               )}
@@ -1958,9 +2029,22 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                     </button>
                   ))}
                   {!objects.length && !loading && !queryError && (
-                    <p className="list-empty">
-                      {t(locale, text || reviewFilter ? 'context.noMatches' : 'ui.emptyMaterial')}
-                    </p>
+                    <div className="list-empty">
+                      <p>
+                        {t(locale, text || reviewFilter ? 'context.noMatches' : 'ui.emptyMaterial')}
+                      </p>
+                      {destination === 'library' &&
+                        !text &&
+                        !kind &&
+                        !projectId &&
+                        !reviewFilter &&
+                        queryChain.current?.key === objectQueryKey &&
+                        queryChain.current.cursor === cursor && (
+                          <button data-testid="library-empty-import" onClick={() => openImports()}>
+                            {t(locale, 'contextPrep.import')}
+                          </button>
+                        )}
+                    </div>
                   )}
                   {cursor && (
                     <button
@@ -2083,6 +2167,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                   restoreReferenceCounts={restoreReferenceCounts}
                   onReturnReading={readerEditing && readers.length ? returnToReading : undefined}
                   onOpen={openReference}
+                  onPrepare={prepareContext}
                   onHistory={() => setAux((old) => (old === 'history' ? null : 'history'))}
                   onDetails={() => {
                     setAux('details');
@@ -2151,6 +2236,10 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                 onEditCurrent={(trigger) => editCurrentFromReader(entry, trigger)}
                 onBack={backFromReference}
                 onOpen={openReference}
+                onPrepare={(object, trigger) => {
+                  if (!readerEditing && readers.at(-1)?.entryId === entry.entryId)
+                    prepareContext(object, trigger);
+                }}
                 onCopyVersion={(view) => {
                   void copyVersion(view);
                 }}
@@ -2252,9 +2341,18 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
             <ImportDialog
               api={api}
               session={session}
-              onClose={() => setImportsOpen(false)}
+              onClose={() => {
+                setImportsOpen(false);
+                if (contextReturn === 'imports') {
+                  setContextReturn(null);
+                  setContextOpen(true);
+                }
+              }}
               onChanged={() => currentActions.current.refreshAll()}
               onOpen={(ref) => {
+                contextRouteEpoch.current++;
+                setContextReturn(null);
+                setContextOpen(false);
                 setImportsOpen(false);
                 openReference(ref);
               }}
@@ -2271,31 +2369,55 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
               }}
             />
           )}
-          {settingsOpen && (
-            <Modal
-              title={t(locale, 'settings.title')}
-              onClose={() => {
-                setSettingsOpen(false);
-                void loadGrants();
-              }}
-              testId="settings-dialog"
-            >
-              <Preferences
-                scale={scale}
-                busy={preferencesBusy}
-                onLocale={onLocale}
-                onScale={onScale}
-              />
-              <AgentAccess
-                api={api}
-                session={session}
-                onGrants={(entries) => {
-                  grantEpoch.current++;
-                  setGrants(entries);
-                }}
-              />
-            </Modal>
-          )}
+          <ContextPreparation
+            api={api}
+            session={session}
+            seed={contextSeed}
+            open={contextOpen}
+            onClose={closeContext}
+            onAccess={prepareAccess}
+            onImport={() => openImports(true)}
+          />
+          <AgentAccess
+            key={session.bindingId}
+            api={api}
+            session={session}
+            active={settingsOpen}
+            draft={accessDraft}
+            onCloseBlocked={(blocked) => {
+              accessCloseBlocked.current = blocked;
+            }}
+            onGrants={(entries) => {
+              grantEpoch.current++;
+              setGrants(entries);
+            }}
+          >
+            {(access) =>
+              settingsOpen && (
+                <Modal
+                  title={t(locale, 'settings.title')}
+                  onClose={() => {
+                    if (accessCloseBlocked.current) return;
+                    setSettingsOpen(false);
+                    void loadGrants();
+                    if (contextReturn === 'settings') {
+                      setContextReturn(null);
+                      setContextOpen(true);
+                    }
+                  }}
+                  testId="settings-dialog"
+                >
+                  <Preferences
+                    scale={scale}
+                    busy={preferencesBusy}
+                    onLocale={onLocale}
+                    onScale={onScale}
+                  />
+                  {access}
+                </Modal>
+              )
+            }
+          </AgentAccess>
           <ActivityPane
             api={api}
             session={session}

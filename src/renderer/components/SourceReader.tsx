@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import type { DesktopApi, SpaceSession } from '../../contracts/app.js';
-import type { ObjectView } from '../../contracts/core.js';
+import type { ObjectSnapshot, ObjectView } from '../../contracts/core.js';
 import type { ErrorCode } from '../../contracts/errors.js';
 import type { ObjectRef } from '../../contracts/schema.js';
 import { t, titleText } from '../i18n/index.js';
@@ -16,6 +16,7 @@ export function SourceReader({
   reference,
   onBack,
   onOpen,
+  onPrepare,
   onCopyVersion,
   hidden = false,
   onEditCurrent,
@@ -29,6 +30,7 @@ export function SourceReader({
   reference: ObjectRef;
   onBack: () => void;
   onOpen: (reference: ObjectRef, trigger?: string) => void;
+  onPrepare: (object: ObjectSnapshot, trigger: string) => void;
   onCopyVersion: (view: ObjectView) => void;
   hidden?: boolean;
   onEditCurrent: (trigger: string) => void;
@@ -129,6 +131,14 @@ export function SourceReader({
             )}
             <button onClick={() => onCopyVersion(view)} disabled={editingBusy}>
               {t(locale, 'history.createNoteFromVersion')}
+            </button>
+            <button
+              id={`prepare-source-${instance}`}
+              data-testid={hidden ? undefined : 'prepare-source-context'}
+              disabled={editingBusy}
+              onClick={() => onPrepare(view.object, `prepare-source-${instance}`)}
+            >
+              {t(locale, 'contextPrep.title')}
             </button>
           </div>
         )}

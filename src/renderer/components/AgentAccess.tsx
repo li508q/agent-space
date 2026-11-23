@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AgentLaunchConfiguration, DesktopApi, SpaceSession } from '../../contracts/app.js';
 import type { GrantSpec, GrantSummary, IssuedGrant, ObjectSummary } from '../../contracts/core.js';
 import type { ErrorCode } from '../../contracts/errors.js';
 import type { OperationTask } from '../state/operation.js';
 import { bound } from '../state/binding.js';
+import type { AccessDraft, AccessObject } from '../state/collaboration.js';
 import { formatCount, t, titleText } from '../i18n/index.js';
 import { ErrorNotice, newKey, useLocale, useTaskFactory } from '../ui.js';
+import { revealContextChoice } from './ContextPreparation.js';
 
 function specFrom(grant: GrantSummary): GrantSpec {
   return {
@@ -20,10 +22,18 @@ export function AgentAccess({
   api,
   session,
   onGrants,
+  active = true,
+  draft,
+  onCloseBlocked,
+  children,
 }: {
   api: DesktopApi;
   session: SpaceSession;
   onGrants: (grants: GrantSummary[]) => void;
+  active?: boolean;
+  draft?: AccessDraft | null;
+  onCloseBlocked?: (blocked: boolean) => void;
+  children?: (content: ReactNode) => ReactNode;
 }) {
   const locale = useLocale(),
     makeTask = useTaskFactory();
@@ -33,6 +43,10 @@ export function AgentAccess({
   const [label, setLabel] = useState('');
   const [scope, setScope] = useState<'space' | 'objects'>('objects');
   const [ids, setIds] = useState<string[]>([]);
+  const [preparedObjects, setPreparedObjects] = useState<AccessObject[]>([]),
+    [pendingDraft, setPendingDraft] = useState<AccessDraft | null>(null);
+  const initializedDraft = useRef<string | null>(null),
+    touched = useRef(false);
   const [read, setRead] = useState(true),
     [propose, setPropose] = useState(true),
     [creation, setCreation] = useState(false);
@@ -43,18 +57,72 @@ export function AgentAccess({
     [busy, setBusy] = useState(false),
     [copied, setCopied] = useState(false);
   const issueTask = useRef<OperationTask<IssuedGrant> | null>(null);
+  const issuedIdentity = useRef<IssuedGrant | null>(null),
+    configurationEpoch = useRef(0);
   const revokeTasks = useRef(new Map<string, OperationTask<GrantSummary>>());
   const live = useRef(true),
-    objectsEpoch = useRef(0);
+    objectsEpoch = useRef(0),
+    copyEpoch = useRef(0),
+    visible = useRef(active),
+    pendingOperations = useRef(0);
+  visible.current = active;
   useEffect(() => {
     live.current = true;
-    void refresh();
-    void loadObjects();
     return () => {
       live.current = false;
       objectsEpoch.current++;
+      copyEpoch.current++;
+      configurationEpoch.current++;
     };
   }, [session.bindingId]);
+  useEffect(() => {
+    if (active) {
+      void refresh();
+      void loadObjects();
+    } else {
+      objectsEpoch.current++;
+      copyEpoch.current++;
+    }
+  }, [session.bindingId, active]);
+  useEffect(() => {
+    if (!active || !draft || initializedDraft.current === draft.id) return;
+    if (!touched.current && !issued && !issueTask.current) applyPrepared(draft);
+    else setPendingDraft(draft);
+  }, [active, draft?.id]);
+  function accessUnresolved() {
+    return (
+      pendingOperations.current > 0 ||
+      !!issueTask.current?.unknown ||
+      !!issueTask.current?.isPending ||
+      [...revokeTasks.current.values()].some((task) => task.unknown || task.isPending)
+    );
+  }
+  const closeBlocked = busy || accessUnresolved();
+  useEffect(() => {
+    if (live.current) onCloseBlocked?.(accessUnresolved());
+  }, [closeBlocked, onCloseBlocked]);
+  function beginOperation() {
+    pendingOperations.current++;
+    configurationEpoch.current++;
+    copyEpoch.current++;
+    setCopied(false);
+    onCloseBlocked?.(true);
+    setBusy(true);
+  }
+  function finishOperation() {
+    pendingOperations.current = Math.max(0, pendingOperations.current - 1);
+    if (!live.current) return;
+    setBusy(pendingOperations.current > 0);
+    onCloseBlocked?.(accessUnresolved());
+  }
+  function applyPrepared(value: AccessDraft) {
+    initializedDraft.current = value.id;
+    setPreparedObjects(value.objects);
+    setIds(value.objects.map((object) => object.id));
+    setScope('objects');
+    setCreation(false);
+    setPendingDraft(null);
+  }
   async function refresh() {
     try {
       const result = await api.listGrants(bound(session, null));
@@ -78,7 +146,7 @@ export function AgentAccess({
           ...(next ? { cursor: next } : {}),
         }),
       );
-      if (!live.current || ticket !== objectsEpoch.current) return;
+      if (!live.current || !visible.current || ticket !== objectsEpoch.current) return;
       if (result.ok) {
         setObjects((old) => (next ? [...old, ...result.value.items] : result.value.items));
         setCursor(result.value.nextCursor);
@@ -87,7 +155,8 @@ export function AgentAccess({
         if (result.error.code === 'CURSOR_STALE') setCursor(null);
       }
     } catch {
-      if (live.current) setError('OPERATION_UNKNOWN');
+      if (live.current && visible.current && ticket === objectsEpoch.current)
+        setError('OPERATION_UNKNOWN');
     }
   }
   function currentSpec(): GrantSpec {
@@ -99,16 +168,30 @@ export function AgentAccess({
     };
   }
   async function configuration(value: IssuedGrant) {
+    const ticket = ++configurationEpoch.current,
+      current = () =>
+        live.current && ticket === configurationEpoch.current && issuedIdentity.current === value;
     if (!value.token) {
-      setConfig(null);
+      if (current()) {
+        copyEpoch.current++;
+        setCopied(false);
+        setConfig(null);
+      }
       return;
     }
-    const result = await api.agentConfiguration(
-      bound(session, { grantId: value.grant.id, token: value.token }),
-    );
-    if (!live.current) return;
-    if (result.ok) setConfig(result.value);
-    else setError(result.error.code);
+    try {
+      const result = await api.agentConfiguration(
+        bound(session, { grantId: value.grant.id, token: value.token }),
+      );
+      if (!current()) return;
+      if (result.ok) {
+        copyEpoch.current++;
+        setCopied(false);
+        setConfig(result.value);
+      } else setError(result.error.code);
+    } catch {
+      if (current()) setError('OPERATION_UNKNOWN');
+    }
   }
   async function issue(spec?: GrantSpec) {
     if (!issueTask.current || issueTask.current.settled) {
@@ -117,7 +200,7 @@ export function AgentAccess({
         api.createGrant(bound(session, input)),
       );
     }
-    setBusy(true);
+    beginOperation();
     setError(null);
     setCopied(false);
     try {
@@ -125,14 +208,16 @@ export function AgentAccess({
       if (!live.current) return;
       if (!result.ok) setError(result.error.code);
       else {
+        issuedIdentity.current = result.value;
         setIssued(result.value);
+        setConfig(null);
         await configuration(result.value);
         await refresh();
       }
     } catch {
       if (live.current) setError('OPERATION_UNKNOWN');
     } finally {
-      if (live.current) setBusy(false);
+      finishOperation();
     }
   }
   async function revoke(grant: GrantSummary): Promise<boolean> {
@@ -155,7 +240,11 @@ export function AgentAccess({
         return false;
       }
       if (live.current) {
-        if (issued?.grant.id === grant.id) {
+        if (issuedIdentity.current?.grant.id === grant.id) {
+          issuedIdentity.current = null;
+          configurationEpoch.current++;
+          copyEpoch.current++;
+          setCopied(false);
           setIssued(null);
           setConfig(null);
         }
@@ -168,22 +257,33 @@ export function AgentAccess({
     }
   }
   async function reissue(grant: GrantSummary) {
-    setBusy(true);
+    beginOperation();
     setError(null);
-    const previousSpec = specFrom(grant);
-    if (grant.revoked || (await revoke(grant))) {
-      issueTask.current = null;
-      await issue(previousSpec);
+    try {
+      const previousSpec = specFrom(grant);
+      if (grant.revoked || (await revoke(grant))) {
+        issueTask.current = null;
+        await issue(previousSpec);
+      }
+    } finally {
+      finishOperation();
     }
-    if (live.current) setBusy(false);
   }
   async function copy(text: string) {
+    const ticket = ++copyEpoch.current,
+      identity = issuedIdentity.current;
+    const current = () =>
+      live.current &&
+      visible.current &&
+      ticket === copyEpoch.current &&
+      identity === issuedIdentity.current;
     try {
       const result = await api.copyText({ text });
+      if (!current()) return;
       if (result.ok) setCopied(true);
       else setError(result.error.code);
     } catch {
-      setError('OPERATION_UNKNOWN');
+      if (current()) setError('OPERATION_UNKNOWN');
     }
   }
   const valid =
@@ -191,23 +291,56 @@ export function AgentAccess({
     read &&
     (scope === 'space' || ids.length > 0) &&
     (!creation || createKinds.length > 0);
-  return (
+  const displayObjects: AccessObject[] = [
+    ...preparedObjects,
+    ...objects
+      .filter((object) => !preparedObjects.some((prepared) => prepared.id === object.ref.objectId))
+      .map((object) => ({ id: object.ref.objectId, title: object.title, kind: object.kind })),
+  ];
+  const content = (
     <section className="agent-access" data-testid="agent-access">
-      <h3>{t(locale, 'agent.setup')}</h3>
+      <h3 id="agent-access-heading" tabIndex={-1}>
+        {t(locale, 'agent.setup')}
+      </h3>
       <p className="secondary">{t(locale, 'agent.proposalOnly')}</p>
+      <p className="secondary">{t(locale, 'contextPrep.objectAccess')}</p>
+      {closeBlocked && <p role="status">{t(locale, 'contextPrep.finishAccess')}</p>}
       <ErrorNotice
         code={error}
         onRetry={() => {
           if (issueTask.current?.unknown) void issue();
-          else if (issued?.token && !config)
-            void configuration(issued).catch(() => setError('OPERATION_UNKNOWN'));
+          else if ([...revokeTasks.current.values()].some((task) => task.unknown)) {
+            const grant = grants.find((value) => revokeTasks.current.get(value.id)?.unknown);
+            if (grant) {
+              beginOperation();
+              void revoke(grant).finally(() => {
+                finishOperation();
+              });
+            }
+          } else if (issued?.token && !config) void configuration(issued);
           else void refresh();
         }}
       />
+      {pendingDraft && (
+        <div>
+          <p>{t(locale, 'contextPrep.pendingAccess')}</p>
+          <button
+            type="button"
+            data-testid="use-prepared-access"
+            disabled={closeBlocked}
+            onClick={() => {
+              touched.current = true;
+              applyPrepared(pendingDraft);
+            }}
+          >
+            {t(locale, 'contextPrep.usePrepared')}
+          </button>
+        </div>
+      )}
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          void issue();
+          if (!closeBlocked) void issue();
         }}
       >
         <label>
@@ -215,12 +348,16 @@ export function AgentAccess({
           <input
             value={label}
             maxLength={120}
-            onChange={(event) => setLabel(event.target.value)}
+            disabled={closeBlocked}
+            onChange={(event) => {
+              touched.current = true;
+              setLabel(event.target.value);
+            }}
             required
             data-testid="grant-label"
           />
         </label>
-        <fieldset>
+        <fieldset disabled={closeBlocked}>
           <legend>{t(locale, 'access.scope')}</legend>
           <label className="check-label">
             <input
@@ -228,6 +365,7 @@ export function AgentAccess({
               name="scope"
               checked={scope === 'objects'}
               onChange={() => {
+                touched.current = true;
                 setScope('objects');
                 setCreation(false);
               }}
@@ -239,30 +377,36 @@ export function AgentAccess({
               type="radio"
               name="scope"
               checked={scope === 'space'}
-              onChange={() => setScope('space')}
+              onChange={() => {
+                touched.current = true;
+                setScope('space');
+              }}
             />
             {t(locale, 'access.space')}
           </label>
         </fieldset>
         {scope === 'objects' && (
-          <fieldset>
+          <fieldset disabled={closeBlocked}>
             <legend>{t(locale, 'access.selectObjects')}</legend>
             <p className="secondary">{t(locale, 'access.objectsNotice')}</p>
-            <div className="grant-objects">
-              {objects.map((object) => (
-                <label className="check-label" key={object.ref.objectId}>
+            <div className="grant-objects context-object-flow">
+              {displayObjects.map((object) => (
+                <label className="check-label context-choice" key={object.id}>
                   <input
                     type="checkbox"
-                    checked={ids.includes(object.ref.objectId)}
-                    onChange={(event) =>
+                    data-testid={`access-object-${object.id}`}
+                    checked={ids.includes(object.id)}
+                    onFocus={(event) => revealContextChoice(event.currentTarget)}
+                    onChange={(event) => {
+                      touched.current = true;
                       setIds((old) =>
                         event.target.checked
-                          ? [...old, object.ref.objectId]
-                          : old.filter((id) => id !== object.ref.objectId),
-                      )
-                    }
+                          ? [...old, object.id]
+                          : old.filter((id) => id !== object.id),
+                      );
+                    }}
                   />
-                  {titleText(locale, object.title, object.kind)}
+                  <span>{titleText(locale, object.title, object.kind)}</span>
                 </label>
               ))}
             </div>
@@ -279,13 +423,14 @@ export function AgentAccess({
             )}
           </fieldset>
         )}
-        <fieldset>
+        <fieldset disabled={closeBlocked}>
           <legend>{t(locale, 'agent.readScope')}</legend>
           <label className="check-label">
             <input
               type="checkbox"
               checked={read}
               onChange={(event) => {
+                touched.current = true;
                 setRead(event.target.checked);
                 if (!event.target.checked) {
                   setPropose(false);
@@ -300,6 +445,7 @@ export function AgentAccess({
               type="checkbox"
               checked={propose}
               onChange={(event) => {
+                touched.current = true;
                 setPropose(event.target.checked);
                 if (event.target.checked) setRead(true);
                 else setCreation(false);
@@ -313,7 +459,10 @@ export function AgentAccess({
               data-testid="grant-creation"
               checked={creation}
               disabled={scope !== 'space' || !propose}
-              onChange={(event) => setCreation(event.target.checked)}
+              onChange={(event) => {
+                touched.current = true;
+                setCreation(event.target.checked);
+              }}
             />
             {t(locale, 'agent.allowCreation')}
           </label>
@@ -326,13 +475,14 @@ export function AgentAccess({
                   <input
                     type="checkbox"
                     checked={createKinds.includes(kind)}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      touched.current = true;
                       setCreateKinds((old) =>
                         event.target.checked
                           ? [...old, kind]
                           : old.filter((entry) => entry !== kind),
-                      )
-                    }
+                      );
+                    }}
                   />
                   {t(locale, kind === 'document' ? 'object.note' : 'object.record')}
                 </label>
@@ -343,7 +493,7 @@ export function AgentAccess({
         <button
           className="primary"
           type="submit"
-          disabled={!valid || busy}
+          disabled={!valid || closeBlocked}
           data-testid="create-grant"
         >
           {t(locale, 'access.create')}
@@ -359,7 +509,7 @@ export function AgentAccess({
                 onClick={() => {
                   void reissue(issued.grant);
                 }}
-                disabled={busy}
+                disabled={closeBlocked}
               >
                 {t(locale, 'access.reissue')}
               </button>
@@ -367,6 +517,7 @@ export function AgentAccess({
           ) : (
             <>
               <p className="attention">{t(locale, 'access.once')}</p>
+              <p>{t(locale, 'contextPrep.hostSteps')}</p>
               {config && (
                 <>
                   {config.development && (
@@ -419,11 +570,11 @@ export function AgentAccess({
             <div className="as-actions">
               {!grant.revoked && (
                 <button
-                  disabled={busy}
+                  disabled={closeBlocked}
                   onClick={() => {
-                    setBusy(true);
+                    beginOperation();
                     void revoke(grant).finally(() => {
-                      if (live.current) setBusy(false);
+                      finishOperation();
                     });
                   }}
                 >
@@ -431,7 +582,7 @@ export function AgentAccess({
                 </button>
               )}
               <button
-                disabled={busy}
+                disabled={closeBlocked}
                 onClick={() => {
                   void reissue(grant);
                 }}
@@ -444,4 +595,5 @@ export function AgentAccess({
       </section>
     </section>
   );
+  return children ? children(active ? content : null) : active ? content : null;
 }

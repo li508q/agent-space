@@ -3,6 +3,7 @@ import { Check, ChevronLeft, History, Link2, PanelRight, Save } from 'lucide-rea
 import type { DesktopApi, SpaceSession } from '../../contracts/app.js';
 import type { ObjectContent, ObjectRef } from '../../contracts/schema.js';
 import type { ErrorCode } from '../../contracts/errors.js';
+import type { ObjectSnapshot } from '../../contracts/core.js';
 import type { EditorSession } from '../state/editor.js';
 import { t, titleText } from '../i18n/index.js';
 import { ErrorNotice, fieldText, ObjectMetadata, SafeMarkdown, useLocale } from '../ui.js';
@@ -16,6 +17,7 @@ export function DocumentPane({
   api,
   session,
   onOpen,
+  onPrepare,
   onHistory,
   onDetails,
   onBrowse,
@@ -34,6 +36,7 @@ export function DocumentPane({
   api: DesktopApi;
   session: SpaceSession;
   onOpen: (ref: ObjectRef, trigger?: string) => void;
+  onPrepare: (object: ObjectSnapshot, trigger: string) => void;
   onHistory: () => void;
   onDetails: () => void;
   onBrowse: () => void;
@@ -253,6 +256,25 @@ export function DocumentPane({
                 {t(locale, 'editor.saveNow')}
               </button>
             )}
+            <button
+              id={`prepare-context-${state.editorId}`}
+              data-testid="prepare-document-context"
+              disabled={!state.object || editor.dirty || state.composing || state.locked}
+              title={t(locale, 'contextPrep.savedOnly')}
+              onClick={() => {
+                const current = editor.getSnapshot();
+                if (
+                  state.object &&
+                  current.generation === state.generation &&
+                  !editor.dirty &&
+                  !current.composing &&
+                  !current.locked
+                )
+                  onPrepare(state.object, `prepare-context-${state.editorId}`);
+              }}
+            >
+              {t(locale, 'contextPrep.title')}
+            </button>
           </div>
         </div>
         {(sourceCount > 0 || relationCount > 0) && (

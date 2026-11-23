@@ -32,6 +32,8 @@ Relationships distinguish current objects from pinned evidence. A source link pr
 
 ## Bring existing folders in
 
+**Import existing material** is available in Continue, an empty unfiltered Library view, and the space menu. No recent work means no recorded locations, rather than an empty space.
+
 Choose files or a folder through the application. Preview the proposed copies, project groups and external references before confirming. The knowledge/project/HANDOFF/repository profile is a convenience for an existing folder layout, not a required way to store every space.
 
 Supported UTF-8 Markdown and plain text become managed copies with origin information. Original bytes remain unchanged. Repositories and unsupported native formats can be explicit external references; their contents are not copied or synchronized. Imported knowledge is not automatically marked reviewed.
@@ -43,6 +45,12 @@ Grouping choices apply to newly created copies. A previously imported source ver
 There is no background two-way file synchronization. After a restart, resume explicitly. A restored run needs renewed source authorization rather than silently reopening old paths.
 
 ## Give an agent context
+
+From a saved document or the source reader, choose **Prepare context**. Add an optional task of up to 1,000 Unicode code points and select up to 20 saved versions. Only the starting item is selected initially. Its direct links and the project's current active material appear separately, with **Load more** for bounded pages. A historical project is not a complete snapshot of its past membership. A selected project's goal excerpt is limited to 280 characters; unchecking it removes its title and excerpt from the brief.
+
+Use **Inspect brief and references**, then **Copy brief and references**. Missing selected versions need retry or removal; they are never replaced by a later version. Copying confirms clipboard success. Your preparation stays in memory while this space is open, including visits to Settings or Import; it is not a saved document or a restart-recoverable draft.
+
+**Set up agent access** carries selected objects to the existing form, including objects beyond its first page. Nothing is granted until **Create access**. Existing choices are retained; **Use selected material** explicitly changes them. Access covers an object's readable versions, including later ones, while the brief fixes particular versions. An uncertain access operation keeps its original Retry available and freezes the form until resolved. Known one-time configuration survives ordinary Settings round trips in the same space.
 
 Open **Settings → Agent access** and create a labeled grant. Choose the whole space or selected objects, reading and proposal capabilities, and whether a whole-space client with read and proposal access may propose new notes or records. Object-specific grants cannot create new objects. Links do not extend access to another object.
 

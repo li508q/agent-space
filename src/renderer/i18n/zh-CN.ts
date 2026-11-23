@@ -1,6 +1,46 @@
 import type { Dictionary } from './types.js';
 
 export const zhCN = Object.freeze({
+  'contextPrep.title': '准备上下文',
+  'contextPrep.intro': '检查要共享的保存版本，再复制简短说明或设置 Agent 访问。',
+  'contextPrep.task': '简短任务（可选）',
+  'contextPrep.taskLimit': '{count} / 1,000 个字符',
+  'contextPrep.selected': '已选 {count} 项 · 最多 20 个保存版本',
+  'contextPrep.selectionLimit': '最多选择 20 个保存版本。',
+  'contextPrep.seed': '起点的保存版本',
+  'contextPrep.direct': '此版本直接声明的链接',
+  'contextPrep.directScope':
+    '这些链接来自起点版本的明确记录。跟随当前版本的目标会在本次准备时固定为具体版本。',
+  'contextPrep.loaded': '已载入 {count} 项',
+  'contextPrep.unavailableLink': '此链接不可用。可以重试检查。',
+  'contextPrep.goalExcerpt': '项目目标摘录（最多 280 个字符）',
+  'contextPrep.members': '当前关联的活动项目资料',
+  'contextPrep.membersScope':
+    '当前关联到此项目的活动资料，每次载入 20 项；它们不是历史版本时的项目成员快照。',
+  'contextPrep.retained': '先前结果中已选的版本',
+  'contextPrep.unavailableSelection': '请重试不可用的已选版本，或移除后再复制和设置访问。',
+  'contextPrep.scope': '仅包含所选保存版本。直接链接与当前成员不构成完整的历史项目快照。',
+  'contextPrep.preview': '检查说明与引用',
+  'contextPrep.copy': '复制说明与引用',
+  'contextPrep.import': '导入已有资料',
+  'contextPrep.checking': '正在核对所选保存版本…',
+  'contextPrep.copied': '说明与引用已复制。',
+  'contextPrep.unsavedDraft': '此准备稿仅在当前空间的内存中保留，尚未保存为文档。',
+  'contextPrep.resolvedCurrent': '本次准备时已固定的当前链接',
+  'contextPrep.referenceDetails': '引用身份',
+  'contextPrep.kind.document': '笔记',
+  'contextPrep.kind.project': '项目',
+  'contextPrep.kind.record': '记录',
+  'contextPrep.kind.asset': '资产',
+  'contextPrep.objectAccess':
+    '对象授权涵盖其可读版本，包括后续版本。说明中的引用固定了特定版本，但授权并不限于这些版本。',
+  'contextPrep.finishAccess': '请先完成或重试当前访问操作，再关闭。',
+  'contextPrep.pendingAccess':
+    '此表单已有您的选择或一次性配置。您可以明确使用新选资料，此操作尚不会创建授权。',
+  'contextPrep.usePrepared': '使用所选资料',
+  'contextPrep.hostSteps':
+    '创建授权后，复制 Codex TOML 或 stdio 启动 JSON，在所用宿主的 MCP 设置中加入相应配置并重新连接，再交给它这份说明。启动 JSON 需要按宿主的配置格式调整。',
+  'contextPrep.savedOnly': '请使用已保存版本。保存修改后再准备上下文。',
   'activity.changes': '实际变化',
   'activity.prepared': '准备的上下文',
   'activity.refresh': '刷新',

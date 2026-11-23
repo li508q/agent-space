@@ -32,6 +32,8 @@ Las relaciones distinguen objetos actuales y pruebas fijadas a una revisión. Ed
 
 ## Importar carpetas existentes
 
+**Importar material existente** está disponible en Continuar, en una vista vacía de Biblioteca sin filtros y en el menú del espacio. La ausencia de trabajo reciente significa que no hay ubicaciones registradas, no que todo el espacio esté vacío.
+
 Selecciona archivos o una carpeta y revisa las copias, los grupos de proyectos y las referencias externas antes de confirmar. Reconocer knowledge, projects, HANDOFF y repos es un perfil opcional, no una estructura obligatoria.
 
 Markdown y texto plano en UTF-8 válido se convierten en copias editables. Los originales no cambian. Los repositorios y los formatos no admitidos pueden seleccionarse como referencias externas; sus bytes no se copian, ejecutan ni sincronizan. Importar conocimiento no lo marca como revisado.
@@ -43,6 +45,12 @@ La agrupación elegida se aplica a las copias nuevas. Una versión ya importada 
 No hay sincronización bidireccional en segundo plano. Continúa explícitamente después de reiniciar. Un espacio restaurado necesita una nueva selección y confirmación de sus antiguas fuentes.
 
 ## Conectar un agente y revisar cambios
+
+Desde un documento guardado o el lector de fuentes, elige **Preparar contexto**. Añade una tarea opcional de hasta 1.000 caracteres Unicode (puntos de código) y selecciona hasta 20 versiones guardadas. Al principio solo se selecciona el material de partida. Sus enlaces directos y el material activo vinculado actualmente al proyecto aparecen separados, con más resultados por páginas acotadas. Un proyecto histórico no es una instantánea completa de sus miembros anteriores. El objetivo del proyecto seleccionado puede incluir un extracto de hasta 280 caracteres; al desmarcarlo se eliminan su título y extracto de la explicación.
+
+Usa **Revisar explicación y referencias** y después **Copiar explicación y referencias**. Reintenta o quita las versiones seleccionadas no disponibles; nunca se sustituyen por una versión posterior. El éxito confirma la copia al portapapeles. La preparación se conserva en memoria mientras el espacio está abierto, incluso al visitar ajustes o importación; no es un documento guardado ni un borrador recuperable tras reiniciar.
+
+**Configurar acceso de agentes** lleva los objetos seleccionados al formulario existente, incluidos los que están fuera de su primera página. Solo **Crear permiso de acceso** concede el permiso. Las elecciones existentes se conservan; **Usar material seleccionado** las cambia de forma explícita. El acceso abarca las versiones legibles del objeto, incluidas las posteriores, mientras que la explicación fija versiones concretas. Una operación de acceso incierta congela el formulario y conserva el reintento de la petición original. La configuración conocida de una sola visualización se mantiene al volver de los ajustes dentro del mismo espacio.
 
 Crea un permiso con nombre en la sección de acceso de agentes de los ajustes. Elige todo el espacio o ciertos objetos y las capacidades de lectura y propuesta. Solo un permiso para todo el espacio con lectura y propuestas puede habilitar además la creación de notas o registros. Los permisos limitados a objetos concretos no permiten crear objetos nuevos. Los enlaces no amplían el acceso a otros objetos.
 

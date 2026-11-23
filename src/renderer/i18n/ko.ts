@@ -1,6 +1,50 @@
 import type { Dictionary } from './types.js';
 
 export const ko = Object.freeze({
+  'contextPrep.title': '컨텍스트 준비',
+  'contextPrep.intro':
+    '공유할 저장 버전을 확인한 다음 짧은 설명을 복사하거나 에이전트 접근을 설정하세요.',
+  'contextPrep.task': '짧은 작업 설명(선택 사항)',
+  'contextPrep.taskLimit': '{count} / 1,000자',
+  'contextPrep.selected': '{count}개 선택 · 저장 버전 최대 20개',
+  'contextPrep.selectionLimit': '저장 버전을 최대 20개 선택하세요.',
+  'contextPrep.seed': '시작 자료의 저장 버전',
+  'contextPrep.direct': '이 버전에 기록된 직접 링크',
+  'contextPrep.directScope':
+    '시작 버전에 명시된 링크입니다. 현재 버전을 따르는 대상은 이번 준비에서 특정 버전으로 고정됩니다.',
+  'contextPrep.loaded': '{count}개 불러옴',
+  'contextPrep.unavailableLink': '이 링크를 사용할 수 없습니다. 다시 확인할 수 있습니다.',
+  'contextPrep.goalExcerpt': '프로젝트 목표 발췌(최대 280자)',
+  'contextPrep.members': '현재 연결된 활성 프로젝트 자료',
+  'contextPrep.membersScope':
+    '현재 이 프로젝트에 연결된 활성 자료를 20개씩 불러옵니다. 과거 버전 당시의 프로젝트 구성원 목록이 아닙니다.',
+  'contextPrep.retained': '이전 결과에서 선택한 버전',
+  'contextPrep.unavailableSelection':
+    '사용할 수 없는 선택 버전을 다시 확인하거나 제외한 뒤 복사 또는 접근 설정을 진행하세요.',
+  'contextPrep.scope':
+    '선택한 저장 버전만 포함됩니다. 직접 링크와 현재 자료는 과거 프로젝트 전체의 스냅샷을 구성하지 않습니다.',
+  'contextPrep.preview': '설명과 참조 확인',
+  'contextPrep.copy': '설명과 참조 복사',
+  'contextPrep.import': '기존 자료 가져오기',
+  'contextPrep.checking': '선택한 저장 버전 확인 중…',
+  'contextPrep.copied': '설명과 참조를 복사했습니다.',
+  'contextPrep.unsavedDraft':
+    '이 준비 내용은 현재 공간의 메모리에만 유지됩니다. 문서로 저장된 상태가 아닙니다.',
+  'contextPrep.resolvedCurrent': '이번 준비에서 고정된 현재 링크',
+  'contextPrep.referenceDetails': '참조 식별 정보',
+  'contextPrep.kind.document': '노트',
+  'contextPrep.kind.project': '프로젝트',
+  'contextPrep.kind.record': '레코드',
+  'contextPrep.kind.asset': '자산',
+  'contextPrep.objectAccess':
+    '객체 접근은 이후 버전을 포함한 읽기 가능한 버전에 적용됩니다. 설명은 특정 버전을 고정하지만, 접근 권한이 해당 버전에만 한정되는 것은 아닙니다.',
+  'contextPrep.finishAccess': '현재 접근 작업을 완료하거나 다시 시도한 뒤 닫으세요.',
+  'contextPrep.pendingAccess':
+    '이 양식에는 선택 내용이나 한 번만 표시되는 설정이 있습니다. 새로 선택한 자료를 명시적으로 사용할 수 있으며, 이 동작만으로 접근 권한이 생성되지는 않습니다.',
+  'contextPrep.usePrepared': '선택한 자료 사용',
+  'contextPrep.hostSteps':
+    '접근 권한을 만든 뒤 Codex TOML 또는 stdio 실행 JSON을 복사하세요. 사용 중인 호스트의 MCP 설정에 추가하고 다시 연결한 다음 설명을 전달하세요. 실행 JSON은 호스트 설정 형식에 맞게 조정해야 합니다.',
+  'contextPrep.savedOnly': '저장된 버전을 사용합니다. 변경 사항을 저장한 뒤 컨텍스트를 준비하세요.',
   'activity.changes': '실제 변경',
   'activity.prepared': '준비된 컨텍스트',
   'activity.refresh': '새로 고침',

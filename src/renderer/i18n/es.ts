@@ -1,6 +1,51 @@
 import type { Dictionary } from './types.js';
 
 export const es = Object.freeze({
+  'contextPrep.title': 'Preparar contexto',
+  'contextPrep.intro':
+    'Comprueba las versiones guardadas que quieres compartir y copia una explicación breve o configura el acceso del agente.',
+  'contextPrep.task': 'Tarea breve (opcional)',
+  'contextPrep.taskLimit': '{count} / 1.000 caracteres',
+  'contextPrep.selected': '{count} seleccionadas · hasta 20 versiones guardadas',
+  'contextPrep.selectionLimit': 'Selecciona hasta 20 versiones guardadas.',
+  'contextPrep.seed': 'Versión guardada de partida',
+  'contextPrep.direct': 'Enlaces directos de esta versión',
+  'contextPrep.directScope':
+    'Estos enlaces se declararon en la versión de partida. Los destinos actuales se fijan a versiones concretas para esta preparación.',
+  'contextPrep.loaded': '{count} cargados',
+  'contextPrep.unavailableLink': 'Este enlace no está disponible. Vuelve a comprobarlo.',
+  'contextPrep.goalExcerpt': 'Extracto del objetivo del proyecto (hasta 280 caracteres)',
+  'contextPrep.members': 'Material activo vinculado actualmente',
+  'contextPrep.membersScope':
+    'Material activo vinculado a este proyecto en este momento, cargado de 20 en 20. No representa los miembros del proyecto en la versión histórica.',
+  'contextPrep.retained': 'Versiones seleccionadas de resultados anteriores',
+  'contextPrep.unavailableSelection':
+    'Vuelve a comprobar las versiones seleccionadas que no estén disponibles o quítalas antes de copiar o configurar el acceso.',
+  'contextPrep.scope':
+    'Solo se incluyen las versiones guardadas seleccionadas. Los enlaces directos y los miembros actuales no forman una instantánea histórica completa del proyecto.',
+  'contextPrep.preview': 'Revisar explicación y referencias',
+  'contextPrep.copy': 'Copiar explicación y referencias',
+  'contextPrep.import': 'Importar material existente',
+  'contextPrep.checking': 'Comprobando las versiones guardadas seleccionadas…',
+  'contextPrep.copied': 'Explicación y referencias copiadas.',
+  'contextPrep.unsavedDraft':
+    'Esta preparación se conserva solo en la memoria de este espacio. No es un documento guardado.',
+  'contextPrep.resolvedCurrent': 'Enlace actual fijado para esta preparación',
+  'contextPrep.referenceDetails': 'Identidad de la referencia',
+  'contextPrep.kind.document': 'Nota',
+  'contextPrep.kind.project': 'Proyecto',
+  'contextPrep.kind.record': 'Registro',
+  'contextPrep.kind.asset': 'Recurso',
+  'contextPrep.objectAccess':
+    'El acceso al objeto abarca sus versiones legibles, incluidas las posteriores. La explicación fija versiones concretas, pero el permiso no se limita a ellas.',
+  'contextPrep.finishAccess': 'Termina o reintenta esta operación de acceso antes de cerrar.',
+  'contextPrep.pendingAccess':
+    'Este formulario ya contiene tus elecciones o una configuración de una sola visualización. Puedes usar explícitamente el nuevo material seleccionado sin crear acceso todavía.',
+  'contextPrep.usePrepared': 'Usar material seleccionado',
+  'contextPrep.hostSteps':
+    'Tras crear el acceso, copia el TOML de Codex o el JSON de inicio stdio. Añade la configuración MCP correspondiente en tu aplicación anfitriona, vuelve a conectar y entrega la explicación. Adapta el JSON al formato de configuración de la aplicación.',
+  'contextPrep.savedOnly':
+    'Usa una versión guardada. Guarda los cambios antes de preparar el contexto.',
   'activity.changes': 'Cambios reales',
   'activity.prepared': 'Contexto preparado',
   'activity.refresh': 'Actualizar',
