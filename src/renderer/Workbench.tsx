@@ -1069,7 +1069,9 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   ) {
     const route = readerRouteEpoch.current,
       capturedEditor = expectedEditor ?? editorRef.current,
-      generation = capturedEditor?.getSnapshot().generation;
+      generation = capturedEditor?.getSnapshot().generation,
+      focusOwner = document.activeElement,
+      historyReturn = current?.region === 'context' && current.trigger?.startsWith('history-r');
     let attempts = 0;
     let projectView: string | null | undefined;
     let viewCaptured = false;
@@ -1114,17 +1116,58 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
               )
             : null))
         : document.getElementById('proposal-heading');
-      if (!trigger && ++attempts < 90) {
+      if ((!trigger || (historyReturn && !trigger.getClientRects().length)) && ++attempts < 90) {
         requestAnimationFrame(restore);
         return;
       }
-      const scroll = document.querySelector(selector);
+      const scroll = historyReturn
+        ? trigger?.closest<HTMLElement>('[data-testid="history-pane"] .context-scroll')
+        : document.querySelector(selector);
+      if (historyReturn) {
+        const active = document.activeElement;
+        if (
+          document.querySelector('dialog[open]') ||
+          (active instanceof HTMLElement &&
+            active !== focusOwner &&
+            active !== document.body &&
+            active !== trigger &&
+            active.getClientRects().length)
+        )
+          return;
+      }
       if (scroll && current) scroll.scrollTop = current.scrollTop;
       const focus =
         trigger ??
         (current?.fallback ? document.getElementById(current.fallback) : null) ??
         document.querySelector<HTMLElement>('.document-pane .document-title, .document-pane h1');
       focus?.focus({ preventScroll: true });
+      if (historyReturn && scroll && trigger && document.activeElement === trigger) {
+        // Preserve the exact checkpoint when it fits; changed history can move its trigger.
+        const viewport = document.querySelector('.desktop-app')?.getBoundingClientRect();
+        let top = viewport?.top ?? 0,
+          bottom = viewport?.bottom ?? innerHeight;
+        for (let parent = trigger.parentElement; parent; parent = parent.parentElement) {
+          const style = getComputedStyle(parent);
+          if (!/auto|scroll|hidden|clip/.test(style.overflowY)) continue;
+          const box = parent.getBoundingClientRect(),
+            borderTop = parseFloat(style.borderTopWidth) || 0,
+            borderBottom = parseFloat(style.borderBottomWidth) || 0,
+            scrollbar =
+              parent.scrollWidth > parent.clientWidth
+                ? Math.max(0, parent.offsetHeight - parent.clientHeight - borderTop - borderBottom)
+                : 0;
+          top = Math.max(top, box.top + borderTop);
+          bottom = Math.min(bottom, box.bottom - borderBottom - scrollbar);
+        }
+        const rect = trigger.getBoundingClientRect(),
+          style = getComputedStyle(trigger),
+          outset = Math.max(
+            0,
+            (parseFloat(style.outlineWidth) || 0) + (parseFloat(style.outlineOffset) || 0),
+          );
+        if (rect.top - outset < top) scroll.scrollTop += rect.top - outset - top;
+        else if (rect.bottom + outset > bottom) scroll.scrollTop += rect.bottom + outset - bottom;
+      }
     };
     requestAnimationFrame(restore);
   }

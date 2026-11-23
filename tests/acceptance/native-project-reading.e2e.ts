@@ -8,6 +8,7 @@ import { createAcceptanceFixture, requireSuccess } from './fixtures.js';
 import { launchNative, type NativeHarness } from './native-harness.js';
 import { supportedLocales, t, type Locale } from '../../src/renderer/i18n/index.js';
 import { bound } from '../../src/renderer/state/binding.js';
+import type { EditorSnapshot } from '../../src/renderer/state/editor.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const uuid = (value: number) => `70000000-0000-4000-8000-${String(value).padStart(12, '0')}`;
@@ -248,6 +249,13 @@ type Fault = {
   holdQuery: boolean;
   queryFailure: 'STORAGE_BUSY' | 'CURSOR_STALE' | null;
   queryCursors: string[];
+  holdHistoryId: string | null;
+  historyReplies: {
+    objectId?: string;
+    beforeRevision?: number;
+    revisions: number[];
+    released: boolean;
+  }[];
 };
 type FaultMain = { __projectReadingFault: Fault };
 async function installFault(native: NativeHarness) {
@@ -263,10 +271,11 @@ async function installFault(native: NativeHarness) {
                 objectId?: string;
                 revision?: number;
                 cursor?: string;
+                beforeRevision?: number;
                 filter?: { projectId?: string };
               };
             },
-          ) => Promise<{ ok: boolean }>
+          ) => Promise<{ ok: boolean; value?: unknown }>
         >;
       }
     )._invokeHandlers;
@@ -284,9 +293,18 @@ async function installFault(native: NativeHarness) {
       holdQuery: false,
       queryFailure: null,
       queryCursors: [],
+      holdHistoryId: null,
+      historyReplies: [],
     };
     (globalThis as unknown as FaultMain).__projectReadingFault = fault;
-    for (const method of ['readObject', 'saveObject', 'saveDraft', 'createObject', 'query']) {
+    for (const method of [
+      'readObject',
+      'saveObject',
+      'saveDraft',
+      'createObject',
+      'query',
+      'history',
+    ]) {
       const channel = `agentspace:method:${method}`,
         handler = registry.get(channel);
       if (typeof handler !== 'function') throw new Error(`Missing real handler ${method}`);
@@ -333,6 +351,31 @@ async function installFault(native: NativeHarness) {
           return result;
         }
         const result = await handler(event, request);
+        if (method === 'history') {
+          const reply = {
+            objectId: request.input.objectId,
+            beforeRevision: request.input.beforeRevision,
+            revisions: result.ok
+              ? (result.value as { items: { revision: number }[] }).items.map(
+                  (item) => item.revision,
+                )
+              : [],
+            released: false,
+          };
+          fault.historyReplies.push(reply);
+          if (
+            request.input.objectId === fault.holdHistoryId &&
+            request.input.beforeRevision === undefined
+          ) {
+            fault.holdHistoryId = null;
+            fault.held = true;
+            await new Promise<void>((resolve) => {
+              fault.release = resolve;
+            });
+            fault.held = false;
+          }
+          reply.released = true;
+        }
         if (
           result.ok &&
           ((method === 'saveObject' && fault.holdSave) ||
@@ -351,6 +394,460 @@ async function installFault(native: NativeHarness) {
     }
   });
 }
+
+async function historyObservation(native: NativeHarness) {
+  const viewport = await native.application.evaluate(({ BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows()[0]!,
+      bounds = window.getContentBounds(),
+      zoom = window.webContents.getZoomFactor();
+    return { width: bounds.width / zoom, height: bounds.height / zoom };
+  });
+  return native.page.evaluate((viewport) => {
+    const pane = document.querySelector<HTMLElement>('[data-testid="document-pane"]');
+    let editor: EditorSnapshot | null = null;
+    if (pane) {
+      const key = Object.keys(pane).find((key) => key.startsWith('__reactFiber$'));
+      let fiber = key
+        ? ((pane as unknown as Record<string, unknown>)[key] as {
+            memoizedProps?: { editor?: { getSnapshot: () => EditorSnapshot } };
+            return?: unknown;
+          })
+        : null;
+      while (fiber) {
+        if (fiber.memoizedProps?.editor?.getSnapshot) {
+          editor = fiber.memoizedProps.editor.getSnapshot();
+          break;
+        }
+        fiber = fiber.return as typeof fiber;
+      }
+      if (!editor) throw new Error('The actual existing EditorSession snapshot is required');
+    }
+    const history = document.querySelector<HTMLElement>('[data-testid="history-pane"]'),
+      scroll = history?.querySelector<HTMLElement>('.context-scroll'),
+      trigger = history?.querySelector<HTMLElement>('#history-r1');
+    let target = null;
+    if (trigger && scroll) {
+      const rect = trigger.getBoundingClientRect(),
+        clip = { top: 0, bottom: viewport.height, left: 0, right: viewport.width };
+      for (let parent = trigger.parentElement; parent; parent = parent.parentElement) {
+        const style = getComputedStyle(parent),
+          box = parent.getBoundingClientRect();
+        if (/auto|scroll|hidden|clip/.test(style.overflowY)) {
+          clip.top = Math.max(clip.top, box.top + (parseFloat(style.borderTopWidth) || 0));
+          clip.bottom = Math.min(
+            clip.bottom,
+            box.bottom - (parseFloat(style.borderBottomWidth) || 0),
+          );
+        }
+        if (/auto|scroll|hidden|clip/.test(style.overflowX)) {
+          clip.left = Math.max(clip.left, box.left + (parseFloat(style.borderLeftWidth) || 0));
+          clip.right = Math.min(clip.right, box.right - (parseFloat(style.borderRightWidth) || 0));
+        }
+      }
+      const style = getComputedStyle(trigger),
+        outset = (parseFloat(style.outlineWidth) || 0) + (parseFloat(style.outlineOffset) || 0),
+        hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      target = {
+        rect: rect.toJSON(),
+        clip,
+        outline: style.outline,
+        outset,
+        relativeTop: rect.top - clip.top,
+        componentVisible:
+          rect.top >= clip.top - 0.5 &&
+          rect.bottom <= clip.bottom + 0.5 &&
+          rect.left >= clip.left - 0.5 &&
+          rect.right <= clip.right + 0.5,
+        paintVisible:
+          rect.top - outset >= clip.top - 0.5 &&
+          rect.bottom + outset <= clip.bottom + 0.5 &&
+          rect.left - outset >= clip.left - 0.5 &&
+          rect.right + outset <= clip.right + 0.5,
+        centerClear: !!hit && (hit === trigger || trigger.contains(hit)),
+      };
+    }
+    const input = document.querySelector('[data-testid="markdown-input"]'),
+      selection = getSelection();
+    const viewSelection = (
+      input as unknown as {
+        cmTile?: {
+          root?: { view?: { state: { selection: { main: { anchor: number; head: number } } } } };
+        };
+      } | null
+    )?.cmTile?.root?.view?.state.selection.main;
+    let caret = null;
+    if (input && selection?.rangeCount && input.contains(selection.anchorNode)) {
+      const range = selection.getRangeAt(0).cloneRange();
+      range.collapse(false);
+      const box = range.getClientRects()[0],
+        clip = { top: 0, bottom: viewport.height, left: 0, right: viewport.width };
+      for (let parent = input as HTMLElement | null; parent; parent = parent.parentElement) {
+        const style = getComputedStyle(parent),
+          rect = parent.getBoundingClientRect();
+        if (/auto|scroll|hidden|clip/.test(style.overflowY)) {
+          clip.top = Math.max(clip.top, rect.top + (parseFloat(style.borderTopWidth) || 0));
+          clip.bottom = Math.min(
+            clip.bottom,
+            rect.bottom - (parseFloat(style.borderBottomWidth) || 0),
+          );
+        }
+        if (/auto|scroll|hidden|clip/.test(style.overflowX)) {
+          clip.left = Math.max(clip.left, rect.left + (parseFloat(style.borderLeftWidth) || 0));
+          clip.right = Math.min(clip.right, rect.right - (parseFloat(style.borderRightWidth) || 0));
+        }
+      }
+      caret = {
+        offset: selection.anchorOffset,
+        text: selection.anchorNode?.textContent,
+        rect: box?.toJSON() ?? null,
+        clip,
+        focused: document.activeElement === input,
+        visible:
+          !!box &&
+          getComputedStyle(input).visibility !== 'hidden' &&
+          box.top >= clip.top - 0.5 &&
+          box.bottom <= clip.bottom + 0.5 &&
+          box.left >= clip.left - 0.5 &&
+          box.right <= clip.right + 0.5,
+      };
+    }
+    return {
+      viewport: { ...viewport, innerHeight, dpr: devicePixelRatio },
+      activeId: document.activeElement?.id,
+      activeTag: document.activeElement?.tagName,
+      activeTestId: document.activeElement?.getAttribute('data-testid'),
+      reader: {
+        present: !!document.querySelector('[data-testid="source-reader"]'),
+        ready: !!document.querySelector(
+          '[data-testid="source-reader"] [data-testid="source-edit-current"]',
+        ),
+      },
+      aux: document.querySelector<HTMLElement>('[data-testid="workbench"]')?.dataset.aux,
+      historyIds: Array.from(
+        history?.querySelectorAll('[id^="history-r"]') ?? [],
+        (element) => element.id,
+      ),
+      scroll: scroll
+        ? {
+            top: scroll.scrollTop,
+            height: scroll.scrollHeight,
+            client: scroll.clientHeight,
+            nominalMax: scroll.scrollHeight - scroll.clientHeight,
+            rect: scroll.getBoundingClientRect().toJSON(),
+          }
+        : null,
+      target,
+      materialCount: document.querySelectorAll(
+        '[data-testid="project-material"] .linked-material-row',
+      ).length,
+      referenceCounts: {
+        continuation: document.querySelectorAll(
+          '[data-testid="project-continuation"] .project-reference-row',
+        ).length,
+        assets: document.querySelectorAll('[data-testid="project-assets"] .project-reference-row')
+          .length,
+      },
+      editor: editor
+        ? {
+            editorId: editor.editorId,
+            objectId: editor.objectId,
+            revision: editor.revision,
+            generation: editor.generation,
+            savedGeneration: editor.savedGeneration,
+            content: editor.content,
+            draft: editor.draft,
+            saveState: editor.saveState,
+          }
+        : null,
+      caret,
+      viewSelection: viewSelection
+        ? { head: viewSelection.head, anchor: viewSelection.anchor }
+        : null,
+    };
+  }, viewport);
+}
+
+async function historyTabTo(native: NativeHarness, id: string) {
+  for (let attempt = 0; attempt < 90; attempt++) {
+    await native.page.keyboard.press('Tab');
+    if (
+      await native.page.evaluate(
+        (id) =>
+          document.activeElement?.id === id ||
+          document.activeElement?.getAttribute('data-testid') === id,
+        id,
+      )
+    )
+      return;
+  }
+  assert.fail(`Real Tab did not reach ${id}`);
+}
+
+test(
+  '7C History returns preserve usable checkpoints and reveal a moved target after a same-ID save',
+  { skip: process.platform !== 'darwin', timeout: 120_000 },
+  async () => {
+    const outcomes = [];
+    for (const hold of [false, true]) {
+      const f = createAcceptanceFixture(),
+        k1 = requireSuccess(f.human.readObject({ objectId: f.ids.retryPolicy })).object;
+      for (let revision = 2; revision <= 4; revision++) {
+        const current = requireSuccess(f.human.readObject({ objectId: k1.id })).object;
+        requireSuccess(
+          f.human.saveObject({
+            operationKey: `history:K${revision}`,
+            targetId: k1.id,
+            expectedRevision: current.revision,
+            content: { ...current.content, body: `Current K${revision} before correction.` },
+          }),
+        );
+      }
+      const native = await launchNative({ entry: root, userData: join(f.root, `History ${hold}`) });
+      const directory = join(
+        root,
+        '.coordination/7C/followup',
+        process.env.AGENTSPACE_FOLLOWUP_LABEL ?? 'after',
+        process.env.AGENTSPACE_TEST_WINDOW_MAX ?? 'default',
+        `history-${hold}`,
+      );
+      mkdirSync(directory, { recursive: true });
+      const journal: unknown[] = [];
+      const record = async (stage: string, oracle: unknown = null) => {
+        await native.page.evaluate(
+          () =>
+            new Promise<void>((resolve) =>
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+            ),
+        );
+        const observation = await historyObservation(native);
+        const ipc = await native.application.evaluate(
+          () => (globalThis as unknown as FaultMain).__projectReadingFault.historyReplies,
+        );
+        const window = await native.logWindow(`history-${hold}-${stage}`);
+        journal.push({ stage, window, observation, ipc, oracle });
+        writeFileSync(join(directory, 'journal.json'), JSON.stringify(journal, null, 2));
+        const png = await native.application.evaluate(async ({ BrowserWindow }) =>
+          (await BrowserWindow.getAllWindows()[0]!.capturePage()).toPNG().toString('base64'),
+        );
+        writeFileSync(join(directory, `${stage}.png`), Buffer.from(png, 'base64'));
+        return observation;
+      };
+      try {
+        await installFault(native);
+        await native.focus();
+        await native.chooseNextFolder(f.directory);
+        await native.page.getByTestId('open-space').click();
+        await native.setWindowBounds({ width: 1024, height: 688 });
+        await native.page.getByTestId('settings-button').click();
+        await native.page.getByTestId('locale-select').selectOption('en');
+        await native.page.getByTestId('text-scale-select').selectOption('2');
+        await native.page.keyboard.press('Escape');
+        await native.page.getByTestId('nav-library').click();
+        await native.page.getByTestId(`object-row-${f.ids.independent}`).click();
+        const input = native.page.getByTestId('markdown-input');
+        await native.application.evaluate(() => {
+          (globalThis as unknown as FaultMain).__projectReadingFault.saveFailure = true;
+        });
+        const eBody = 'Another E human draft remains recoverable throughout history reading.';
+        await input.fill(eBody);
+        await native.page.keyboard.press('End');
+        await record('E-before-leaving');
+        await native.page.getByTestId('nav-library').click();
+        await native.page.getByTestId(`object-row-${k1.id}`).click();
+        await native.application.evaluate(() => {
+          (globalThis as unknown as FaultMain).__projectReadingFault.saveFailure = false;
+        });
+        await input.waitFor();
+        await input.focus();
+        await native.page.keyboard.press('End');
+        const session = requireSuccess(await native.bootstrap()).activeSpace!;
+        const draft = requireSuccess(
+          await native.page.evaluate(
+            (request) => window.agentSpace.listDrafts(request),
+            bound(session, { limit: 50 }),
+          ),
+        ).items.find(
+          (entry) =>
+            entry.retained &&
+            entry.target.state === 'existing' &&
+            entry.target.objectId === f.ids.independent,
+        )!;
+        assert.ok(draft);
+        const eDraft = requireSuccess(
+          await native.page.evaluate(
+            (request) => window.agentSpace.readDraft(request),
+            bound(session, { draftId: draft.draftId }),
+          ),
+        );
+        assert.equal(eDraft.content.body, eBody);
+        const editorBefore = await record('K4-before-history', { eDraft });
+        // A no-Reader control distinguishes a new Tab focus action from restoration.
+        await native.page.locator('#history-button').click();
+        await native.page.waitForFunction(
+          () => document.querySelectorAll('[id^="history-r"]').length === 4,
+        );
+        await native.page
+          .getByTestId('history-pane')
+          .getByRole('button', { name: t('en', 'common.close'), exact: true })
+          .click();
+        await record('control-closed-without-Reader');
+        await historyTabTo(native, 'markdown-input');
+        await record('control-Tab-without-Reader');
+        await native.page.keyboard.press('End');
+        await record('K4-real-keyboard-selection');
+        await native.page.locator('#history-button').click();
+        await native.page.waitForFunction(
+          () => document.querySelectorAll('[id^="history-r"]').length === 4,
+        );
+        await historyTabTo(native, 'history-r1');
+        // Initial browsing may scroll normally. Return itself must never need this setup action.
+        await native.page.locator('#history-r1').scrollIntoViewIfNeeded();
+        const before = await record('before-open-K1', { eDraft });
+        await native.page.keyboard.press('Enter');
+        const reader = native.page.getByTestId('source-reader');
+        await reader.waitFor();
+        await reader
+          .locator('header')
+          .getByText(t('en', 'source.version', { version: 1 }), { exact: true })
+          .waitFor();
+        await reader.getByTestId('source-edit-current').click();
+        await input.waitFor();
+        assert.equal(await input.textContent(), 'Current K4 before correction.');
+        await input.fill('Human corrected current K5, on the same object.');
+        await native.page.keyboard.press('End');
+        await record('K5-filled-before-save');
+        await native.page.getByTestId('save-now').click();
+        await settled(native);
+        const k5 = requireSuccess(f.human.readObject({ objectId: k1.id })).object;
+        assert.equal(k5.revision, 5);
+        const edited = await record('K5-saved', { eDraft, k1Digest: k1.digest, k5 });
+        assert.deepEqual(edited.viewSelection, {
+          head: k5.content.body.length,
+          anchor: k5.content.body.length,
+        });
+        await native.page.getByTestId('return-to-reading').click();
+        await reader.waitFor();
+        await reader
+          .locator('header')
+          .getByText(t('en', 'source.version', { version: 1 }), { exact: true })
+          .waitFor();
+        await record('before-Back', { eDraft, k1Digest: k1.digest });
+        if (hold)
+          await native.application.evaluate((_electron, objectId) => {
+            (globalThis as unknown as FaultMain).__projectReadingFault.holdHistoryId = objectId;
+          }, k1.id);
+        await historyTabTo(native, 'source-back');
+        await native.page.keyboard.press('Enter');
+        if (hold) {
+          await waitHeld(native);
+          await record('history-held');
+          await releaseFault(native);
+        }
+        await native.page.waitForFunction(() => document.activeElement?.id === 'history-r1');
+        const after = await record('after-Back', { eDraft });
+        assert.equal(after.editor?.editorId, editorBefore.editor?.editorId);
+        assert.equal(after.editor?.revision, edited.editor?.revision);
+        assert.equal(after.editor?.generation, edited.editor?.generation);
+        assert.equal(after.editor?.content.body, k5.content.body);
+        assert.equal(after.caret?.offset, edited.caret?.offset);
+        assert.equal(after.caret?.text, edited.caret?.text);
+        assert.deepEqual(after.viewSelection, edited.viewSelection);
+        assert.equal(
+          requireSuccess(f.human.readObject({ objectId: k1.id, revision: 1 })).object.digest,
+          k1.digest,
+        );
+        assert.deepEqual(
+          requireSuccess(
+            await native.page.evaluate(
+              (request) => window.agentSpace.readDraft(request),
+              bound(session, { draftId: draft.draftId }),
+            ),
+          ),
+          eDraft,
+        );
+        const visible =
+          !!after.target?.componentVisible &&
+          !!after.target.paintVisible &&
+          !!after.target.centerClear;
+        outcomes.push({ hold, before, after, visible });
+        if (visible) {
+          await native.page.keyboard.press('Enter');
+          await reader.waitFor();
+          await reader.getByTestId('source-edit-current').waitFor();
+          await reader
+            .locator('header')
+            .getByText(t('en', 'source.version', { version: 1 }), { exact: true })
+            .waitFor();
+          await record('unchanged-reader-ready');
+          await historyTabTo(native, 'source-back');
+          await native.page.keyboard.press('Enter');
+          await native.page.waitForFunction(() => document.activeElement?.id === 'history-r1');
+          const same = await record('unchanged-return');
+          assert.equal(same.scroll?.top, after.scroll?.top);
+          assert.equal(same.target?.rect.top, after.target?.rect.top);
+          assert.deepEqual(same.historyIds, after.historyIds);
+          assert.equal(same.caret?.offset, edited.caret?.offset);
+          assert.deepEqual(same.viewSelection, edited.viewSelection);
+          if (hold) {
+            await native.page.keyboard.press('Enter');
+            await reader.waitFor();
+            await reader.getByTestId('source-edit-current').click();
+            await input.waitFor();
+            await native.page.getByTestId('return-to-reading').click();
+            await reader.waitFor();
+            await native.application.evaluate((_electron, objectId) => {
+              (globalThis as unknown as FaultMain).__projectReadingFault.holdHistoryId = objectId;
+            }, k1.id);
+            await historyTabTo(native, 'source-back');
+            await native.page.keyboard.press('Enter');
+            await waitHeld(native);
+            await native.page.getByTestId('settings-button').click();
+            await historyTabTo(native, 'locale-select');
+            const displaced = await record('new-settings-focus');
+            await releaseFault(native);
+            await native.page.waitForFunction(
+              () => document.querySelectorAll('[id^="history-r"]').length === 5,
+            );
+            const late = await record('late-history-in-settings');
+            assert.equal(late.activeTestId, 'locale-select');
+            assert.equal(late.scroll?.top, displaced.scroll?.top);
+            await native.page.keyboard.press('Escape');
+            await record('after-settings-close');
+          }
+          await native.page
+            .getByTestId('history-pane')
+            .getByRole('button', { name: t('en', 'common.close'), exact: true })
+            .click();
+          const closed = await record('history-closed-before-tab');
+          assert.equal(closed.caret?.offset, edited.caret?.offset);
+          assert.deepEqual(closed.viewSelection, edited.viewSelection);
+          await historyTabTo(native, 'markdown-input');
+          const writing = await record('returned-writing-caret', { eDraft });
+          assert.equal(writing.editor?.editorId, edited.editor?.editorId);
+          assert.equal(writing.editor?.generation, edited.editor?.generation);
+          assert.equal(writing.editor?.revision, edited.editor?.revision);
+          // Tab is a new focus action; the no-Reader control records its own selection behavior.
+          assert.equal(writing.caret?.offset, writing.viewSelection?.head);
+          assert.equal(writing.caret?.text, edited.caret?.text);
+          assert.ok(writing.caret?.focused && writing.caret.visible);
+          await native.page.keyboard.press('End');
+          const keyboard = await record('writing-real-End', { eDraft });
+          assert.deepEqual(keyboard.viewSelection, edited.viewSelection);
+          assert.equal(keyboard.caret?.offset, edited.caret?.offset);
+          assert.ok(keyboard.caret?.focused && keyboard.caret.visible);
+        }
+        assert.deepEqual(native.pageErrors, []);
+      } finally {
+        await native.close();
+        f.dispose();
+      }
+    }
+    assert.ok(
+      outcomes.every((entry) => entry.visible),
+      JSON.stringify(outcomes),
+    );
+  },
+);
 
 test(
   '7A review reader blocks nested references during current opening without an underlying editor',

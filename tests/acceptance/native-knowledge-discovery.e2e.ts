@@ -11,7 +11,8 @@ import { launchNative, type NativeHarness } from './native-harness.js';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const evidence = join(
   root,
-  '.coordination/7C',
+  '.coordination/7C/followup',
+  process.env.AGENTSPACE_FOLLOWUP_LABEL ?? 'after',
   process.env.AGENTSPACE_TEST_WINDOW_MAX ?? 'default',
 );
 type Fixture = ReturnType<typeof createAcceptanceFixture>;
@@ -27,6 +28,7 @@ type Fault = {
   release: (() => void) | null;
 };
 type Main = typeof globalThis & { __knowledgeFault: Fault };
+let tabSequence = 0;
 async function installFault(native: NativeHarness) {
   await native.application.evaluate(({ ipcMain }) => {
     const registry = (
@@ -164,97 +166,179 @@ async function waitState(native: NativeHarness, value: string) {
   }
 }
 async function tabTo(native: NativeHarness, id: string) {
+  const sequence = ++tabSequence;
+  const trace: unknown[] = [
+    await native.page.evaluate(
+      (target) => ({
+        stage: 'before-Tab',
+        targetPresent: !!document.querySelector(`[data-testid="${target}"]`),
+        rows: Array.from(
+          document.querySelectorAll('.list-scroll [data-testid^="object-row-"]'),
+          (row) => row.getAttribute('data-testid'),
+        ),
+        loading: Array.from(
+          document.querySelectorAll('.list-scroll [role="status"]'),
+          (row) => row.textContent,
+        ),
+        transitioning: document.querySelector<HTMLElement>('[data-testid="workbench"]')?.dataset
+          .transitioning,
+        activeId: document.activeElement?.id,
+        activeTestId: document.activeElement?.getAttribute('data-testid'),
+      }),
+      id,
+    ),
+  ];
   for (let n = 0; n < 90; n++) {
     await native.page.keyboard.press('Tab');
-    if (
-      await native.page.evaluate(
-        (target) =>
-          document.activeElement?.id === target ||
-          document.activeElement?.getAttribute('data-testid') === target ||
-          document.activeElement?.textContent?.trim() === target,
-        id,
-      )
-    )
+    const observation = await native.page.evaluate((target) => {
+      const active = document.activeElement,
+        element =
+          document.querySelector<HTMLElement>(`[data-testid="${target}"]`) ??
+          document.getElementById(target),
+        list = document.querySelector('.list-scroll'),
+        workbench = document.querySelector<HTMLElement>('[data-testid="workbench"]');
+      return {
+        matched:
+          active?.id === target ||
+          active?.getAttribute('data-testid') === target ||
+          active?.textContent?.trim() === target,
+        activeId: active?.id,
+        activeTestId: active?.getAttribute('data-testid'),
+        target: element
+          ? {
+              visible:
+                element.getClientRects().length > 0 &&
+                getComputedStyle(element).visibility !== 'hidden',
+              disabled: element.matches(':disabled'),
+              inert: !!element.closest('[inert]'),
+              rect: element.getBoundingClientRect().toJSON(),
+            }
+          : null,
+        rows: Array.from(list?.querySelectorAll('[data-testid^="object-row-"]') ?? [], (row) =>
+          row.getAttribute('data-testid'),
+        ),
+        loading: Array.from(
+          list?.querySelectorAll('[role="status"]') ?? [],
+          (row) => row.textContent,
+        ),
+        filter: document.querySelector<HTMLSelectElement>('[data-testid="knowledge-review-filter"]')
+          ?.value,
+        transitioning: workbench?.dataset.transitioning,
+        listOpen: workbench?.dataset.listOpen,
+      };
+    }, id);
+    trace.push(observation);
+    if (observation.matched) {
+      if (id.startsWith('object-row-')) {
+        mkdirSync(evidence, { recursive: true });
+        writeFileSync(
+          join(evidence, `tab-trace-${sequence}-${id}.json`),
+          JSON.stringify(trace, null, 2),
+        );
+      }
       return;
+    }
   }
+  await capture(native, `tab-failure-${id}`, trace);
   assert.fail(`Keyboard did not reach ${id}`);
 }
-async function focusGeometry(native: NativeHarness) {
-  return native.page.evaluate(() => {
-    const element = document.activeElement as HTMLElement,
-      rect = element.getBoundingClientRect();
-    const clip = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
-    const ancestors = [];
-    for (let parent = element.parentElement; parent; parent = parent.parentElement) {
-      const style = getComputedStyle(parent),
-        box = parent.getBoundingClientRect();
-      const bt = parseFloat(style.borderTopWidth) || 0,
-        br = parseFloat(style.borderRightWidth) || 0,
-        bb = parseFloat(style.borderBottomWidth) || 0,
-        bl = parseFloat(style.borderLeftWidth) || 0;
-      const sy =
-        /auto|scroll/.test(style.overflowY) && parent.scrollHeight > parent.clientHeight
-          ? Math.max(0, parent.offsetWidth - parent.clientWidth - bl - br)
-          : 0;
-      const sx =
-        /auto|scroll/.test(style.overflowX) && parent.scrollWidth > parent.clientWidth
-          ? Math.max(0, parent.offsetHeight - parent.clientHeight - bt - bb)
-          : 0;
-      if (/auto|scroll|hidden|clip/.test(style.overflowY)) {
-        clip.top = Math.max(clip.top, box.top + bt);
-        clip.bottom = Math.min(clip.bottom, box.bottom - bb - sx);
-      }
-      if (/auto|scroll|hidden|clip/.test(style.overflowX)) {
-        clip.left = Math.max(clip.left, box.left + bl);
-        clip.right = Math.min(clip.right, box.right - br - sy);
-      }
-      if (/auto|scroll/.test(style.overflowY))
-        ancestors.push({
-          className: parent.className,
-          rect: box.toJSON(),
-          clientHeight: parent.clientHeight,
-          scrollHeight: parent.scrollHeight,
-          scrollTop: parent.scrollTop,
-          scrollPadding: style.scrollPaddingBlock,
-        });
-    }
-    const style = getComputedStyle(element),
-      outset = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
-    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-    const glyphs = [];
-    if (element.matches('.material-create > summary')) {
-      const svg = element.querySelector('svg');
-      if (svg) glyphs.push(svg.getBoundingClientRect().toJSON());
-      for (const node of element.childNodes)
-        if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
-          const range = document.createRange();
-          range.selectNodeContents(node);
-          glyphs.push(...Array.from(range.getClientRects(), (box) => box.toJSON()));
-        }
-    }
-    return {
-      id: element.id,
-      testId: element.dataset.testid,
-      text: element.innerText,
-      rect: rect.toJSON(),
-      clip,
-      ancestors,
-      focusVisible: element.matches(':focus-visible'),
-      outline: style.outline,
-      glyphs,
-      componentVisible:
-        rect.left >= clip.left - 0.5 &&
-        rect.top >= clip.top - 0.5 &&
-        rect.right <= clip.right + 0.5 &&
-        rect.bottom <= clip.bottom + 0.5,
-      paintVisible:
-        rect.left - outset >= clip.left - 0.5 &&
-        rect.top - outset >= clip.top - 0.5 &&
-        rect.right + outset <= clip.right + 0.5 &&
-        rect.bottom + outset <= clip.bottom + 0.5,
-      centerClear: !!hit && (element === hit || element.contains(hit)),
-    };
+async function nativeViewport(native: NativeHarness) {
+  return native.application.evaluate(({ BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows()[0]!,
+      bounds = window.getContentBounds(),
+      zoom = window.webContents.getZoomFactor();
+    return { width: bounds.width / zoom, height: bounds.height / zoom };
   });
+}
+async function focusGeometry(native: NativeHarness, testId?: string) {
+  const viewport = await nativeViewport(native);
+  return native.page.evaluate(
+    ({ viewport, testId }) => {
+      const element = (
+          testId ? document.querySelector(`[data-testid="${testId}"]`) : document.activeElement
+        ) as HTMLElement,
+        rect = element.getBoundingClientRect();
+      const clip = { left: 0, top: 0, right: viewport.width, bottom: viewport.height };
+      const ancestors = [];
+      for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+        const style = getComputedStyle(parent),
+          box = parent.getBoundingClientRect();
+        const bt = parseFloat(style.borderTopWidth) || 0,
+          br = parseFloat(style.borderRightWidth) || 0,
+          bb = parseFloat(style.borderBottomWidth) || 0,
+          bl = parseFloat(style.borderLeftWidth) || 0;
+        const sy =
+          /auto|scroll/.test(style.overflowY) && parent.scrollHeight > parent.clientHeight
+            ? Math.max(0, parent.offsetWidth - parent.clientWidth - bl - br)
+            : 0;
+        const sx =
+          /auto|scroll/.test(style.overflowX) && parent.scrollWidth > parent.clientWidth
+            ? Math.max(0, parent.offsetHeight - parent.clientHeight - bt - bb)
+            : 0;
+        if (/auto|scroll|hidden|clip/.test(style.overflowY)) {
+          clip.top = Math.max(clip.top, box.top + bt);
+          clip.bottom = Math.min(clip.bottom, box.bottom - bb - sx);
+        }
+        if (/auto|scroll|hidden|clip/.test(style.overflowX)) {
+          clip.left = Math.max(clip.left, box.left + bl);
+          clip.right = Math.min(clip.right, box.right - br - sy);
+        }
+        if (/auto|scroll/.test(style.overflowY))
+          ancestors.push({
+            className: parent.className,
+            rect: box.toJSON(),
+            clientHeight: parent.clientHeight,
+            scrollHeight: parent.scrollHeight,
+            scrollTop: parent.scrollTop,
+            nominalMaxScrollTop: parent.scrollHeight - parent.clientHeight,
+            padding: style.paddingBlock,
+            scrollPadding: style.scrollPaddingBlock,
+          });
+      }
+      const style = getComputedStyle(element),
+        outset = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      const glyphs = [];
+      if (element.matches('.material-create > summary')) {
+        const svg = element.querySelector('svg');
+        if (svg) glyphs.push(svg.getBoundingClientRect().toJSON());
+        for (const node of element.childNodes)
+          if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            glyphs.push(...Array.from(range.getClientRects(), (box) => box.toJSON()));
+          }
+      }
+      return {
+        id: element.id,
+        testId: element.dataset.testid,
+        text: element.innerText,
+        rect: rect.toJSON(),
+        viewport: { ...viewport, innerWidth, innerHeight, dpr: devicePixelRatio },
+        clip,
+        ancestors,
+        focusVisible: element.matches(':focus-visible'),
+        outline: style.outline,
+        scrollMargin: style.scrollMarginBlock,
+        padding: style.paddingBlock,
+        selected: element.classList.contains('selected'),
+        focused: document.activeElement === element,
+        glyphs,
+        componentVisible:
+          rect.left >= clip.left - 0.5 &&
+          rect.top >= clip.top - 0.5 &&
+          rect.right <= clip.right + 0.5 &&
+          rect.bottom <= clip.bottom + 0.5,
+        paintVisible:
+          rect.left - outset >= clip.left - 0.5 &&
+          rect.top - outset >= clip.top - 0.5 &&
+          rect.right + outset <= clip.right + 0.5 &&
+          rect.bottom + outset <= clip.bottom + 0.5,
+        centerClear: !!hit && (element === hit || element.contains(hit)),
+      };
+    },
+    { viewport, testId },
+  );
 }
 function requireFocus(value: Awaited<ReturnType<typeof focusGeometry>>) {
   assert.ok(
@@ -263,7 +347,8 @@ function requireFocus(value: Awaited<ReturnType<typeof focusGeometry>>) {
   );
 }
 async function caretGeometry(native: NativeHarness) {
-  return native.page.evaluate(() => {
+  const viewport = await nativeViewport(native);
+  return native.page.evaluate((viewport) => {
     const editor = document.querySelector<HTMLElement>('[data-testid="markdown-input"]')!;
     const selection = getSelection();
     if (!selection?.rangeCount || !editor.contains(selection.anchorNode))
@@ -273,9 +358,9 @@ async function caretGeometry(native: NativeHarness) {
     const rect = range.getClientRects()[0];
     if (!rect) throw new Error('The actual collapsed caret must have a rectangle');
     let top = 0,
-      bottom = innerHeight,
+      bottom = viewport.height,
       left = 0,
-      right = innerWidth;
+      right = viewport.width;
     for (let parent: HTMLElement | null = editor; parent; parent = parent.parentElement) {
       const style = getComputedStyle(parent),
         box = parent.getBoundingClientRect();
@@ -300,7 +385,7 @@ async function caretGeometry(native: NativeHarness) {
         rect.left >= left - 0.5 &&
         rect.right <= right + 0.5,
     };
-  });
+  }, viewport);
 }
 async function capture(native: NativeHarness, name: string, data: unknown) {
   mkdirSync(evidence, { recursive: true });
@@ -317,6 +402,114 @@ async function capture(native: NativeHarness, name: string, data: unknown) {
   writeFileSync(join(evidence, `${name}.png`), Buffer.from(png, 'base64'));
   writeFileSync(join(evidence, `${name}.json`), JSON.stringify({ window, data }, null, 2));
 }
+
+test(
+  '7C one changed Library row retains its complete natural-Tab boundary at Spanish 681px',
+  { skip: process.platform !== 'darwin', timeout: 120_000 },
+  async () => {
+    const results = [];
+    for (const width of [1024, 980]) {
+      const f = createAcceptanceFixture();
+      const original = requireSuccess(f.human.readObject({ objectId: f.ids.retryPolicy })).object;
+      requireSuccess(
+        f.human.markKnowledgeReviewed({
+          operationKey: '7c:singleton:review',
+          ref: { mode: 'pinned', objectId: original.id, revision: 1 },
+        }),
+      );
+      requireSuccess(
+        f.human.saveObject({
+          operationKey: '7c:singleton:change',
+          targetId: original.id,
+          expectedRevision: 1,
+          content: { ...original.content, body: 'One changed saved original.' },
+        }),
+      );
+      const native = await launchNative({
+        entry: root,
+        userData: join(f.root, `Singleton ${width}`),
+      });
+      try {
+        await open(native, f);
+        await native.setWindowBounds({ width, height: 681 });
+        await native.page.getByTestId('settings-button').click();
+        await native.page.getByTestId('locale-select').selectOption('es');
+        await native.page.getByTestId('text-scale-select').selectOption('2');
+        await native.page.keyboard.press('Escape');
+        await native.page.getByTestId('nav-library').click();
+        await native.page.getByTestId(`object-row-${f.ids.independent}`).click();
+        for (const selected of [false, true]) {
+          await native.page.getByTestId('nav-library').click();
+          await tabTo(native, 'knowledge-review-filter');
+          await native.page
+            .getByTestId('knowledge-review-filter')
+            .selectOption('changed-since-review');
+          await native.page.waitForFunction((id) => {
+            const list = document.querySelector('.list-scroll')!;
+            return (
+              list.querySelectorAll('[data-testid^="object-row-"]').length === 1 &&
+              !!list.querySelector(`[data-testid="object-row-${id}"]`) &&
+              !list.querySelector('[data-testid="library-more"], [role="status"], .list-empty')
+            );
+          }, original.id);
+          const range = await native.page.locator('.list-scroll').evaluate((element) => {
+            const top = element.scrollTop,
+              row = element.querySelector('.material-row')!,
+              rowBefore = row.getBoundingClientRect().toJSON();
+            element.scrollTop = element.scrollHeight;
+            const actualMax = element.scrollTop;
+            element.scrollTop = top;
+            return {
+              top,
+              actualMax,
+              restoredTop: element.scrollTop,
+              nominalMax: element.scrollHeight - element.clientHeight,
+              rowBefore,
+              rowRestored: row.getBoundingClientRect().toJSON(),
+            };
+          });
+          assert.equal(range.restoredTop, range.top);
+          assert.equal(range.rowRestored.top, range.rowBefore.top);
+          const before = await focusGeometry(native, `object-row-${original.id}`);
+          await capture(native, `singleton-${width}-${selected}-before-tab`, {
+            range,
+            row: before,
+          });
+          await native.page.keyboard.press('Tab');
+          await native.page.evaluate(
+            () =>
+              new Promise<void>((resolve) =>
+                requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+              ),
+          );
+          const after = await focusGeometry(native);
+          assert.equal(after.testId, `object-row-${original.id}`);
+          assert.equal(after.selected, selected);
+          const result = { width, selected, range, before, after };
+          results.push(result);
+          await capture(native, `singleton-${width}-${selected}-after-tab`, result);
+          writeFileSync(join(evidence, 'singleton-results.json'), JSON.stringify(results, null, 2));
+          if (!selected) await native.page.keyboard.press('Enter');
+        }
+        assert.deepEqual(native.pageErrors, []);
+      } finally {
+        await native.close();
+        f.dispose();
+      }
+    }
+    assert.deepEqual(
+      results.filter(
+        ({ after }) =>
+          !after.focusVisible ||
+          !after.componentVisible ||
+          !after.paintVisible ||
+          !after.centerClear,
+      ),
+      [],
+      'Each ordinary/selected singleton must fit after natural Tab; the journal retains failures.',
+    );
+  },
+);
 
 test(
   '7C Library review/save/reopen and Continue MRU use real current objects and keep fixed activity evidence',
@@ -665,6 +858,20 @@ test(
         requireFocus(filter);
         await native.page.getByTestId('knowledge-review-filter').selectOption('never-reviewed');
         const target = index % 2 ? f.ids.handoff : f.ids.measurements;
+        await native.page.waitForFunction(
+          ({ target }) => {
+            const list = document.querySelector('.list-scroll');
+            return (
+              document.querySelector<HTMLSelectElement>('[data-testid="knowledge-review-filter"]')
+                ?.value === 'never-reviewed' &&
+              !!list?.querySelector(`[data-testid="object-row-${target}"]`) &&
+              !list.querySelector('[role="status"]') &&
+              document.querySelector<HTMLElement>('[data-testid="workbench"]')?.dataset
+                .transitioning === 'false'
+            );
+          },
+          { target },
+        );
         await tabTo(native, `object-row-${target}`);
         const ordinary = await focusGeometry(native);
         requireFocus(ordinary);
@@ -684,6 +891,20 @@ test(
           );
         }
         await native.page.getByTestId('nav-library').click();
+        await native.page.waitForFunction(
+          ({ target }) => {
+            const list = document.querySelector('.list-scroll');
+            return (
+              document.querySelector<HTMLSelectElement>('[data-testid="knowledge-review-filter"]')
+                ?.value === '' &&
+              !!list?.querySelector(`[data-testid="object-row-${target}"]`) &&
+              !list.querySelector('[role="status"]') &&
+              document.querySelector<HTMLElement>('[data-testid="workbench"]')?.dataset
+                .transitioning === 'false'
+            );
+          },
+          { target },
+        );
         await tabTo(native, `object-row-${target}`);
         const selected = await focusGeometry(native);
         requireFocus(selected);
