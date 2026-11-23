@@ -359,6 +359,7 @@ test(
           ),
           retained,
         );
+        await native.page.getByTestId('nav-continue').click();
         await resume().click();
         assert.equal(await native.page.getByTestId('markdown-input').textContent(), retainedBody);
         assert.deepEqual(native.pageErrors, []);
