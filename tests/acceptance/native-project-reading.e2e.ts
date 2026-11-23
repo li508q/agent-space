@@ -299,8 +299,17 @@ async function installFault(native: NativeHarness) {
         if (
           (method === 'saveObject' && fault.saveFailure) ||
           (method === 'saveDraft' && fault.draftFailure)
-        )
+        ) {
+          if (method === 'saveObject' && fault.holdSave) {
+            fault.holdSave = false;
+            fault.held = true;
+            await new Promise<void>((resolve) => {
+              fault.release = resolve;
+            });
+            fault.held = false;
+          }
           return { ok: false, error: { code: 'STORAGE_BUSY', retryable: true } };
+        }
         if (
           method === 'readObject' &&
           request.input.objectId === fault.holdId &&
@@ -446,11 +455,69 @@ test(
         const fault = (globalThis as unknown as FaultMain).__projectReadingFault;
         fault.saveFailure = true;
         fault.draftFailure = true;
+        fault.holdSave = true;
       });
       await native.page.getByTestId('project-edit').click();
       const input = native.page.getByTestId('markdown-input'),
         draft = 'Earlier project writing must remain available after every failure.';
       await input.fill(draft);
+      const localeBeforeLeave = (await native.page.locator('html').getAttribute('lang')) as Locale;
+      const editorBeforeLeave = await native.page
+        .getByTestId('document-pane')
+        .getAttribute('data-editor-id');
+      await native.page.locator('#details-button').click();
+      const detailsBeforeLeave = native.page.locator('.context-pane');
+      await detailsBeforeLeave.waitFor();
+      await native.page.getByTestId('new-note').click();
+      await waitHeld(native);
+      await native.page.getByTestId('editor-transition').waitFor();
+      const previousZoom = await native.application.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]!.webContents.getZoomFactor(),
+      );
+      await native.application.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]!.webContents.setZoomFactor(2),
+      );
+      await finishFocusFrames(native);
+      const heldDetails = await native.logWindow('details-prepare-held');
+      assert.equal(heldDetails.view.auxiliary, 'details');
+      assert.equal(heldDetails.view.transitioning, 'true');
+      assert.equal(heldDetails.zoomFactor, 2);
+      const preparingBounds = await native.page
+        .getByTestId('editor-transition')
+        .evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          return { top: box.top, bottom: box.bottom, height: window.innerHeight };
+        });
+      assert.ok(preparingBounds.top >= -1 && preparingBounds.bottom <= preparingBounds.height + 1);
+      await native.application.evaluate(
+        ({ BrowserWindow }, zoom) =>
+          BrowserWindow.getAllWindows()[0]!.webContents.setZoomFactor(zoom),
+        previousZoom,
+      );
+      await finishFocusFrames(native);
+      await releaseFault(native);
+      const blockedDetails = native.page.getByTestId('leave-dialog');
+      await blockedDetails.waitFor();
+      await blockedDetails
+        .getByRole('button', { name: t(localeBeforeLeave, 'ui.keepWorking'), exact: true })
+        .click();
+      await detailsBeforeLeave.waitFor();
+      assert.equal(
+        await native.page.getByTestId('document-pane').getAttribute('data-editor-id'),
+        editorBeforeLeave,
+      );
+      assert.equal(await native.page.getByTestId('workbench').getAttribute('data-aux'), 'details');
+      assert.equal(
+        await native.application.evaluate(
+          () => (globalThis as unknown as FaultMain).__projectReadingFault.creates,
+        ),
+        0,
+      );
+      await detailsBeforeLeave
+        .getByRole('button', { name: t(localeBeforeLeave, 'common.close'), exact: true })
+        .click();
+      await input.waitFor();
+      assert.equal(await input.textContent(), draft);
       await native.page.getByTestId('project-overview-button').click();
       await native.page.getByTestId(`project-ref-${citedRelation}`).click();
       const reader = native.page.getByTestId('source-reader');
@@ -543,6 +610,12 @@ test(
       native = await launchNative({ entry: root, userData: join(fixture.root, 'Failed handoff') });
       await native.focus();
       await native.page.getByTestId('workbench').waitFor();
+      await native.page.getByTestId('project-overview').waitFor();
+      if (!(await native.page.locator('.draft-list button').first().isVisible()))
+        await native.page
+          .getByTestId('document-pane')
+          .getByRole('button', { name: t(locale, 'ui.browse'), exact: true })
+          .click();
       await native.page.locator('.draft-list button').first().click();
       await native.page.getByTestId('project-edit').click();
       const resumed = native.page.getByTestId('markdown-input');
@@ -868,9 +941,7 @@ test(
     mkdirSync(evidence, { recursive: true });
     try {
       await openProject(native, fixture);
-      await native.application.evaluate(({ BrowserWindow }) =>
-        BrowserWindow.getAllWindows()[0]!.setBounds({ width: 980, height: 850 }),
-      );
+      await native.setWindowBounds({ width: 980, height: 850 });
       for (const locale of supportedLocales)
         for (const scale of [1, 1.5, 2] as const) {
           await native.page.getByTestId('settings-button').click();
@@ -1007,9 +1078,7 @@ test(
     ).object;
     try {
       await installFault(native);
-      await native.application.evaluate(({ BrowserWindow }) =>
-        BrowserWindow.getAllWindows()[0]!.setBounds({ width: 1380, height: 900 }),
-      );
+      await native.setWindowBounds({ width: 1380, height: 900 });
       const nativeWindow = await native.application.evaluate(({ BrowserWindow }) => {
         const window = BrowserWindow.getAllWindows()[0]!;
         return {
@@ -1040,9 +1109,28 @@ test(
         viewport: window.innerHeight,
       }));
       assert.ok(positions.assets < positions.material);
+      const materialEntry = await native.page
+        .getByTestId('project-section-material')
+        .evaluate((element) => {
+          const box = element.getBoundingClientRect(),
+            header = element.closest('.document-header')!.getBoundingClientRect();
+          return {
+            top: box.top,
+            bottom: box.bottom,
+            left: box.left,
+            right: box.right,
+            width: window.innerWidth,
+            height: window.innerHeight,
+            clipTop: header.top,
+            clipBottom: header.bottom,
+          };
+        });
       assert.ok(
-        positions.material < positions.viewport,
-        'Accumulation starts in the default window without scrolling the full body.',
+        materialEntry.top >= Math.max(0, materialEntry.clipTop) - 1 &&
+          materialEntry.bottom <= Math.min(materialEntry.height, materialEntry.clipBottom) + 1 &&
+          materialEntry.left >= -1 &&
+          materialEntry.right <= materialEntry.width + 1,
+        `The initial material navigation must be visible: ${JSON.stringify(materialEntry)}`,
       );
       const evidence = join(root, '.coordination/screenshots/7A');
       mkdirSync(evidence, { recursive: true });
@@ -1052,6 +1140,32 @@ test(
       writeFileSync(
         join(evidence, 'project-overview-default.png'),
         Buffer.from(initialPng, 'base64'),
+      );
+      await native.page.getByTestId('project-section-material').click();
+      await native.page.waitForFunction(
+        () => document.activeElement?.id === 'project-material-heading',
+      );
+      const materialSectionAfterNavigation = await native.page
+        .locator('#project-material-heading')
+        .evaluate((element) => {
+          const box = element.getBoundingClientRect(),
+            region = element.closest('.document-scroll')!.getBoundingClientRect();
+          return {
+            top: box.top,
+            bottom: box.bottom,
+            regionTop: region.top,
+            regionBottom: region.bottom,
+            height: window.innerHeight,
+          };
+        });
+      assert.ok(
+        materialSectionAfterNavigation.top >= materialSectionAfterNavigation.regionTop - 1 &&
+          materialSectionAfterNavigation.bottom <=
+            Math.min(
+              materialSectionAfterNavigation.regionBottom,
+              materialSectionAfterNavigation.height,
+            ) +
+              1,
       );
       const trigger = native.page.getByTestId(`project-ref-${citedRelation}`);
       await trigger.click();
@@ -1189,6 +1303,8 @@ test(
             requestedWindow: { width: 1380, height: 900 },
             nativeWindow,
             initialLayoutCss: positions,
+            materialEntryCss: materialEntry,
+            materialSectionAfterNavigationCss: materialSectionAfterNavigation,
             originalObjectId: fixture.k1.id,
             k1Digest: fixture.k1.digest,
             savedRevision: saved.revision,
@@ -1348,6 +1464,19 @@ test(
       );
       await native.page.keyboard.press('Escape');
       await reader.getByTestId('source-back').click();
+      await reader.waitFor({ state: 'hidden' });
+      if (!(await input.isVisible())) {
+        const details = native.page.locator('.context-pane');
+        if (await details.isVisible())
+          await details
+            .getByRole('button', { name: t(locale, 'common.close'), exact: true })
+            .click();
+        else
+          await native.page
+            .locator('.material-list > header')
+            .getByRole('button', { name: t(locale, 'ui.sourceReturn'), exact: true })
+            .click();
+      }
       await input.waitFor();
       await input.fill('Later input after cancellation.');
       await native.application.evaluate(() => {

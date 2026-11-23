@@ -1149,6 +1149,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
           className="workbench"
           data-compact={compact}
           data-list-open={listOpen}
+          data-transitioning={!!transitionStage}
           data-aux={reader || tableOpen ? '' : (aux ?? '')}
           data-testid="workbench"
           onBeforeInputCapture={(event) => {

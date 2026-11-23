@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import test from 'node:test';
@@ -130,12 +131,21 @@ for (const cancel of [false, true]) {
         await native.page.waitForFunction(() =>
           document.querySelector('[data-testid="save-state"]')?.classList.contains('saved'),
         );
+        const target = native.page.getByTestId(`object-row-${fixture.ids.measurements}`);
+        if (!(await target.isVisible())) {
+          const locale = (await native.page.locator('html').getAttribute('lang')) as Locale;
+          await native.page
+            .getByTestId('document-pane')
+            .getByRole('button', { name: t(locale, 'ui.browse'), exact: true })
+            .click();
+        }
+        const originalView = await native.logWindow('before-opening');
         await native.application.evaluate(
           (_electron, id) =>
             (globalThis as unknown as TestMain).__agentSpaceTestFault.hold('readObject', id),
           fixture.ids.measurements,
         );
-        await native.page.getByTestId(`object-row-${fixture.ids.measurements}`).click();
+        await target.click();
         let held = false;
         for (let i = 0; i < 100 && !held; i++) {
           held = await native.application.evaluate(
@@ -145,13 +155,108 @@ for (const cancel of [false, true]) {
         }
         assert.equal(held, true);
         const notice = native.page.getByTestId('editor-transition');
+        await native.logWindow('opening-held');
+        await native.page.evaluate(
+          () =>
+            new Promise<void>((resolve) => {
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+            }),
+        );
+        if (!(await notice.isVisible())) {
+          const visibility = await native.page.evaluate(() => ({
+            materialInert: document.querySelector('.material-list')?.hasAttribute('inert'),
+            surfaceDisplay: getComputedStyle(document.querySelector('.working-surface')!).display,
+            surfaceVisibility: getComputedStyle(document.querySelector('.working-surface')!)
+              .visibility,
+            noticeDisplay: getComputedStyle(
+              document.querySelector('[data-testid="editor-transition"]')!,
+            ).display,
+          }));
+          console.log(
+            `[native-opening-hidden] ${JSON.stringify({ ...visibility, sourceSaved: requireSuccess(fixture.human.readObject({ objectId: fixture.ids.retryPolicy })).object.content.body === baseline, sourceRevision: requireSuccess(fixture.human.readObject({ objectId: fixture.ids.retryPolicy })).object.revision, targetRevision: requireSuccess(fixture.human.readObject({ objectId: fixture.ids.measurements })).object.revision, held })}`,
+          );
+          mkdirSync(join(root, '.coordination'), { recursive: true });
+          const png = await native.application.evaluate(async ({ BrowserWindow }) =>
+            (await BrowserWindow.getAllWindows()[0]!.capturePage()).toPNG().toString('base64'),
+          );
+          writeFileSync(
+            join(root, '.coordination/7A-ci-opening-held.png'),
+            Buffer.from(png, 'base64'),
+          );
+        }
         await notice.waitFor();
+        assert.equal(await notice.count(), 1);
+        // Native test viewport control, not an application preference or product flag.
+        await native.application.evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows()[0]!.webContents.setZoomFactor(2),
+        );
+        await native.page.evaluate(
+          () =>
+            new Promise<void>((resolve) =>
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+            ),
+        );
+        const enlarged = await native.logWindow('opening-held-zoom2');
+        assert.equal(enlarged.zoomFactor, 2);
+        const noticeBounds = await notice.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          return { top: box.top, bottom: box.bottom, height: window.innerHeight };
+        });
+        assert.ok(noticeBounds.top >= -1 && noticeBounds.bottom <= noticeBounds.height + 1);
+        if (originalView.view.compact === 'true') {
+          mkdirSync(join(root, '.coordination'), { recursive: true });
+          const png = await native.application.evaluate(async ({ BrowserWindow }) =>
+            (await BrowserWindow.getAllWindows()[0]!.capturePage()).toPNG().toString('base64'),
+          );
+          writeFileSync(
+            join(root, '.coordination/7A-ci-opening-visible.png'),
+            Buffer.from(png, 'base64'),
+          );
+        }
         if (cancel) {
           const locale = (await native.page.locator('html').getAttribute('lang')) as Locale;
-          await notice
-            .getByRole('button', { name: t(locale, 'common.cancel'), exact: true })
-            .click();
+          const cancelButton = notice.getByRole('button', {
+            name: t(locale, 'common.cancel'),
+            exact: true,
+          });
+          for (
+            let step = 0;
+            step < 12 &&
+            !(await cancelButton.evaluate((element) => document.activeElement === element));
+            step++
+          )
+            await native.page.keyboard.press('Tab');
+          assert.equal(
+            await cancelButton.evaluate((element) => document.activeElement === element),
+            true,
+          );
+          await native.page.keyboard.press('Enter');
           await notice.waitFor({ state: 'hidden' });
+          await native.application.evaluate(
+            ({ BrowserWindow }, zoom) =>
+              BrowserWindow.getAllWindows()[0]!.webContents.setZoomFactor(zoom),
+            originalView.zoomFactor,
+          );
+          await native.page.evaluate(
+            () =>
+              new Promise<void>((resolve) =>
+                requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+              ),
+          );
+          const cancelledView = await native.logWindow('opening-cancelled');
+          assert.equal(cancelledView.view.listOpen, originalView.view.listOpen);
+          assert.equal(cancelledView.view.auxiliary, originalView.view.auxiliary);
+          assert.equal(
+            requireSuccess(fixture.human.readObject({ objectId: fixture.ids.retryPolicy })).object
+              .content.body,
+            baseline,
+          );
+          if (!(await input.isVisible()))
+            await native.page
+              .locator('.material-list > header')
+              .getByRole('button', { name: t(locale, 'ui.sourceReturn'), exact: true })
+              .click();
+          await input.waitFor();
           const correction = 'Continue writing after cancelling the pending opening.';
           await input.fill(correction);
           await native.page.getByTestId('save-now').click();
@@ -178,6 +283,11 @@ for (const cancel of [false, true]) {
             await input.pressSequentially(' should not enter');
             assert.equal(await input.textContent(), baseline);
           }
+          await native.application.evaluate(
+            ({ BrowserWindow }, zoom) =>
+              BrowserWindow.getAllWindows()[0]!.webContents.setZoomFactor(zoom),
+            originalView.zoomFactor,
+          );
           await native.application.evaluate(() =>
             (globalThis as unknown as TestMain).__agentSpaceTestFault.release(),
           );
@@ -188,6 +298,17 @@ for (const cancel of [false, true]) {
           );
           await notice.waitFor({ state: 'hidden' });
           assert.equal(await input.isEditable(), true);
+          const correctedTarget = 'A usable target after the delayed opening.';
+          await input.fill(correctedTarget);
+          await native.page.getByTestId('save-now').click();
+          await native.page.waitForFunction(() =>
+            document.querySelector('[data-testid="save-state"]')?.classList.contains('saved'),
+          );
+          assert.equal(
+            requireSuccess(fixture.human.readObject({ objectId: fixture.ids.measurements })).object
+              .content.body,
+            correctedTarget,
+          );
           assert.equal(
             requireSuccess(fixture.human.readObject({ objectId: fixture.ids.retryPolicy })).object
               .content.body,

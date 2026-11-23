@@ -1,6 +1,6 @@
 # Verification and evidence
 
-Updated 2026-11-23 for 0.1.1, persistent format 2. Checks trace to the interview-origin scenarios SC-01–SC-09 and acceptance targets AS-01–AS-15 in [PRD.md](PRD.md). All fixtures are synthetic. Concurrency, crashes and response loss are engineering risk cases, not incidents attributed to the user.
+Updated 2026-11-23 for the 0.1.2 candidate, persistent format 2. Checks trace to the interview-origin scenarios SC-01–SC-09 and acceptance targets AS-01–AS-15 in [PRD.md](PRD.md). All fixtures are synthetic. Concurrency, crashes and response loss are engineering risk cases, not incidents attributed to the user.
 
 ## Run the checks
 
@@ -72,6 +72,16 @@ A separate acceptance task used the actual 0.1.1 ZIP-extracted application, move
 - All **20 combinations** of five languages, native widths 1380/980 and text scales 1/2 passed actual controls, failure/recovery checks, pin postconditions and horizontal geometry. English 1380/1× and Spanish 980/2× additionally passed full keyboard edit/save/return flows with visible focus and the actual text caret. At 2×, 980 native pixels correspond to 490 CSS pixels; native Electron captures were used rather than cropped browser screenshots.
 
 No product failure was found in this bounded pass. Probe assumptions about DOM targets, whole-editor geometry and narrow-layout return paths were corrected against observed controls/caret; they are not product fixes. This establishes the project-inspection/correction slice, not completion of the remaining [product review](PRODUCT_REVIEW.md), first-user effectiveness, physical IME behavior or long-term use.
+
+### Compact-navigation follow-up in 0.1.2
+
+The expanded macOS CI exposed five smaller-window failures. A controlled 980×720 source run reproduced the same five points. Test paths assumed a visible list/editor or a whole material section in the first viewport. Following the actual Browse/Close list/Close Details controls corrected those assumptions without removing data, version, draft or focus assertions.
+
+The same investigation confirmed a product defect: while opening an object from the compact list, the list became inert but the existing opening status and Cancel control were inside the hidden working surface. The source and target persisted correctly; the control path was unreachable. The 0.1.2 candidate adds a presentation-only transition attribute and compact CSS overrides. It exposes the existing status surface, keeps the original list/details state and mounted editors, and restores their presentation when the transition ends. No Core, permission, data format or editor state-machine change is involved.
+
+After correction, navigation plus project-reading passed **11/11 at the default window and 11/11 at controlled 980×720**. The related native checks passed 8/8; the integrated gate passed 115/115, with formatting and targeted lint. At native zoom 2, a 490×344 CSS viewport kept status/Cancel visible and keyboard-operable. Details preparation preserved its original auxiliary state, editor identity and human text. An unnecessary rule hiding the reader was removed after a regression detected it. The new 0.1.2 package and independent follow-up are pending; the old 0.1.1 package is not proof of this runtime correction.
+
+The test-only harness can cap requests with `AGENTSPACE_TEST_WINDOW_MAX=980x720` and logs requested/actual/content/CSS/zoom geometry without authored content, environment values or credentials. The cap is removed from the application environment. First-screen assertions measure the real material navigation before clicking through to its section, rather than assuming the complete list is simultaneously visible.
 
 ## Persistence and recovery boundaries
 

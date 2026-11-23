@@ -6,6 +6,8 @@ The local collaboration foundation is implemented and technically verified. The 
 
 **Accepted in 0.1.1:** project overviews and editing the current original from a reader. Source checks, new-package runtime verification and independent native acceptance passed within the limits in [TESTING](TESTING.md). Change discovery, knowledge-review filtering, contextual collaboration setup and writing-detail corrections remain open.
 
+The expanded CI subsequently found a separate compact-list control defect: an opening request locked the list while its status/Cancel surface was hidden. The 0.1.2 candidate corrects that presentation and passes the source checks recorded in TESTING; its new-package and independent follow-up remain pending. The earlier 0.1.1 acceptance retains its bounded scope and does not close this newly exercised path.
+
 ## The product promise
 
 A person owns the shared workspace and can write directly. Different agents use the same material and continue work through explicit references. Proposed changes, their declared reasons, their evidence and their accepted results remain understandable. The person can correct, reject and recover work.

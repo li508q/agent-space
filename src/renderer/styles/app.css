@@ -1273,6 +1273,15 @@ button.primary:hover:not(:disabled) {
 .workbench[data-compact='true'] .browse-floating {
   display: none;
 }
+/* Keep the guarded transition reachable without changing the person's route. */
+.workbench[data-compact='true'][data-transitioning='true'] .material-list,
+.workbench[data-compact='true'][data-transitioning='true'] .context-pane {
+  display: none;
+}
+.workbench[data-compact='true'][data-transitioning='true'] .working-surface {
+  display: flex;
+  visibility: visible;
+}
 @media (max-width: 800px) {
   .app-header {
     padding: 0.5rem 0.65rem;
