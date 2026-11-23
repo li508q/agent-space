@@ -1,6 +1,6 @@
 # Verification and evidence
 
-Updated 2026-11-23 for 0.1.2, persistent format 2. Checks trace to the interview-origin scenarios SC-01–SC-09 and acceptance targets AS-01–AS-15 in [PRD.md](PRD.md). All fixtures are synthetic. Concurrency, crashes and response loss are engineering risk cases, not incidents attributed to the user.
+Updated 2026-11-23 for the 0.1.3 candidate, persistent format 2. Checks trace to the interview-origin scenarios SC-01–SC-09 and acceptance targets AS-01–AS-15 in [PRD.md](PRD.md). All fixtures are synthetic. Concurrency, crashes and response loss are engineering risk cases, not incidents attributed to the user.
 
 ## Run the checks
 
@@ -17,7 +17,7 @@ npm run package:mac
 npm run package:verify
 ```
 
-`check` runs strict TypeScript, zero-warning ESLint, compiled Core/agent builds and contract, persistence, UI-state, localization, desktop-unit and actual standalone MCP suites. The latest integrated run passed **115/115** tests. The focused local-data suite passed **19/19**. Node 22's experimental SQLite warning is expected and distinct from an ESLint warning.
+`check` runs strict TypeScript, zero-warning ESLint, compiled Core/agent builds and contract, persistence, UI-state, localization, desktop-unit and actual standalone MCP suites. The latest source integrated run passed **121/121** tests, including six bounded change-discovery state cases. The focused local-data suite passed **19/19**. Node 22's experimental SQLite warning is expected and distinct from an ESLint warning.
 
 Native tests require macOS and run serially, with one GUI owner and private `AGENTSPACE_USER_DATA` profiles. They exercise actual Electron, preload, React, CodeMirror, SQLite and SDK processes. OS chooser results and selected fault cases are explicitly substituted; those tests do not establish physical chooser or input-method behavior.
 
@@ -29,6 +29,16 @@ AGENTSPACE_TEST_EXECUTABLE='/path/to/AgentSpace.app/Contents/MacOS/AgentSpace' \
 ```
 
 This omits the development app entry. The separate no-debugger crash observer in `tests/desktop/native.test.ts` uses the development entry; packaged Electron does not execute its development `--require` observer. Do not interpret that observer's absence as a product crash result.
+
+## Change discovery in the source build
+
+The current source build passed **5/5** new native change-discovery cases and **18/18** in the combined serial run with existing project-reading, navigation, review and locale cases. This is development Electron evidence; the earlier 0.1.2 package does not establish these new controls, and a new packaged acceptance pass remains separate.
+
+The new flow saves human text through the UI, creates proposals with the real SDK/MCP process, applies an update and a new-object proposal, rejects another creation, advances the source and human head, exits and reopens. Activity and Processed recover the human save and both decisions without title search. The accepted version, original diff/reason and K1 evidence remain inspectable while current K3 survives. A rejected creation has no accepted object or result link.
+
+Bounded cases load contiguous 50-event windows, 53 applied proposals and a separate rejected group; fail and retry an append without losing successful pages; and traverse an empty prepared window. Held real IPC replies cover collection changes, a previous binding across A–B–new A, and an old pending detail released after an actual accept/reject. A decision immediately invalidates obsolete detail callbacks, including errors, loading and seen notifications, while status and current revision remain monotonic. An additional targeted replay holds a real successful K2 decision reply, advances the human head until the detail observes K3, then releases that receipt: current stays K3 and the fixed accepted result stays K2. Reading and editing current from Activity returns to the same persistently retained human draft after a save failure. A Review-header result returns to the original proposal and trigger after current editing.
+
+Ten locale/size combinations cover all five languages at requested 980px width and native 1×/2× zoom, with actual window/content/CSS sizes recorded separately. Keyboard checks reach activity groups, refresh/retry, processed groups, the fixed result and reader return. Native window captures verify the visible layout; no physical IME or OS chooser coverage is inferred.
 
 ## Coverage by user requirement
 

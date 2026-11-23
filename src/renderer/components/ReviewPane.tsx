@@ -30,6 +30,8 @@ export function ReviewPane({
   onEdit,
   onDraft,
   onChanged,
+  onObserved,
+  onReturnActivity,
 }: {
   api: DesktopApi;
   session: SpaceSession;
@@ -40,11 +42,14 @@ export function ReviewPane({
   onEdit: (objectId: string) => void;
   onDraft: (view: ProposalView) => void;
   onChanged: () => void;
+  onObserved: (view: ProposalView) => void;
+  onReturnActivity?: () => void;
 }) {
   const locale = useLocale(),
     makeTask = useTaskFactory();
   const [view, setView] = useState<ProposalView | null>(null);
   const [error, setError] = useState<ErrorCode | null>(null);
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [outcome, setOutcome] = useState<ReviewResult | null>(null);
@@ -52,28 +57,49 @@ export function ReviewPane({
   const task = useRef<{ task: OperationTask<ReviewResult>; decision: 'accept' | 'reject' } | null>(
     null,
   );
+  const readEpoch = useRef(0);
   const identity = useRef(proposalId);
   identity.current = proposalId;
   useEffect(() => {
     let active = true;
+    const ticket = ++readEpoch.current;
+    const currentRead = () => active && ticket === readEpoch.current;
+    setLoading(true);
     void api
       .getProposal(bound(session, { proposalId }))
       .then((result) => {
-        if (!active) return;
+        if (!currentRead()) return;
         if (result.ok) {
-          setView(result.value);
+          setView((previous) => {
+            const incoming = result.value;
+            if (previous?.proposal.id !== incoming.proposal.id) return incoming;
+            // A read begun before a real decision cannot revive pending actions.
+            if (previous.proposal.statusVersion > incoming.proposal.statusVersion) return previous;
+            // Proposal status and the current target advance independently.
+            const current =
+              previous.current &&
+              (!incoming.current || previous.current.revision > incoming.current.revision)
+                ? previous.current
+                : incoming.current;
+            return { ...incoming, current };
+          });
+          onObserved(result.value);
           setError(null);
           if (!result.value.seen)
             void api.markProposalSeen(bound(session, { proposalId, seen: true })).then((seen) => {
-              if (active && seen.ok) onChanged();
+              if (currentRead() && seen.ok) onChanged();
             });
         } else setError(result.error.code);
       })
       .catch(() => {
-        if (active) setError('OPERATION_UNKNOWN');
+        if (currentRead()) setError('OPERATION_UNKNOWN');
+      })
+      .finally(() => {
+        if (currentRead()) setLoading(false);
       });
     return () => {
       active = false;
+      readEpoch.current++;
     };
   }, [api, session.bindingId, proposalId, refresh, retry]);
   useEffect(() => {
@@ -82,6 +108,9 @@ export function ReviewPane({
 
   async function decide(decision: 'accept' | 'reject') {
     if (!view) return;
+    // Invalidate reads synchronously, before React cleanup or the Core decision.
+    readEpoch.current++;
+    setLoading(false);
     const selected = proposalId;
     if (!task.current || task.current.task.settled) {
       const shared = {
@@ -116,6 +145,8 @@ export function ReviewPane({
     try {
       const result = await task.current.task.run();
       if (identity.current !== selected) return;
+      readEpoch.current++;
+      setLoading(false);
       if (!result.ok) setError(result.error.code);
       else {
         setOutcome(result.value);
@@ -123,15 +154,26 @@ export function ReviewPane({
           previous
             ? {
                 ...previous,
-                proposal: result.value.proposal,
-                current: result.value.object ?? previous.current,
+                proposal:
+                  result.value.proposal.statusVersion >= previous.proposal.statusVersion
+                    ? result.value.proposal
+                    : previous.proposal,
+                current:
+                  result.value.object &&
+                  (!previous.current || result.value.object.revision >= previous.current.revision)
+                    ? result.value.object
+                    : previous.current,
               }
             : previous,
         );
         onChanged();
       }
     } catch {
-      if (identity.current === selected) setError('OPERATION_UNKNOWN');
+      if (identity.current === selected) {
+        readEpoch.current++;
+        setLoading(false);
+        setError('OPERATION_UNKNOWN');
+      }
     } finally {
       if (identity.current === selected) setBusy(false);
     }
@@ -140,7 +182,7 @@ export function ReviewPane({
     return (
       <section className="empty-pane">
         <ErrorNotice code={error} onRetry={() => setRetry((value) => value + 1)} />
-        <p>{t(locale, 'ui.loading')}</p>
+        {loading && <p role="status">{t(locale, 'ui.loading')}</p>}
       </section>
     );
   const proposal = view.proposal;
@@ -190,7 +232,13 @@ export function ReviewPane({
   return (
     <section className="review-pane" data-testid="proposal-review">
       <header className="document-header">
+        {onReturnActivity && (
+          <button onClick={onReturnActivity} data-testid="return-activity">
+            {t(locale, 'activity.return')}
+          </button>
+        )}
         <div className="as-actions">
+          <small>{t(locale, 'review.currentStatus')}</small>
           <span className={`status-tag ${proposal.status}`}>
             {t(locale, statusKeys[proposal.status])}
           </span>
@@ -236,15 +284,38 @@ export function ReviewPane({
         {outcome?.outcome === 'conflicted' && (
           <p className="attention">{t(locale, 'proposal.originalChanged')}</p>
         )}
-        {outcome?.outcome === 'applied' && outcome.object && (
-          <button data-testid="open-proposal-result" onClick={() => onEdit(outcome.object!.id)}>
-            {t(locale, proposal.action === 'create' ? 'ui.openCreated' : 'proposal.editCurrent')}
-          </button>
+        {proposal.status === 'applied' && proposal.resultRevision !== null && (
+          <div className="as-actions">
+            <button
+              data-testid="open-proposal-saved-version"
+              id={`proposal-result-${proposal.id}`}
+              onClick={() =>
+                onOpen(
+                  {
+                    mode: 'pinned',
+                    objectId: proposal.targetId,
+                    revision: proposal.resultRevision!,
+                  },
+                  `proposal-result-${proposal.id}`,
+                )
+              }
+            >
+              {t(locale, 'review.savedResult', { version: proposal.resultRevision })}
+            </button>
+            {view.current && (
+              <button data-testid="open-proposal-result" onClick={() => onEdit(view.current!.id)}>
+                {t(locale, 'proposal.editCurrent')}
+              </button>
+            )}
+          </div>
+        )}
+        {proposal.status === 'rejected' && (
+          <p className="secondary">{t(locale, 'review.rejectedNotice')}</p>
         )}
       </header>
       <div className="review-scroll as-scroll-region">
         <section className="proposal-reason">
-          <h2>{t(locale, 'proposal.reason')}</h2>
+          <h2>{t(locale, 'review.originalReason')}</h2>
           <p>{proposal.payload.reason}</p>
         </section>
         <section className="proposal-sources">

@@ -1,4 +1,12 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   BookOpen,
   ChevronLeft,
@@ -19,7 +27,6 @@ import type {
   ObjectSnapshot,
   ObjectSummary,
   ObjectView,
-  ProposalSummary,
   ProposalView,
   SpaceStatus,
   WriteResult,
@@ -29,7 +36,7 @@ import type { ErrorCode } from '../contracts/errors.js';
 import type { Result } from '../contracts/errors.js';
 import type { HumanQueryInput, RelinkSession } from '../contracts/local.js';
 import type { ObjectContent, ObjectRef, QueryInput } from '../contracts/schema.js';
-import { formatCount, formatNumber, t, titleText, type Locale } from './i18n/index.js';
+import { formatNumber, t, titleText, type Locale } from './i18n/index.js';
 import { bound, RequestGate, sameBinding } from './state/binding.js';
 import { EditorSession, type EditorSnapshot } from './state/editor.js';
 import {
@@ -38,6 +45,13 @@ import {
   type TransitionTicket,
 } from './state/transition.js';
 import { OperationTask } from './state/operation.js';
+import {
+  ProposalLists,
+  collectionFor,
+  collectionStatuses,
+  proposalStatusKey,
+  type ReviewCollection,
+} from './state/change-discovery.js';
 import { recordFromFields } from './state/material.js';
 import {
   ErrorNotice,
@@ -80,6 +94,7 @@ type ReaderOrigin = {
   draftId: string | null;
   destination: Destination;
   selectedProposal: string | null;
+  reviewCollection: ReviewCollection;
   aux: 'details' | 'history' | null;
   tableOpen: boolean;
   projectWriting: boolean;
@@ -144,11 +159,15 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   const [text, setText] = useState(''),
     [kind, setKind] = useState<QueryInput['filter']['kind']>(),
     [projectId, setProjectId] = useState<string | null>(null);
-  const [proposals, setProposals] = useState<ProposalSummary[]>([]);
-  const [proposalNext, setProposalNext] = useState<{
-    pending: string | null;
-    conflicted: string | null;
-  }>({ pending: null, conflicted: null });
+  const proposalLists = useMemo(
+    () => new ProposalLists(api, session),
+    [api, session.bindingId, session.status.spaceId, session.status.instanceId],
+  );
+  const proposalState = useSyncExternalStore(proposalLists.subscribe, proposalLists.getSnapshot);
+  const proposals = [
+    ...proposalState.groups.pending.items,
+    ...proposalState.groups.conflicted.items,
+  ];
   const [selectedProposal, setSelectedProposal] = useState<string | null>(null);
   const [editor, setEditor] = useState<EditorSession | null>(null);
   const editorRef = useRef<EditorSession | null>(null);
@@ -188,7 +207,8 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     [busy, setBusy] = useState(false);
   const [error, setError] = useState<ErrorCode | null>(null),
     [feedback, setFeedback] = useState(false);
-  const [proposalLoadError, setProposalLoadError] = useState<ErrorCode | null>(null);
+  const [activityError, setActivityError] = useState<ErrorCode | null>(null);
+  const [activityReturn, setActivityReturn] = useState<'reader' | 'proposal' | null>(null);
   const [leaveAction, setLeaveAction] = useState<{
     action: (ticket: TransitionTicket) => Promise<void>;
     stage: 'opening' | 'creating';
@@ -200,8 +220,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   const alive = useRef(true),
     queryGate = useRef(new RequestGate()),
     objectGate = useRef(new RequestGate());
-  const proposalEpoch = useRef(0),
-    draftEpoch = useRef(0),
+  const draftEpoch = useRef(0),
     grantEpoch = useRef(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const tasks = useRef(new Map<string, OperationTask<unknown>>());
@@ -294,6 +313,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     }
   }
   function clearReaders() {
+    setActivityReturn(null);
     readerRouteEpoch.current++;
     setReaders([]);
     setReaderEditing(false);
@@ -583,48 +603,32 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       if (alive.current && queryGate.current.accepts(ticket, session)) setLoading(false);
     }
   }
-  async function loadProposals(more = false) {
-    const ticket = ++proposalEpoch.current;
-    const pages = await Promise.all(
-      (['pending', 'conflicted'] as const).map((status) =>
-        more && !proposalNext[status]
-          ? Promise.resolve(null)
-          : api
-              .listProposals(
-                bound(session, {
-                  status,
-                  limit: 50,
-                  ...(more && proposalNext[status] ? { afterId: proposalNext[status]! } : {}),
-                }),
-              )
-              .catch(() => ({
-                ok: false as const,
-                error: { code: 'OPERATION_UNKNOWN' as const, retryable: true },
-              })),
-      ),
-    );
-    if (!alive.current || ticket !== proposalEpoch.current) return;
-    const items = pages.flatMap((page) => (page?.ok ? page.value.items : []));
-    const bad = pages.find((page) => page && !page.ok);
-    setProposalLoadError(bad && !bad.ok ? bad.error.code : null);
-    setProposals((old) => {
-      const retained = more
-        ? old
-        : old.filter((entry) => {
-            const index = entry.status === 'pending' ? 0 : 1;
-            return !pages[index]?.ok;
-          });
-      const map = new Map(retained.map((entry) => [entry.id, entry]));
-      for (const item of items) {
-        const existing = map.get(item.id);
-        if (!existing || item.statusVersion >= existing.statusVersion) map.set(item.id, item);
+  async function loadProposals() {
+    await proposalLists.refresh();
+  }
+  async function openActivityProposal(proposalId: string) {
+    await protect(async (ticket) => {
+      const result = await api.getProposal(bound(session, { proposalId })).catch(() => null);
+      if (!alive.current || !navigation.isCurrent(ticket)) return;
+      if (!result?.ok) {
+        setActivityError(result && !result.ok ? result.error.code : 'OPERATION_UNKNOWN');
+        return;
       }
-      return [...map.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      clearReaders();
+      void proposalLists.select(collectionFor(result.value.proposal.status));
+      setSelectedProposal(proposalId);
+      setDestination('review');
+      setAux(null);
+      setTableOpen(false);
+      setListOpen(false);
+      setActivityError(null);
+      setActivityReturn('proposal');
+      setActivityOpen(false);
     });
-    setProposalNext((old) => ({
-      pending: pages[0]?.ok ? pages[0].value.nextAfterId : old.pending,
-      conflicted: pages[1]?.ok ? pages[1].value.nextAfterId : old.conflicted,
-    }));
+  }
+  function returnActivity() {
+    setActivityReturn(null);
+    setActivityOpen(true);
   }
   async function loadDrafts(next?: string) {
     const ticket = ++draftEpoch.current;
@@ -670,6 +674,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   useEffect(() => {
     alive.current = true;
     navigation.activate();
+    proposalLists.activate();
     void loadProposals();
     void loadDrafts();
     void loadGrants();
@@ -720,6 +725,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     return () => {
       alive.current = false;
       navigation.dispose();
+      proposalLists.dispose();
       clearInterval(timer);
       window.removeEventListener('focus', onFocus);
       queryGate.current.invalidate();
@@ -797,7 +803,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     lockInput: (locked, source = 'close') => navigation.setLock(source, locked),
   }));
 
-  function openReference(reference: ObjectRef, trigger?: string) {
+  function openReference(reference: ObjectRef, trigger?: string, onOpened?: () => void) {
     if (
       openingReference.current ||
       navigation.pending ||
@@ -826,7 +832,8 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
         source?.querySelector('.document-scroll');
       const region: ReaderEntry['region'] = scroll?.classList.contains('context-scroll')
         ? 'context'
-        : scroll?.classList.contains('review-scroll')
+        : scroll?.classList.contains('review-scroll') ||
+            (origin instanceof Element && !!origin.closest('.review-pane'))
           ? 'review'
           : scroll?.classList.contains('record-table-scroll')
             ? 'table'
@@ -839,6 +846,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
         document.querySelector('.document-scroll')?.scrollTop ??
         0;
       if (!readers.length || readerEditing) {
+        if (readerEditing) setActivityReturn(null);
         const state = activeEditor?.getSnapshot();
         readerOrigin.current = {
           editorId: state?.editorId ?? null,
@@ -846,6 +854,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
           draftId: null,
           destination,
           selectedProposal,
+          reviewCollection: proposalState.collection,
           aux,
           tableOpen,
           edited: false,
@@ -879,6 +888,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       setReaderEditing(false);
       setSourceAction(null);
       setListOpen(false);
+      onOpened?.();
     })().finally(() => {
       openingReference.current = false;
     });
@@ -1008,6 +1018,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     if (navigation.pending || navigation.locked) return;
     const current = readers.at(-1);
     const origin = readerOrigin.current;
+    const activityOrigin = activityReturn;
     if (readers.length === 1 && origin?.edited) {
       void protect(async (ticket) => {
         let own = editorRef.current;
@@ -1033,6 +1044,8 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
         if (!alive.current || !navigation.isCurrent(ticket)) return;
         setDestination(origin.destination);
         setSelectedProposal(origin.selectedProposal);
+        if (proposalState.collection !== origin.reviewCollection)
+          void proposalLists.select(origin.reviewCollection);
         setAux(origin.aux);
         setTableOpen(origin.tableOpen);
         setListOpen(false);
@@ -1040,13 +1053,29 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
         setRestoreMaterialCount(origin.materialCount);
         setRestoreReferenceCounts(origin.referenceCounts);
         clearReaders();
-        restoreReaderLocation(current, own);
+        if (activityOrigin === 'reader') returnActivity();
+        else {
+          setActivityReturn(activityOrigin);
+          restoreReaderLocation(current, own);
+        }
       });
       return;
     }
     setReaders((old) => old.slice(0, -1));
     readerRouteEpoch.current++;
-    if (readers.length === 1) readerOrigin.current = null;
+    if (readers.length === 1) {
+      readerOrigin.current = null;
+      if (origin?.destination === 'review' && origin.selectedProposal) {
+        setDestination('review');
+        setSelectedProposal(origin.selectedProposal);
+        if (proposalState.collection !== origin.reviewCollection)
+          void proposalLists.select(origin.reviewCollection);
+      }
+      if (activityOrigin === 'reader') {
+        returnActivity();
+        return;
+      }
+    }
     restoreReaderLocation(current);
   }
   function chooseDestination(value: Destination) {
@@ -1061,20 +1090,6 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       setListOpen(true);
       if (value !== 'review') setSelectedProposal(null);
     });
-  }
-  async function earlierActivity() {
-    const minimum = Math.min(...activity.map((entry) => entry.id));
-    if (!Number.isFinite(minimum) || minimum <= 1) return;
-    const result = await api
-      .activity(
-        bound(session, { after: Math.max(0, minimum - 51), through: minimum - 1, limit: 50 }),
-      )
-      .catch(() => null);
-    if (alive.current && result?.ok)
-      setActivity((old) => [
-        ...old,
-        ...result.value.items.filter((entry) => !old.some((existing) => existing.id === entry.id)),
-      ]);
   }
   function openMetadata(mode: 'fields' | 'relations' | 'lifecycle' | 'relink') {
     const active = editorRef.current;
@@ -1134,10 +1149,9 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     { id: 'library', key: 'nav.library', icon: FileText },
     { id: 'review', key: 'nav.review', icon: ListChecks },
   ] as const;
-  const moreProposals = !!proposalNext.pending || !!proposalNext.conflicted;
-  const countLabel = moreProposals
-    ? t(locale, 'ui.atLeastPending', { count: proposals.length })
-    : formatCount(locale, 'pendingProposals', proposals.length);
+  const moreProposals =
+    !!proposalState.groups.pending.nextAfterId || !!proposalState.groups.conflicted.nextAfterId;
+  const countLabel = t(locale, 'review.loadedPending', { count: proposals.length });
   const activeObject = editor?.getSnapshot().objectId;
   const recordItems = useMemo(() => objects.filter((item) => item.kind === 'record'), [objects]);
   const lastPrepared = activity.find((entry) => entry.stage === 'prepared');
@@ -1200,7 +1214,13 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
               </button>
             ))}
             <div className="nav-bottom">
-              <button onClick={() => setActivityOpen(true)} data-testid="open-activity">
+              <button
+                onClick={() => {
+                  setActivityError(null);
+                  setActivityOpen(true);
+                }}
+                data-testid="open-activity"
+              >
                 <Activity size={18} />
                 {t(locale, 'ui.activity')}
               </button>
@@ -1372,55 +1392,113 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
               )}
               {destination === 'review' ? (
                 <>
-                  {proposals.map((proposal) => (
-                    <button
-                      className={`material-row ${selectedProposal === proposal.id ? 'selected' : ''}`}
-                      key={proposal.id}
-                      onClick={() => {
-                        void protect(async () => {
-                          setSelectedProposal(proposal.id);
-                          clearReaders();
-                          setAux(null);
-                          setListOpen(false);
-                        });
-                      }}
-                      data-testid={`proposal-row-${proposal.id}`}
-                    >
-                      <span className="row-title">
-                        {!proposal.seen && (
-                          <span className="unread-dot" aria-label={t(locale, 'proposal.unread')} />
-                        )}{' '}
-                        {proposal.purpose}
-                      </span>
-                      <small>
+                  <div
+                    className="as-actions discovery-controls"
+                    role="group"
+                    aria-label={t(locale, 'nav.review')}
+                  >
+                    {(['unresolved', 'processed'] as const).map((collection) => (
+                      <button
+                        key={collection}
+                        aria-pressed={proposalState.collection === collection}
+                        data-testid={`review-${collection}`}
+                        onClick={() => {
+                          void protect(async () => {
+                            clearReaders();
+                            setSelectedProposal(null);
+                            setListOpen(true);
+                            void proposalLists.select(collection);
+                          });
+                        }}
+                      >
                         {t(
                           locale,
-                          proposal.status === 'conflicted'
-                            ? 'proposal.conflicted'
-                            : proposal.action === 'create'
-                              ? proposal.kind === 'record'
-                                ? 'proposal.proposedNewRecord'
-                                : 'proposal.proposedNewNote'
-                              : 'proposal.pending',
+                          collection === 'unresolved' ? 'review.unresolved' : 'review.processed',
                         )}
-                      </small>
-                      <small>
-                        <Time value={proposal.createdAt} />
-                      </small>
-                    </button>
-                  ))}
-                  {proposals.length === 0 && !moreProposals && !proposalLoadError && (
-                    <p className="list-empty">{t(locale, 'proposal.noPending')}</p>
-                  )}
-                  {moreProposals && (
+                      </button>
+                    ))}
                     <button
+                      data-testid="review-refresh"
                       onClick={() => {
-                        void loadProposals(true);
+                        void loadProposals();
                       }}
                     >
-                      {t(locale, 'ui.moreResults')}
+                      {t(locale, 'activity.refresh')}
                     </button>
-                  )}
+                  </div>
+                  {collectionStatuses[proposalState.collection].map((status) => {
+                    const group = proposalState.groups[status];
+                    return (
+                      <section
+                        className="proposal-group"
+                        key={status}
+                        data-testid={`proposal-group-${status}`}
+                      >
+                        <h3>{t(locale, proposalStatusKey[status])}</h3>
+                        <small>{t(locale, 'activity.loaded', { count: group.items.length })}</small>
+                        {group.error && group.loaded && (
+                          <p className="attention">{t(locale, 'activity.retained')}</p>
+                        )}
+                        <ErrorNotice
+                          code={group.error}
+                          onRetry={() => {
+                            void proposalLists.load(status, group.retryMore);
+                          }}
+                        />
+                        {group.loading && <p role="status">{t(locale, 'ui.loading')}</p>}
+                        {group.items.map((proposal) => (
+                          <button
+                            className={`material-row ${selectedProposal === proposal.id ? 'selected' : ''}`}
+                            key={proposal.id}
+                            onClick={() => {
+                              void protect(async () => {
+                                clearReaders();
+                                setSelectedProposal(proposal.id);
+                                setAux(null);
+                                setListOpen(false);
+                              });
+                            }}
+                            data-testid={`proposal-row-${proposal.id}`}
+                          >
+                            <span className="row-title">
+                              {!proposal.seen && (
+                                <span
+                                  className="unread-dot"
+                                  aria-label={t(locale, 'proposal.unread')}
+                                />
+                              )}{' '}
+                              {proposal.purpose}
+                            </span>
+                            <small>{t(locale, proposalStatusKey[proposal.status])}</small>
+                            <small>
+                              {t(
+                                locale,
+                                proposal.resolvedAt ? 'review.resolvedAt' : 'review.createdAt',
+                              )}
+                              : <Time value={proposal.resolvedAt ?? proposal.createdAt} />
+                            </small>
+                          </button>
+                        ))}
+                        {group.loaded &&
+                          !group.loading &&
+                          !group.error &&
+                          group.items.length === 0 && (
+                            <p className="list-empty">{t(locale, 'review.emptyGroup')}</p>
+                          )}
+                        {group.nextAfterId && (
+                          <button
+                            disabled={group.loading}
+                            onClick={() => {
+                              void proposalLists.load(status, true);
+                            }}
+                            data-testid={`proposal-more-${status}`}
+                          >
+                            {t(locale, 'ui.moreResults')}
+                          </button>
+                        )}
+                      </section>
+                    );
+                  })}
                 </>
               ) : (
                 <>
@@ -1500,7 +1578,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                 )}
               </div>
             )}
-            {(error || (destination === 'review' && proposalLoadError) || feedback) && (
+            {(error || feedback) && (
               <div className="surface-notices">
                 <ErrorNotice
                   code={error}
@@ -1513,14 +1591,6 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                     else currentActions.current.refreshAll();
                   }}
                 />
-                {destination === 'review' && proposalLoadError && (
-                  <ErrorNotice
-                    code={proposalLoadError}
-                    onRetry={() => {
-                      void loadProposals();
-                    }}
-                  />
-                )}
                 {feedback && <p role="status">{t(locale, 'common.copied')}</p>}
               </div>
             )}
@@ -1549,6 +1619,15 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                   proposalId={selectedProposal}
                   refresh={refresh}
                   grants={grants}
+                  onObserved={(view) => {
+                    const { payload, ...receipt } = view.proposal;
+                    proposalLists.observe({
+                      ...receipt,
+                      purpose: payload.purpose,
+                      seen: view.seen,
+                    });
+                  }}
+                  onReturnActivity={activityReturn === 'proposal' ? returnActivity : undefined}
                   onOpen={openReference}
                   onEdit={openEditor}
                   onDraft={(view) => {
@@ -1781,19 +1860,23 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
               />
             </Modal>
           )}
-          {activityOpen && (
-            <ActivityPane
-              api={api}
-              session={session}
-              entries={activity}
-              more={activity.length > 0 && Math.min(...activity.map((entry) => entry.id)) > 1}
-              onClose={() => setActivityOpen(false)}
-              onOpen={openReference}
-              onEarlier={() => {
-                void earlierActivity();
-              }}
-            />
-          )}
+          <ActivityPane
+            api={api}
+            session={session}
+            open={activityOpen}
+            error={activityError}
+            onClose={() => setActivityOpen(false)}
+            onOpen={(reference, trigger) =>
+              openReference(reference, trigger, () => {
+                setActivityError(null);
+                setActivityReturn('reader');
+                setActivityOpen(false);
+              })
+            }
+            onProposal={(id) => {
+              void openActivityProposal(id);
+            }}
+          />
           <span className="as-sr-only" aria-live="polite">
             {status.example ? t(locale, 'space.example') : ''}
           </span>

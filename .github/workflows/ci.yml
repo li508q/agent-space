@@ -51,14 +51,14 @@ jobs:
       - run: npm run build
       - name: Actual native runtime and local-data boundary
         run: npx tsx --test --test-concurrency=1 tests/desktop/agent-mode.test.ts tests/acceptance/native-bridge.e2e.ts tests/acceptance/native-local-data.e2e.ts
-      - name: Native writing, navigation, project correction and language paths
-        run: npx tsx --test --test-concurrency=1 tests/acceptance/native-workbench.e2e.ts tests/acceptance/native-navigation.e2e.ts tests/acceptance/native-project-reading.e2e.ts tests/acceptance/native-locales.e2e.ts
+      - name: Native writing, navigation, project correction, changes and languages
+        run: npx tsx --test --test-concurrency=1 tests/acceptance/native-workbench.e2e.ts tests/acceptance/native-navigation.e2e.ts tests/acceptance/native-project-reading.e2e.ts tests/acceptance/native-change-discovery.e2e.ts tests/acceptance/native-locales.e2e.ts
       - run: npm run package:mac
       - run: npm run package:verify
-      - name: Packaged project reading and original-edit paths
+      - name: Packaged project reading, original editing and change discovery
         run: |
           package_version=$(node -p "require('./package.json').version")
-          AGENTSPACE_TEST_EXECUTABLE="$PWD/release/AgentSpace-$package_version-macOS-arm64/AgentSpace.app/Contents/MacOS/AgentSpace" npx tsx --test --test-concurrency=1 tests/acceptance/native-project-reading.e2e.ts
+          AGENTSPACE_TEST_EXECUTABLE="$PWD/release/AgentSpace-$package_version-macOS-arm64/AgentSpace.app/Contents/MacOS/AgentSpace" npx tsx --test --test-concurrency=1 tests/acceptance/native-project-reading.e2e.ts tests/acceptance/native-change-discovery.e2e.ts
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: AgentSpace-macOS-arm64

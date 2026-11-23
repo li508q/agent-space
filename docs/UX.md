@@ -117,6 +117,16 @@ Disable this action for dirty, composing or locked editor input; offer **Save no
 
 Agent access reports **Entry enabled** and **Last tool call…** when those observations exist. It must not infer “thinking,” “finished,” or a live connection from configuration alone. Prepared-material details show the references, versions and known limits prepared for a tool return; they do not prove host receipt or model understanding. Client-provided names are declarations, not verified model identity.
 
+## Durable change discovery
+
+The existing **Activity** dialog defaults to **Actual changes**; **Prepared context** is separate. Event rows name the recorded action, time and actor. A proposal-created event remains a creation event even if its proposal is now applied; review shows the current proposal status separately. Review, access, archive and rejection events do not imply a changed body. Version links are pinned to the event's after revision. Unknown actions retain their recorded code.
+
+Recent changes use fixed, descending numerical windows of at most 50 authority sequences. Prepared context uses independent activity-sequence windows before filtering; an empty window can still have earlier records. Refresh starts a new window. Keep successful pages on failure, retry the same boundary and label counts as loaded records. A tab, binding or request-generation change invalidates old replies. The dialog is closed while reading a source; returning restores its tab, pages, scroll and trigger without a hidden modal focus trap.
+
+Review offers **Pending** (pending/conflicted) and **Processed** (applied/rejected), with independent per-status ID cursors, loading, errors and retry. Do not present loaded pages as a global total or newest-first snapshot. List refresh and status transitions do not clear the selected review. Reading a source, editing its current original and returning preserve that selection even when it is no longer in the current loaded group.
+
+Applied proposals expose their durable result revision separately from current content after restart. Keep the original base-to-proposed difference, declared reason and exact source pins. A rejected creation has no accepted object or result link; no human rejection reason is fabricated. A real decision synchronously invalidates older detail reads, including their error/loading/seen callbacks; statusVersion and current-object revision never regress within that detail.
+
 ## Proposal review
 
 **Each proposal concerns exactly one object: an existing object to revise, or a new note/record proposed for creation.** It may include that object's body, properties, and relationships. Linked sources/assets are not additional mutation targets. Each proposal has its own outcome; no cross-object Apply all or atomic bundle is implied.
@@ -238,7 +248,7 @@ Externalize complete messages from the first UI slice. Use plural/date/time form
 | Meaning              | English         | 简体中文   | 日本語               | 한국어         | Español                      |
 | -------------------- | --------------- | ---------- | -------------------- | -------------- | ---------------------------- |
 | Library              | Library         | 资料库     | ライブラリ           | 라이브러리     | Biblioteca                   |
-| Review destination   | Review          | 待审阅     | レビュー             | 검토           | Revisión                     |
+| Review destination   | Review          | 审阅       | レビュー             | 검토           | Revisión                     |
 | Proposal             | Change proposal | 变更提案   | 変更案               | 변경 제안      | Propuesta de cambio          |
 | Sources              | Sources         | 来源       | 出典                 | 출처           | Fuentes                      |
 | Empty note title     | Untitled note   | 无标题笔记 | 無題のノート         | 제목 없는 노트 | Nota sin título              |

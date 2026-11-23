@@ -1325,3 +1325,31 @@ button.primary:hover:not(:disabled) {
   background: var(--as-color-selection);
   color: var(--as-text);
 }
+
+/* Bounded discovery stays within the existing activity/review surfaces. */
+.discovery-controls {
+  flex-wrap: wrap;
+  margin-block-end: 0.75rem;
+}
+.discovery-controls [aria-pressed='true'] {
+  border-color: var(--as-accent);
+  font-weight: 600;
+}
+.proposal-group {
+  border-block-start: 1px solid var(--as-color-divider);
+  padding-block: 0.75rem;
+}
+.proposal-group h3 {
+  margin-block: 0 0.35rem;
+}
+.discovery-version {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-block: 0.5rem;
+}
+.activity-record h3,
+.activity-record .technical {
+  overflow-wrap: anywhere;
+}
