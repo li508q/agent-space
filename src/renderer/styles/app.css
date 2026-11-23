@@ -960,6 +960,23 @@ button.primary:hover:not(:disabled) {
   flex: 1;
   padding: 1.4rem var(--as-page-gutter) 2rem;
 }
+/* A short review has one scrollport, so fixed chrome cannot consume its body. */
+.review-pane.review-scroll {
+  display: block;
+  overflow-y: auto;
+  padding: 0;
+  scroll-padding-block: var(--as-space-2);
+}
+.review-pane.review-scroll > .document-header {
+  max-block-size: none;
+  overflow: visible;
+}
+.review-content {
+  padding: 1.4rem var(--as-page-gutter) 2rem;
+}
+.review-pane.review-scroll :is(button, a, summary) {
+  scroll-margin-block: var(--as-space-2);
+}
 .review-target {
   margin-block-end: 0.4rem;
 }

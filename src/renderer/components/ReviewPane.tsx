@@ -47,6 +47,16 @@ export function ReviewPane({
 }) {
   const locale = useLocale(),
     makeTask = useTaskFactory();
+  const [shortViewport, setShortViewport] = useState(
+    () => window.matchMedia('(max-height: 640px)').matches,
+  );
+  useEffect(() => {
+    const media = window.matchMedia('(max-height: 640px)');
+    const update = () => setShortViewport(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
   const [view, setView] = useState<ProposalView | null>(null);
   const [error, setError] = useState<ErrorCode | null>(null);
   const [loading, setLoading] = useState(true);
@@ -230,7 +240,10 @@ export function ReviewPane({
     }
   }
   return (
-    <section className="review-pane" data-testid="proposal-review">
+    <section
+      className={`review-pane${shortViewport ? ' review-scroll as-scroll-region' : ''}`}
+      data-testid="proposal-review"
+    >
       <header className="document-header">
         {onReturnActivity && (
           <button onClick={onReturnActivity} data-testid="return-activity">
@@ -313,7 +326,7 @@ export function ReviewPane({
           <p className="secondary">{t(locale, 'review.rejectedNotice')}</p>
         )}
       </header>
-      <div className="review-scroll as-scroll-region">
+      <div className={shortViewport ? 'review-content' : 'review-scroll as-scroll-region'}>
         <section className="proposal-reason">
           <h2>{t(locale, 'review.originalReason')}</h2>
           <p>{proposal.payload.reason}</p>
