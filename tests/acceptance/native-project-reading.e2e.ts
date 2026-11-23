@@ -463,6 +463,11 @@ async function historyObservation(native: NativeHarness) {
           rect.bottom + outset <= clip.bottom + 0.5 &&
           rect.left - outset >= clip.left - 0.5 &&
           rect.right + outset <= clip.right + 0.5,
+        strictPaintVisible:
+          rect.top - outset >= clip.top &&
+          rect.bottom + outset <= clip.bottom &&
+          rect.left - outset >= clip.left &&
+          rect.right + outset <= clip.right,
         centerClear: !!hit && (hit === trigger || trigger.contains(hit)),
       };
     }
@@ -605,7 +610,7 @@ test(
       const native = await launchNative({ entry: root, userData: join(f.root, `History ${hold}`) });
       const directory = join(
         root,
-        '.coordination/7C/followup',
+        '.coordination/7C/followup2',
         process.env.AGENTSPACE_FOLLOWUP_LABEL ?? 'after',
         process.env.AGENTSPACE_TEST_WINDOW_MAX ?? 'default',
         `history-${hold}`,
@@ -845,6 +850,10 @@ test(
     assert.ok(
       outcomes.every((entry) => entry.visible),
       JSON.stringify(outcomes),
+    );
+    assert.ok(
+      outcomes.every((entry) => entry.after.target?.strictPaintVisible),
+      'The corrective history return must also keep the complete paint strictly inside the clip.',
     );
   },
 );

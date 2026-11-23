@@ -7,11 +7,12 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { supportedLocales, t, type Locale } from '../../src/renderer/i18n/index.js';
 import { createAcceptanceFixture, requireSuccess } from './fixtures.js';
 import { launchNative, type NativeHarness } from './native-harness.js';
+import type { EditorSnapshot } from '../../src/renderer/state/editor.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const evidence = join(
   root,
-  '.coordination/7C/followup',
+  '.coordination/7C/followup2',
   process.env.AGENTSPACE_FOLLOWUP_LABEL ?? 'after',
   process.env.AGENTSPACE_TEST_WINDOW_MAX ?? 'default',
 );
@@ -299,7 +300,10 @@ async function focusGeometry(native: NativeHarness, testId?: string) {
         outset = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
       const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
       const glyphs = [];
-      if (element.matches('.material-create > summary')) {
+      if (
+        element.matches('.material-create > summary') ||
+        element.dataset.testid === 'mark-knowledge-reviewed'
+      ) {
         const svg = element.querySelector('svg');
         if (svg) glyphs.push(svg.getBoundingClientRect().toJSON());
         for (const node of element.childNodes)
@@ -314,11 +318,64 @@ async function focusGeometry(native: NativeHarness, testId?: string) {
         testId: element.dataset.testid,
         text: element.innerText,
         rect: rect.toJSON(),
-        viewport: { ...viewport, innerWidth, innerHeight, dpr: devicePixelRatio },
+        viewport: {
+          ...viewport,
+          innerWidth,
+          innerHeight,
+          visualWidth: visualViewport?.width,
+          visualHeight: visualViewport?.height,
+          dpr: devicePixelRatio,
+        },
+        documentScroll: {
+          top: document.scrollingElement?.scrollTop,
+          left: document.scrollingElement?.scrollLeft,
+          height: document.scrollingElement?.scrollHeight,
+          client: document.scrollingElement?.clientHeight,
+          windowY: scrollY,
+          desktop: document.querySelector('.desktop-app')?.getBoundingClientRect().toJSON(),
+        },
+        layout: {
+          aux: document.querySelector<HTMLElement>('[data-testid="workbench"]')?.dataset.aux,
+          compact: document.querySelector<HTMLElement>('[data-testid="workbench"]')?.dataset
+            .compact,
+          transitioning: document.querySelector<HTMLElement>('[data-testid="workbench"]')?.dataset
+            .transitioning,
+          primaryHidden: document.querySelector<HTMLElement>('.primary-surface')?.hidden,
+          detailsHidden: document.querySelector<HTMLElement>(
+            '.context-pane:has([data-testid="mark-knowledge-reviewed"])',
+          )?.hidden,
+          reader: !!document.querySelector('[data-testid="source-reader"]'),
+          body: document.body.getBoundingClientRect().toJSON(),
+          head: document.querySelector('[data-testid="knowledge-head-revision"]')?.textContent,
+          reviewed: document.querySelector('[data-testid="knowledge-reviewed-revision"]')
+            ?.textContent,
+          reviewedAt: document.querySelector(
+            '.context-pane:has([data-testid="mark-knowledge-reviewed"]) .context-scroll > section > small',
+          )?.textContent,
+          panels: Array.from(
+            document.querySelectorAll<HTMLElement>(
+              '.working-surface, .primary-surface, .document-pane, .context-pane, .source-reader:not([hidden])',
+            ),
+            (node) => ({
+              className: node.className,
+              hidden: node.hidden,
+              display: getComputedStyle(node).display,
+              visibility: getComputedStyle(node).visibility,
+              client: node.clientHeight,
+              scrollHeight: node.scrollHeight,
+              rect: node.getBoundingClientRect().toJSON(),
+            }),
+          ),
+        },
         clip,
         ancestors,
         focusVisible: element.matches(':focus-visible'),
         outline: style.outline,
+        outlineWidth: style.outlineWidth,
+        outlineOffset: style.outlineOffset,
+        font: style.font,
+        lineHeight: style.lineHeight,
+        paddingInline: style.paddingInline,
         scrollMargin: style.scrollMarginBlock,
         padding: style.paddingBlock,
         selected: element.classList.contains('selected'),
@@ -387,6 +444,44 @@ async function caretGeometry(native: NativeHarness) {
     };
   }, viewport);
 }
+async function actualEditor(native: NativeHarness) {
+  return native.page.evaluate(() => {
+    const pane = document.querySelector('[data-testid="document-pane"]')!,
+      key = Object.keys(pane).find((key) => key.startsWith('__reactFiber$'))!;
+    let fiber = (pane as unknown as Record<string, unknown>)[key] as {
+      memoizedProps?: { editor?: { getSnapshot: () => EditorSnapshot } };
+      return?: unknown;
+    } | null;
+    while (fiber && !fiber.memoizedProps?.editor) fiber = fiber.return as typeof fiber;
+    const state = fiber?.memoizedProps?.editor?.getSnapshot();
+    if (!state) throw new Error('The actual editor state is required');
+    const input = document.querySelector('[data-testid="markdown-input"]'),
+      selection = getSelection(),
+      viewSelection = (
+        input as unknown as {
+          cmTile?: {
+            root?: { view?: { state: { selection: { main: { anchor: number; head: number } } } } };
+          };
+        }
+      )?.cmTile?.root?.view?.state.selection.main;
+    if (!viewSelection) throw new Error('The actual CodeMirror selection is required');
+    return {
+      editorId: state.editorId,
+      objectId: state.objectId,
+      revision: state.revision,
+      generation: state.generation,
+      savedGeneration: state.savedGeneration,
+      content: state.content,
+      draft: state.draft,
+      headReview: state.headReview,
+      viewSelection: { anchor: viewSelection.anchor, head: viewSelection.head },
+      domSelection:
+        selection?.rangeCount && input?.contains(selection.anchorNode)
+          ? { anchor: selection.anchorOffset, head: selection.focusOffset }
+          : null,
+    };
+  });
+}
 async function capture(native: NativeHarness, name: string, data: unknown) {
   mkdirSync(evidence, { recursive: true });
   await native.page.evaluate(
@@ -402,6 +497,366 @@ async function capture(native: NativeHarness, name: string, data: unknown) {
   writeFileSync(join(evidence, `${name}.png`), Buffer.from(png, 'base64'));
   writeFileSync(join(evidence, `${name}.json`), JSON.stringify({ window, data }, null, 2));
 }
+
+test(
+  '7C Details review and adjacent controls retain outward focus paint in short viewports',
+  { skip: process.platform !== 'darwin', timeout: 180_000 },
+  async () => {
+    const f = createAcceptanceFixture();
+    const original = requireSuccess(f.human.readObject({ objectId: f.ids.retryPolicy })).object;
+    requireSuccess(
+      f.human.markKnowledgeReviewed({
+        operationKey: 'focus:review1',
+        ref: { mode: 'pinned', objectId: original.id, revision: 1 },
+      }),
+    );
+    requireSuccess(
+      f.human.saveObject({
+        operationKey: 'focus:saved2',
+        targetId: original.id,
+        expectedRevision: 1,
+        content: { ...original.content, body: 'Saved current version after a human review.' },
+      }),
+    );
+    const native = await launchNative({ entry: root, userData: join(f.root, 'Details focus') });
+    const results = [];
+    try {
+      await installFault(native);
+      await open(native, f);
+      await native.page.getByTestId('nav-library').click();
+      await native.page.getByTestId(`object-row-${f.ids.retryPolicy}`).click();
+      await native.page.locator('#details-button').click();
+      const pane = native.page
+        .locator('.context-pane')
+        .filter({ has: native.page.getByTestId('mark-knowledge-reviewed') });
+      const combinations: (readonly [Locale, number, number, 1 | 2])[] = [
+        ...supportedLocales.map((locale) => [locale, 1380, 841, 1] as const),
+        ...supportedLocales.map((locale) => [locale, 1024, 688, 2] as const),
+        ['es', 1024, 681, 2],
+        ['es', 980, 681, 2],
+      ];
+      for (const [locale, width, height, scale] of combinations) {
+        await native.setWindowBounds({ width, height });
+        await native.page.getByTestId('settings-button').click();
+        await native.page.getByTestId('locale-select').selectOption(locale);
+        await native.page.getByTestId('text-scale-select').selectOption(String(scale));
+        await native.page.waitForFunction(
+          ({ locale, scale }) =>
+            document.documentElement.lang === locale &&
+            document.querySelector('[data-testid="desktop-app"]')?.getAttribute('data-scale') ===
+              String(scale),
+          { locale, scale },
+        );
+        await native.page.keyboard.press('Escape');
+        await native.page.waitForFunction(
+          () =>
+            !(
+              document.querySelector<HTMLButtonElement>('[data-testid="mark-knowledge-reviewed"]')
+                ?.disabled ?? true
+            ),
+        );
+        const state = {
+          head: await native.page.getByTestId('knowledge-head-revision').innerText(),
+          reviewed: await native.page.getByTestId('knowledge-reviewed-revision').innerText(),
+          saveState: await native.page.getByTestId('save-state').getAttribute('class'),
+          current: requireSuccess(f.human.readObject({ objectId: f.ids.retryPolicy })),
+          reviewedAt: await pane.locator('section').first().locator('small').innerText(),
+          editor: await native.page.evaluate(() => {
+            const pane = document.querySelector('[data-testid="document-pane"]')!,
+              key = Object.keys(pane).find((key) => key.startsWith('__reactFiber$'))!;
+            let fiber = (pane as unknown as Record<string, unknown>)[key] as {
+              memoizedProps?: { editor?: { getSnapshot: () => EditorSnapshot } };
+              return?: unknown;
+            } | null;
+            while (fiber) {
+              if (fiber.memoizedProps?.editor) {
+                const state = fiber.memoizedProps.editor.getSnapshot();
+                return {
+                  revision: state.revision,
+                  generation: state.generation,
+                  savedGeneration: state.savedGeneration,
+                  composing: state.composing,
+                  locked: state.locked,
+                  headReview: state.headReview,
+                };
+              }
+              fiber = fiber.return as typeof fiber;
+            }
+            throw new Error('The actual editor state is required');
+          }),
+        };
+        assert.ok(state.saveState?.includes('saved'));
+        assert.equal(state.current.currentRevision, 2);
+        assert.equal(state.current.object.knowledgeReview?.reviewedRevision, 1);
+        assert.equal(state.editor.revision, 2);
+        assert.equal(state.editor.generation, 0);
+        assert.equal(state.editor.savedGeneration, 0);
+        assert.equal(state.editor.headReview.fresh, true);
+        const range = await native.page
+          .getByTestId('mark-knowledge-reviewed')
+          .evaluate((button) => {
+            const scroll = button.closest<HTMLElement>('.context-scroll')!,
+              top = scroll.scrollTop,
+              before = button.getBoundingClientRect().toJSON();
+            scroll.scrollTop = scroll.scrollHeight;
+            const actualMax = scroll.scrollTop;
+            scroll.scrollTop = top;
+            const style = getComputedStyle(scroll);
+            return {
+              top,
+              actualMax,
+              restoredTop: scroll.scrollTop,
+              before,
+              restored: button.getBoundingClientRect().toJSON(),
+              rect: scroll.getBoundingClientRect().toJSON(),
+              client: scroll.clientHeight,
+              scrollHeight: scroll.scrollHeight,
+              padding: style.padding,
+              scrollPadding: style.scrollPaddingBlock,
+              rootFont: getComputedStyle(document.documentElement).fontSize,
+            };
+          });
+        assert.equal(range.top, range.restoredTop);
+        assert.equal(range.before.top, range.restored.top);
+        const before = await focusGeometry(native, 'mark-knowledge-reviewed');
+        await capture(native, `details-mark-${locale}-${width}-${height}-${scale}x-before`, {
+          state,
+          range,
+          before,
+        });
+        await tabTo(native, 'mark-knowledge-reviewed');
+        const mark = await focusGeometry(native);
+        const glyphVisible =
+          mark.glyphs.length > 0 &&
+          mark.glyphs.every(
+            (glyph) =>
+              glyph.top >= mark.clip.top - 0.5 &&
+              glyph.bottom <= mark.clip.bottom + 0.5 &&
+              glyph.left >= mark.clip.left - 0.5 &&
+              glyph.right <= mark.clip.right + 0.5,
+          );
+        const observation = { locale, width, height, scale, state, range, mark, glyphVisible };
+        results.push(observation);
+        await capture(
+          native,
+          `details-mark-${locale}-${width}-${height}-${scale}x-after`,
+          observation,
+        );
+        writeFileSync(
+          join(evidence, 'details-mark-results.json'),
+          JSON.stringify(results, null, 2),
+        );
+      }
+      const allMarkVisible = results.every(
+        ({ mark, glyphVisible }) =>
+          mark.focusVisible &&
+          mark.componentVisible &&
+          mark.paintVisible &&
+          mark.centerClear &&
+          glyphVisible,
+      );
+      if (allMarkVisible) {
+        for (const id of ['edit-fields', 'edit-relationships', 'set-lifecycle']) {
+          await tabTo(native, id);
+          const geometry = await focusGeometry(native);
+          requireFocus(geometry);
+          await capture(native, `details-neighbor-${id}`, geometry);
+        }
+        const referenceId = (await pane
+          .locator('[id$="-00000000-0000-4000-8000-000000000103"]')
+          .getAttribute('id'))!;
+        await tabTo(native, referenceId);
+        const referenceBefore = await focusGeometry(native);
+        requireFocus(referenceBefore);
+        const topBefore = await pane
+          .locator('.context-scroll')
+          .evaluate((element) => element.scrollTop);
+        const editorBefore = await actualEditor(native);
+        assert.equal(editorBefore.revision, 2);
+        assert.equal(editorBefore.generation, 0);
+        assert.equal(editorBefore.content.body, 'Saved current version after a human review.');
+        await capture(native, 'details-reference-before', {
+          topBefore,
+          referenceBefore,
+          editorBefore,
+        });
+        const beforeStable = await focusGeometry(native);
+        await capture(native, 'details-reference-before-stable', { referenceBefore, beforeStable });
+        await native.page.keyboard.press('Enter');
+        const reader = native.page.getByTestId('source-reader');
+        const mounted = await native.page.evaluate(() => ({
+          documentTop: document.scrollingElement?.scrollTop,
+          documentHeight: document.scrollingElement?.scrollHeight,
+          desktop: document.querySelector('.desktop-app')?.getBoundingClientRect().toJSON(),
+          aux: document.querySelector<HTMLElement>('[data-testid="workbench"]')?.dataset.aux,
+          primaryHidden: document.querySelector<HTMLElement>('.primary-surface')?.hidden,
+          detailsHidden: document.querySelector<HTMLElement>(
+            '.context-pane:has([data-testid="mark-knowledge-reviewed"])',
+          )?.hidden,
+          reader: !!document.querySelector('[data-testid="source-reader"]'),
+          ready: !!document.querySelector(
+            '[data-testid="source-reader"] [data-testid="source-edit-current"]',
+          ),
+          activeTag: document.activeElement?.tagName,
+          head: document.querySelector('[data-testid="knowledge-head-revision"]')?.textContent,
+          reviewed: document.querySelector('[data-testid="knowledge-reviewed-revision"]')
+            ?.textContent,
+          reviewedAt: document.querySelector(
+            '.context-pane:has([data-testid="mark-knowledge-reviewed"]) .context-scroll > section > small',
+          )?.textContent,
+          panels: Array.from(
+            document.querySelectorAll<HTMLElement>(
+              '.working-surface, .primary-surface, .document-pane, .context-pane, .source-reader:not([hidden])',
+            ),
+            (node) => ({
+              className: node.className,
+              hidden: node.hidden,
+              display: getComputedStyle(node).display,
+              visibility: getComputedStyle(node).visibility,
+              client: node.clientHeight,
+              scrollHeight: node.scrollHeight,
+              rect: node.getBoundingClientRect().toJSON(),
+            }),
+          ),
+        }));
+        await capture(native, 'details-reader-mounted', mounted);
+        await reader
+          .locator('header')
+          .getByText(t('es', 'source.version', { version: 1 }), { exact: true })
+          .waitFor();
+        await capture(native, 'details-fixed-reader-ready', {
+          referenceId,
+          geometry: await focusGeometry(native),
+          body: await reader.locator('article').innerText(),
+        });
+        assert.match(
+          await reader.locator('article').innerText(),
+          /Transient failures recovered after one retry\. Persistent failures did not\./,
+        );
+        await tabTo(native, 'source-back');
+        await native.page.keyboard.press('Enter');
+        await native.page.waitForFunction((id) => document.activeElement?.id === id, referenceId);
+        const referenceAfter = await focusGeometry(native);
+        requireFocus(referenceAfter);
+        const editorAfter = await actualEditor(native);
+        await capture(native, 'details-reference-after', {
+          referenceBefore,
+          referenceAfter,
+          topBefore,
+          topAfter: await pane.locator('.context-scroll').evaluate((element) => element.scrollTop),
+          editorBefore,
+          editorAfter,
+        });
+        assert.equal(
+          await pane.locator('.context-scroll').evaluate((element) => element.scrollTop),
+          topBefore,
+        );
+        assert.equal(referenceAfter.rect.top, referenceBefore.rect.top);
+        assert.equal(referenceAfter.documentScroll.top, referenceBefore.documentScroll.top);
+        assert.deepEqual(referenceAfter.viewport, referenceBefore.viewport);
+        const contextBefore = referenceBefore.ancestors.find((node) =>
+            node.className.includes('context-scroll'),
+          )!,
+          contextAfter = referenceAfter.ancestors.find((node) =>
+            node.className.includes('context-scroll'),
+          )!;
+        assert.equal(
+          referenceAfter.rect.top - contextAfter.rect.top,
+          referenceBefore.rect.top - contextBefore.rect.top,
+        );
+        assert.deepEqual(editorAfter, editorBefore);
+
+        // A real viewport change invalidates only the optional outer checkpoint.
+        assert.ok(referenceAfter.documentScroll.top! > 0);
+        await native.page.keyboard.press('Enter');
+        await reader
+          .locator('header')
+          .getByText(t('es', 'source.version', { version: 1 }), { exact: true })
+          .waitFor();
+        await native.setWindowBounds({ width: 1024, height: 681 });
+        await capture(native, 'details-reader-resized', { geometry: await focusGeometry(native) });
+        await tabTo(native, 'source-back');
+        const resizedBack = await focusGeometry(native);
+        await native.page.keyboard.press('Enter');
+        await native.page.waitForFunction((id) => document.activeElement?.id === id, referenceId);
+        const resizedReturn = await focusGeometry(native);
+        requireFocus(resizedReturn);
+        await capture(native, 'details-reference-resized-return', {
+          referenceBefore,
+          resizedBack,
+          resizedReturn,
+          editor: await actualEditor(native),
+        });
+        assert.notEqual(resizedReturn.viewport.width, referenceBefore.viewport.width);
+        assert.equal(resizedReturn.documentScroll.top, resizedBack.documentScroll.top);
+        assert.notEqual(resizedReturn.documentScroll.top, referenceBefore.documentScroll.top);
+        assert.equal(
+          await pane.locator('.context-scroll').evaluate((element) => element.scrollTop),
+          topBefore,
+        );
+        assert.deepEqual(await actualEditor(native), editorBefore);
+
+        // Cancel an actual current opening: the unchanged editor has stale head metadata and offers Refresh.
+        await native.page.keyboard.press('Enter');
+        await reader.getByTestId('source-edit-current').waitFor();
+        await capture(native, 'details-reader-before-cancel', {});
+        await arm(native, 'readObject', { objectId: f.ids.measurements });
+        await reader.getByTestId('source-edit-current').click();
+        await held(native);
+        await native.page
+          .getByTestId('editor-transition')
+          .getByRole('button', { name: t('es', 'common.cancel'), exact: true })
+          .click();
+        await release(native);
+        await tabTo(native, 'source-back');
+        await native.page.keyboard.press('Enter');
+        const refreshText = t('es', 'knowledge.refresh');
+        await pane.getByRole('button', { name: refreshText, exact: true }).waitFor();
+        await tabTo(native, refreshText);
+        const refreshGeometry = await focusGeometry(native);
+        requireFocus(refreshGeometry);
+        await capture(native, 'details-refresh', refreshGeometry);
+        await native.page.keyboard.press('Enter');
+        await native.page.waitForFunction(
+          () =>
+            !document.querySelector<HTMLButtonElement>('[data-testid="mark-knowledge-reviewed"]')!
+              .disabled,
+        );
+
+        await pane.getByRole('button', { name: t('es', 'common.close'), exact: true }).click();
+        await arm(native, 'readObject', { objectId: f.ids.retryPolicy, failAfter: true });
+        await native.page.locator('#details-button').click();
+        await held(native);
+        await release(native);
+        await pane.getByText(t('es', 'error.STORAGE_FAILURE'), { exact: true }).waitFor();
+        await tabTo(native, t('es', 'common.retry'));
+        const retryGeometry = await focusGeometry(native);
+        requireFocus(retryGeometry);
+        await capture(native, 'details-retry', retryGeometry);
+        await native.page.keyboard.press('Enter');
+        await native.page.waitForFunction(
+          () =>
+            !document.querySelector<HTMLButtonElement>('[data-testid="mark-knowledge-reviewed"]')!
+              .disabled,
+        );
+        await tabTo(native, 'mark-knowledge-reviewed');
+        await native.page.keyboard.press('Enter');
+        await waitState(native, t('es', 'knowledge.reviewed'));
+        const reviewed = requireSuccess(f.human.readObject({ objectId: f.ids.retryPolicy }));
+        assert.equal(reviewed.currentRevision, 2);
+        assert.equal(reviewed.object.knowledgeReview?.reviewedRevision, 2);
+      }
+      assert.ok(
+        allMarkVisible,
+        'Mark component, glyphs, outward paint and center must all fit; before values are retained.',
+      );
+      assert.deepEqual(native.pageErrors, []);
+    } finally {
+      await native.close();
+      f.dispose();
+    }
+  },
+);
 
 test(
   '7C one changed Library row retains its complete natural-Tab boundary at Spanish 681px',

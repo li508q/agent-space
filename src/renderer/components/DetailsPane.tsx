@@ -111,7 +111,11 @@ export function DetailsPane({
     }
   }
   return (
-    <aside className="context-pane" aria-label={t(locale, 'common.details')} hidden={hidden}>
+    <aside
+      className="context-pane details-pane"
+      aria-label={t(locale, 'common.details')}
+      hidden={hidden}
+    >
       <header>
         <h2>{t(locale, 'common.details')}</h2>
         <button className="icon-button" aria-label={t(locale, 'common.close')} onClick={onClose}>

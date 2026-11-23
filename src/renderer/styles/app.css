@@ -365,6 +365,9 @@ button.primary:hover:not(:disabled) {
   .material-list:has(> .list-scroll > .review-list-filter) > header {
     padding-block: 0.375rem;
   }
+  .details-pane > .context-scroll {
+    scroll-padding-block: 8px;
+  }
   .document-header {
     max-block-size: 55%;
     overflow-y: auto;

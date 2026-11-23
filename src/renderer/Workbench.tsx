@@ -88,6 +88,7 @@ type ReaderEntry = {
   scrollTop: number;
   region: 'context' | 'review' | 'document' | 'source' | 'table';
   fallback?: string;
+  outerDocument?: { scrollTop: number; width: number; height: number; dpr: number };
 };
 type ReaderOrigin = {
   editorId: string | null;
@@ -1015,6 +1016,16 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
         document.querySelector('.review-scroll')?.scrollTop ??
         document.querySelector('.document-scroll')?.scrollTop ??
         0;
+      const root = document.scrollingElement;
+      const outerDocument =
+        region === 'context' && origin instanceof Element && origin.closest('.details-pane') && root
+          ? {
+              scrollTop: root.scrollTop,
+              width: visualViewport?.width ?? innerWidth,
+              height: visualViewport?.height ?? innerHeight,
+              dpr: devicePixelRatio,
+            }
+          : undefined;
       if (!readers.length || readerEditing) {
         if (readerEditing) setActivityReturn(null);
         const state = activeEditor?.getSnapshot();
@@ -1052,7 +1063,15 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
           : undefined;
       setReaders((old) => [
         ...(readerEditing ? [] : old),
-        { entryId: crypto.randomUUID(), reference, trigger, scrollTop, region, fallback },
+        {
+          entryId: crypto.randomUUID(),
+          reference,
+          trigger,
+          scrollTop,
+          region,
+          fallback,
+          outerDocument,
+        },
       ]);
       readerRouteEpoch.current++;
       setReaderEditing(false);
@@ -1071,7 +1090,8 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       capturedEditor = expectedEditor ?? editorRef.current,
       generation = capturedEditor?.getSnapshot().generation,
       focusOwner = document.activeElement,
-      historyReturn = current?.region === 'context' && current.trigger?.startsWith('history-r');
+      historyReturn = current?.region === 'context' && current.trigger?.startsWith('history-r'),
+      detailsReturn = current?.region === 'context' && !!current.outerDocument;
     let attempts = 0;
     let projectView: string | null | undefined;
     let viewCaptured = false;
@@ -1116,14 +1136,19 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
               )
             : null))
         : document.getElementById('proposal-heading');
-      if ((!trigger || (historyReturn && !trigger.getClientRects().length)) && ++attempts < 90) {
+      if (
+        (!trigger || ((historyReturn || detailsReturn) && !trigger.getClientRects().length)) &&
+        ++attempts < 90
+      ) {
         requestAnimationFrame(restore);
         return;
       }
       const scroll = historyReturn
         ? trigger?.closest<HTMLElement>('[data-testid="history-pane"] .context-scroll')
-        : document.querySelector(selector);
-      if (historyReturn) {
+        : detailsReturn
+          ? trigger?.closest<HTMLElement>('.details-pane > .context-scroll')
+          : document.querySelector(selector);
+      if (historyReturn || detailsReturn) {
         const active = document.activeElement;
         if (
           document.querySelector('dialog[open]') ||
@@ -1134,6 +1159,23 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
             active.getClientRects().length)
         )
           return;
+      }
+      if (detailsReturn && scroll && current?.outerDocument) {
+        const checkpoint = current.outerDocument,
+          root = document.scrollingElement;
+        if (
+          root &&
+          checkpoint.width === (visualViewport?.width ?? innerWidth) &&
+          checkpoint.height === (visualViewport?.height ?? innerHeight) &&
+          checkpoint.dpr === devicePixelRatio &&
+          checkpoint.scrollTop >= 0 &&
+          checkpoint.scrollTop <= root.scrollHeight - root.clientHeight
+        ) {
+          const previous = root.scrollTop;
+          root.scrollTop = checkpoint.scrollTop;
+          // A fractional endpoint can still clamp despite the integer range above.
+          if (root.scrollTop !== checkpoint.scrollTop) root.scrollTop = previous;
+        }
       }
       if (scroll && current) scroll.scrollTop = current.scrollTop;
       const focus =
@@ -1165,8 +1207,9 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
             0,
             (parseFloat(style.outlineWidth) || 0) + (parseFloat(style.outlineOffset) || 0),
           );
-        if (rect.top - outset < top) scroll.scrollTop += rect.top - outset - top;
-        else if (rect.bottom + outset > bottom) scroll.scrollTop += rect.bottom + outset - bottom;
+        if (rect.top - outset < top) scroll.scrollTop += Math.floor(rect.top - outset - top);
+        else if (rect.bottom + outset > bottom)
+          scroll.scrollTop += Math.ceil(rect.bottom + outset - bottom);
       }
     };
     requestAnimationFrame(restore);
