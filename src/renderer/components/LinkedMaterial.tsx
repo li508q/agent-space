@@ -4,7 +4,7 @@ import type { ObjectSummary } from '../../contracts/core.js';
 import type { ErrorCode } from '../../contracts/errors.js';
 import type { ObjectRef } from '../../contracts/schema.js';
 import { bound } from '../state/binding.js';
-import { formatCount, t, titleText } from '../i18n/index.js';
+import { formatNumber, t, titleText } from '../i18n/index.js';
 import { ErrorNotice, useLocale } from '../ui.js';
 import { IncomingLinks } from './IncomingLinks.js';
 
@@ -15,24 +15,36 @@ type Props = {
   mode: 'project' | 'asset';
   refresh: number;
   onOpen: (ref: ObjectRef, trigger?: string) => void;
+  restoreCount?: number;
 };
 export function LinkedMaterial(props: Props) {
   return props.mode === 'asset' ? (
     <IncomingLinks {...props} assetOnly />
   ) : (
-    <ProjectMaterial {...props} />
+    <ProjectMaterial key={`${props.session.bindingId}/${props.objectId}`} {...props} />
   );
 }
-function ProjectMaterial({ api, session, objectId, refresh, onOpen }: Props) {
+function ProjectMaterial({ api, session, objectId, refresh, onOpen, restoreCount = 0 }: Props) {
   const locale = useLocale(),
     gate = useRef(0);
   const [rows, setRows] = useState<ObjectSummary[]>([]),
     [next, setNext] = useState<string | null>(null);
   const [loading, setLoading] = useState(true),
     [error, setError] = useState<ErrorCode | null>(null);
+  const loaded = useRef<ObjectSummary[]>([]),
+    sequence = useRef<number | null>(null),
+    failedCursor = useRef<string | undefined>(undefined);
   async function load(cursor?: string) {
     const ticket = ++gate.current;
+    failedCursor.current = cursor;
     setLoading(true);
+    setError(null);
+    if (!cursor) {
+      loaded.current = [];
+      sequence.current = null;
+      setRows([]);
+      setNext(null);
+    }
     const result = await api
       .query(
         bound(session, {
@@ -46,10 +58,23 @@ function ProjectMaterial({ api, session, objectId, refresh, onOpen }: Props) {
     if (ticket !== gate.current) return;
     setLoading(false);
     if (result?.ok) {
-      setRows((old) => (cursor ? [...old, ...result.value.items] : result.value.items));
+      if (cursor && result.value.authoritySequence !== sequence.current) {
+        setError('CURSOR_STALE');
+        setNext(null);
+        return;
+      }
+      sequence.current = result.value.authoritySequence;
+      loaded.current = cursor ? [...loaded.current, ...result.value.items] : result.value.items;
+      setRows(loaded.current);
       setNext(result.value.nextCursor);
       setError(null);
-    } else setError(result && !result.ok ? result.error.code : 'OPERATION_UNKNOWN');
+      if (loaded.current.length < restoreCount && result.value.nextCursor)
+        void load(result.value.nextCursor);
+    } else {
+      const code = result && !result.ok ? result.error.code : 'OPERATION_UNKNOWN';
+      if (code === 'CURSOR_STALE' || code === 'INVALID_CURSOR') setNext(null);
+      setError(code);
+    }
   }
   useEffect(() => {
     void load();
@@ -59,12 +84,20 @@ function ProjectMaterial({ api, session, objectId, refresh, onOpen }: Props) {
   }, [session.bindingId, objectId, refresh]);
   return (
     <section className="linked-material" data-testid="project-material">
-      <h2>{t(locale, 'project.material')}</h2>
-      <p className="secondary">{formatCount(locale, 'items', rows.length)}</p>
+      <h2 id="project-material-heading" tabIndex={-1}>
+        {t(locale, 'project.material')}
+      </h2>
+      <p className="secondary">
+        {t(locale, 'project.loadedCount', { count: formatNumber(locale, rows.length) })}
+      </p>
       <ErrorNotice
         code={error}
         onRetry={() => {
-          void load();
+          void load(
+            error === 'CURSOR_STALE' || error === 'INVALID_CURSOR'
+              ? undefined
+              : failedCursor.current,
+          );
         }}
       />
       {rows.map((item) => (

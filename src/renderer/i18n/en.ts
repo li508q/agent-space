@@ -2,6 +2,27 @@ import type { LocaleErrorDictionary } from '../../contracts/errors.js';
 
 export const en = Object.freeze({
   'app.name': 'AgentSpace',
+  'project.overview': 'Project overview',
+  'project.editBody': 'Edit project text',
+  'project.readBody': 'Read project text',
+  'project.editGoal': 'Edit project goal',
+  'project.excerpt': 'Excerpt from project text',
+  'project.emptyGoal': 'Add a goal or working notes to describe this project.',
+  'project.assets': 'Direct asset references',
+  'project.referenceCount': 'Showing {shown} of {total} recorded references',
+  'project.moreReferences': 'Show more references',
+  'project.noAssets': 'No direct asset references yet.',
+  'project.noContinuation': 'No continuation reference yet.',
+  'project.pinnedReference': 'Pinned version {version}',
+  'project.archivedAtVersion': 'Archived in this version',
+  'project.loadedCount': '{count} items loaded',
+  'source.editCurrent': 'Edit current original',
+  'source.returnReading': 'Return to reading',
+  'source.existingDraft': 'Continuing your existing unsaved edits, based on version {version}.',
+  'source.currentArchived':
+    'The current original is archived. You can read its current version; it cannot be edited here.',
+  'source.archivedVersion':
+    'This cited version records an archived object. Its current state may differ.',
   'nav.continue': 'Continue working',
   'nav.projects': 'Projects',
   'nav.library': 'Library',

@@ -4,6 +4,8 @@
 
 A local workspace where you write directly, different agents share context, and proposed changes stay understandable. See the reason, inspect the cited version, and decide what becomes part of your work.
 
+**Status:** Early local release. Core collaboration is implemented; usability refinements remain open. [Review scope and open work](docs/PRODUCT_REVIEW.md).
+
 <img src="docs/assets/workbench.png" alt="The real AgentSpace desktop with synthetic example material" width="1200">
 
 ## What you can do

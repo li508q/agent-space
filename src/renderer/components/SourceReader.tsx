@@ -18,6 +18,11 @@ export function SourceReader({
   onOpen,
   onCopyVersion,
   hidden = false,
+  onEditCurrent,
+  editingBusy = false,
+  editError = null,
+  returnError = null,
+  currentArchived = false,
 }: {
   api: DesktopApi;
   session: SpaceSession;
@@ -26,6 +31,11 @@ export function SourceReader({
   onOpen: (reference: ObjectRef, trigger?: string) => void;
   onCopyVersion: (view: ObjectView) => void;
   hidden?: boolean;
+  onEditCurrent: (trigger: string) => void;
+  editingBusy?: boolean;
+  editError?: ErrorCode | null;
+  returnError?: ErrorCode | null;
+  currentArchived?: boolean;
 }) {
   const locale = useLocale();
   const instance = useId();
@@ -72,7 +82,11 @@ export function SourceReader({
     >
       <header className="document-header">
         <div className="as-actions">
-          <button onClick={onBack} data-testid={hidden ? undefined : 'source-back'}>
+          <button
+            onClick={onBack}
+            disabled={editingBusy}
+            data-testid={hidden ? undefined : 'source-back'}
+          >
             <ChevronLeft size={16} />
             {t(locale, 'ui.sourceReturn')}
           </button>
@@ -91,9 +105,18 @@ export function SourceReader({
             <span className="secondary">
               {t(locale, reference.mode === 'pinned' ? 'history.historical' : 'editor.preview')}
             </span>
+            <button
+              id={`source-edit-${instance}`}
+              data-testid={hidden ? undefined : 'source-edit-current'}
+              disabled={editingBusy}
+              onClick={() => onEditCurrent(`source-edit-${instance}`)}
+            >
+              {t(locale, 'source.editCurrent')}
+            </button>
             {reference.mode === 'pinned' && (
               <button
                 id={`source-current-${instance}`}
+                disabled={editingBusy}
                 onClick={() =>
                   onOpen(
                     { mode: 'current', objectId: reference.objectId },
@@ -104,7 +127,7 @@ export function SourceReader({
                 {t(locale, 'source.viewCurrent')}
               </button>
             )}
-            <button onClick={() => onCopyVersion(view)}>
+            <button onClick={() => onCopyVersion(view)} disabled={editingBusy}>
               {t(locale, 'history.createNoteFromVersion')}
             </button>
           </div>
@@ -113,6 +136,21 @@ export function SourceReader({
           <p className="secondary as-wrap">{reference.locator}</p>
         )}
         <ErrorNotice code={error} onRetry={() => setRetry((value) => value + 1)} />
+        <ErrorNotice code={editError} onRetry={() => onEditCurrent(`source-edit-${instance}`)} />
+        <ErrorNotice code={returnError} onRetry={onBack} />
+        {currentArchived && (
+          <p className="attention" role="status">
+            {t(locale, 'source.currentArchived')}
+          </p>
+        )}
+        {view?.object.lifecycle === 'archived' && (
+          <p className="attention">
+            {t(
+              locale,
+              reference.mode === 'pinned' ? 'source.archivedVersion' : 'ui.archiveOutcome',
+            )}
+          </p>
+        )}
         {view && (
           <CopySavedContext
             api={api}

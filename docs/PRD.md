@@ -1,6 +1,6 @@
 # AgentSpace product requirements
 
-Status: first-release scope established. Updated 2026-11-23. The common core and native human–agent vertical loop are implemented and checked; focused organization, context and portability completion follow. Complete product acceptance remains pending.
+Status: first-release scope established. Updated 2026-11-23. The common core, native collaboration, organization, bounded context and local portability are implemented and technically checked. Original-pain usability corrections are tracked in [PRODUCT_REVIEW.md](PRODUCT_REVIEW.md) and [DELIVERY.md](DELIVERY.md); complete product acceptance remains pending. Requirements below remain acceptance targets, not claims that every workflow has passed.
 
 ## Product purpose
 
@@ -118,7 +118,7 @@ These are acceptance targets, not completed test results. Implementation evidenc
 | AS-06 | Useful bounded context           | Exact reads return the requested revision; queries/search expose scope and truncation; CJK short queries, accents, empty results, and source gaps have tested behavior                                                                       | 2, 4, 5            |
 | AS-07 | Real agent integration           | An actual MCP client discovers and reads a selected space, then creates a proposal visible in the native app; tool inputs cannot select arbitrary disk locations or invoke human-only acceptance                                             | 2, 3, 5            |
 | AS-08 | Clear review and safe acceptance | Show all proposed changes and required explanations; accept once with a stable operation identity; a stale base or reused key with different payload is rejected safely                                                                      | 3, 5               |
-| AS-09 | Understandable activity          | Accepted changes and proposals remain inspectable after restart; show declared intent and delivered references accurately; demo actions are identifiable                                                                                     | 3, 4, 5            |
+| AS-09 | Understandable activity          | Accepted changes and proposals remain inspectable after restart; show declared intent and prepared version references accurately; demo actions are identifiable                                                                              | 3, 4, 5            |
 | AS-10 | Guarded recovery                 | Conditional undo preserves later edits; history remains readable; a conflict has a usable next action rather than overwriting current work                                                                                                   | 3, 5               |
 | AS-11 | Backup and portability           | Consistent backup and portable export are distinguishable; restore in a new space preserves the promised objects, text, rows, relations, and retained revisions                                                                              | 4, 5               |
 | AS-12 | Trusted boundaries               | Native renderer has no arbitrary filesystem/process/database access; IPC/tool schemas, source handling, preview rendering, and external links respect the configured boundary                                                                | 2, 3, 5            |

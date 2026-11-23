@@ -18,7 +18,9 @@ Create an independent note whenever you need one. Projects group work through re
 
 Human edits save after a short quiet interval. **Save now** is also available. **Saved** means the visible generation was persisted. A retained recovery draft is a separate state. If saving conflicts or fails, use the available retry, draft or copy path; a later human revision is never silently replaced.
 
-Project goals use the same writing surface. Typed fields can describe state and other useful facts. Continuation links point to relevant work without imposing a fixed routine.
+A project opens with an overview: an excerpt of its text, continuation references, direct asset references and a paginated material list. Section buttons stay outside the full text. Choose **Edit project text** to write; an empty project offers **Edit project goal**. Counts name loaded items or recorded references, not space-wide totals. Typed fields and continuation links do not impose a fixed routine.
+
+From a source reader, **Edit current original** opens the current internal object through the normal save/draft protection. Reading K1 and editing current K2 saves K3 on the same ID; K1 and its citations remain fixed. Existing unsaved edits for that object stay in their editor with their original base and any conflict visible. **Return to reading** restores the cited version and calling position. An archived or missing current object leaves the readable history intact. This edits the managed object, not an external original file.
 
 Records use text, finite numbers, booleans, calendar dates and select values. A label can use any language; renaming it preserves its stable field key. Unset, empty text, zero and false remain distinct. Reusing a record's field definitions creates a new row with cleared values. The table shows a bounded view of those same records; it is not a global spreadsheet schema.
 

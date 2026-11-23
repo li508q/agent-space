@@ -410,6 +410,7 @@ test(
       await action.getByTestId('confirm-object-action').click();
       await action.waitFor({ state: 'hidden' });
       assert.equal(ok(f.human.readObject({ objectId: f.ids.compass })).object.lifecycle, 'active');
+      await n.page.getByTestId('project-edit').click();
       await n.page.locator('.cm-content[contenteditable=true]').waitFor();
       assert.equal(
         ok(f.human.readObject({ objectId: f.ids.retryPolicy })).object.content.relations.filter(

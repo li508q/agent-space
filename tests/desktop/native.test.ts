@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -212,7 +212,10 @@ test(
       const { application, page } = native;
       const initial = ok(await native.bootstrap());
       assert.equal(initial.activeSpace, null);
-      assert.equal(initial.version, '0.1.0');
+      const manifest = JSON.parse(
+        readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+      ) as { version: string };
+      assert.equal(initial.version, manifest.version);
       assert.equal(page.url(), 'agentspace://app/index.html');
       assert.deepEqual(
         await page.evaluate(() => ({

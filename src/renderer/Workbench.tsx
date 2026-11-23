@@ -30,7 +30,7 @@ import type { Result } from '../contracts/errors.js';
 import type { HumanQueryInput, RelinkSession } from '../contracts/local.js';
 import type { ObjectContent, ObjectRef, QueryInput } from '../contracts/schema.js';
 import { formatCount, formatNumber, t, titleText, type Locale } from './i18n/index.js';
-import { bound, RequestGate } from './state/binding.js';
+import { bound, RequestGate, sameBinding } from './state/binding.js';
 import { EditorSession, type EditorSnapshot } from './state/editor.js';
 import {
   EditorTransitions,
@@ -72,6 +72,27 @@ type ReaderEntry = {
   trigger?: string;
   scrollTop: number;
   region: 'context' | 'review' | 'document' | 'source' | 'table';
+  fallback?: string;
+};
+type ReaderOrigin = {
+  editorId: string | null;
+  objectId: string | null;
+  draftId: string | null;
+  destination: Destination;
+  selectedProposal: string | null;
+  aux: 'details' | 'history' | null;
+  tableOpen: boolean;
+  projectWriting: boolean;
+  materialCount: number;
+  referenceCounts: { continuation: number; assets: number };
+  edited: boolean;
+};
+type EditorReadOptions = {
+  preserveReaders?: boolean;
+  reuseExisting?: boolean;
+  sourceEntryId?: string;
+  requireWritable?: boolean;
+  returning?: boolean;
 };
 export type WorkbenchHandle = {
   bindingId: string;
@@ -138,6 +159,21 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   const [lifecycle, setLifecycle] = useState<'active' | 'archived' | 'all'>('active');
   const [tableOpen, setTableOpen] = useState(false);
   const [readers, setReaders] = useState<ReaderEntry[]>([]);
+  const [readerEditing, setReaderEditing] = useState(false);
+  const readerOrigin = useRef<ReaderOrigin | null>(null),
+    readerEditTrigger = useRef<string | null>(null);
+  const readerRouteEpoch = useRef(0);
+  const [sourceAction, setSourceAction] = useState<{
+    entryId: string;
+    error: ErrorCode | null;
+    archived: boolean;
+    returning?: boolean;
+  } | null>(null);
+  const [writingRequest, setWritingRequest] = useState(0),
+    [existingReaderDraft, setExistingReaderDraft] = useState(false),
+    [restoreMaterialCount, setRestoreMaterialCount] = useState(0);
+  const [restoreReferenceCounts, setRestoreReferenceCounts] =
+    useState<ReaderOrigin['referenceCounts']>();
   const [drafts, setDrafts] = useState<DraftReceipt[]>([]),
     [draftNext, setDraftNext] = useState<string | null>(null);
   const [activity, setActivity] = useState<ActivityEntry[]>([]),
@@ -257,6 +293,14 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       /* Position is optional. */
     }
   }
+  function clearReaders() {
+    readerRouteEpoch.current++;
+    setReaders([]);
+    setReaderEditing(false);
+    readerOrigin.current = null;
+    readerEditTrigger.current = null;
+    setSourceAction(null);
+  }
   function installEditor(
     view: ObjectView | null,
     options: {
@@ -265,6 +309,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       proposalId?: string;
       kind?: 'document' | 'record';
       ticket?: TransitionTicket;
+      preserveReaders?: boolean;
     } = {},
   ) {
     if (!alive.current || !navigation.claimInstall(options.ticket)) return null;
@@ -289,7 +334,11 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     editorRef.current?.dispose();
     editorRef.current = own;
     setEditor(own);
-    setReaders([]);
+    if (!options.preserveReaders) clearReaders();
+    setWritingRequest(0);
+    setExistingReaderDraft(false);
+    setRestoreMaterialCount(0);
+    setRestoreReferenceCounts(undefined);
     setSelectedProposal(null);
     setListOpen(false);
     setAux(null);
@@ -298,10 +347,24 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     if (view) remember(view.object.id);
     return own;
   }
-  async function readEditor(id: string, transition?: TransitionTicket) {
+  async function readEditor(
+    id: string,
+    transition?: TransitionTicket,
+    options: EditorReadOptions = {},
+  ) {
     const ticket = objectGate.current.begin(session, id),
       previous = editorRef.current;
-    setError(null);
+    const report = (code: ErrorCode | null, archived = false) => {
+      if (options.sourceEntryId)
+        setSourceAction({
+          entryId: options.sourceEntryId,
+          error: code,
+          archived,
+          returning: options.returning,
+        });
+      else setError(code);
+    };
+    report(null);
     try {
       const result = await api.readObject(bound(session, { objectId: id }));
       if (
@@ -309,20 +372,47 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
         !objectGate.current.accepts(ticket, session, id) ||
         previous !== editorRef.current
       )
-        return;
+        return null;
       if (result.ok) {
-        if (!installEditor(result.value, { ticket: transition })) return;
+        if (options.requireWritable && result.value.object.lifecycle === 'archived') {
+          report(null, true);
+          return null;
+        }
+        let own: EditorSession | null;
+        if (
+          options.reuseExisting &&
+          previous?.getSnapshot().objectId === id &&
+          sameBinding(previous.session, session)
+        ) {
+          if (!navigation.claimInstall(transition)) return null;
+          previous.observe(result.value);
+          own = previous;
+          setSelectedProposal(null);
+          setListOpen(false);
+          setAux(null);
+          setTableOpen(false);
+          setMetadataDialog(null);
+        } else
+          own = installEditor(result.value, {
+            ticket: transition,
+            preserveReaders: options.preserveReaders,
+          });
+        if (!own) return null;
         // Review's result/current-object action enters the document workspace.
         // Ordinary project browsing keeps its project destination.
         if (destination === 'review') setDestination('library');
-      } else setError(result.error.code);
+        return own;
+      } else report(result.error.code);
     } catch {
       if (alive.current && objectGate.current.accepts(ticket, session, id))
-        setError('OPERATION_UNKNOWN');
+        report('OPERATION_UNKNOWN');
     }
+    return null;
   }
   function openEditor(id: string) {
-    void protect((ticket) => readEditor(id, ticket));
+    void protect(async (ticket) => {
+      await readEditor(id, ticket);
+    });
   }
 
   async function createNote(
@@ -367,6 +457,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
         )
           return;
         commandTask.current.installed = true;
+        if (result.value.object.kind === 'project') setWritingRequest(1);
         setDestination(result.value.object.kind === 'project' ? 'projects' : 'library');
         setLifecycle('active');
         setText('');
@@ -409,27 +500,49 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   }
   async function resumeDraft(draftId: string) {
     await protect(async (ticket) => {
-      const result = await api.readDraft(bound(session, { draftId })).catch(() => null);
-      if (!alive.current || !navigation.isCurrent(ticket)) return;
-      if (!result?.ok) {
-        setError(result && !result.ok ? result.error.code : 'OPERATION_UNKNOWN');
-        return;
-      }
-      const draft = result.value;
-      const current =
-        draft.target.state === 'existing'
-          ? await api
-              .readObject(bound(session, { objectId: draft.target.objectId }))
-              .catch(() => null)
-          : null;
-      if (!alive.current || !navigation.isCurrent(ticket)) return;
-      if (draft.target.state === 'existing' && !current?.ok) {
-        setError(current && !current.ok ? current.error.code : 'OPERATION_UNKNOWN');
-        return;
-      }
-      if (!installEditor(current?.ok ? current.value : null, { draft, ticket })) return;
-      setDestination('library');
+      await readDraftEditor(draftId, ticket);
     });
+  }
+  async function readDraftEditor(
+    draftId: string,
+    ticket: TransitionTicket,
+    options: EditorReadOptions = {},
+  ) {
+    const report = (code: ErrorCode) => {
+      if (options.sourceEntryId)
+        setSourceAction({
+          entryId: options.sourceEntryId,
+          error: code,
+          archived: false,
+          returning: options.returning,
+        });
+      else setError(code);
+    };
+    const result = await api.readDraft(bound(session, { draftId })).catch(() => null);
+    if (!alive.current || !navigation.isCurrent(ticket)) return null;
+    if (!result?.ok) {
+      report(result && !result.ok ? result.error.code : 'OPERATION_UNKNOWN');
+      return null;
+    }
+    const draft = result.value;
+    const current =
+      draft.target.state === 'existing'
+        ? await api
+            .readObject(bound(session, { objectId: draft.target.objectId }))
+            .catch(() => null)
+        : null;
+    if (!alive.current || !navigation.isCurrent(ticket)) return null;
+    if (draft.target.state === 'existing' && !current?.ok) {
+      report(current && !current.ok ? current.error.code : 'OPERATION_UNKNOWN');
+      return null;
+    }
+    const own = installEditor(current?.ok ? current.value : null, {
+      draft,
+      ticket,
+      preserveReaders: options.preserveReaders,
+    });
+    if (own && !options.preserveReaders) setDestination('library');
+    return own;
   }
 
   async function loadObjects(next?: string) {
@@ -662,7 +775,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     }
     void protect(async () => {
       setDestination('library');
-      setReaders([]);
+      clearReaders();
       setAux(null);
       setTableOpen(false);
       setListOpen(true);
@@ -685,14 +798,24 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   }));
 
   function openReference(reference: ObjectRef, trigger?: string) {
-    if (openingReference.current || editorRef.current?.getSnapshot().locked) return;
+    if (
+      openingReference.current ||
+      navigation.pending ||
+      navigation.locked ||
+      editorRef.current?.getSnapshot().locked
+    )
+      return;
     openingReference.current = true;
     const activeEditor = editorRef.current;
+    const intentRoute = readerRouteEpoch.current;
     void (async () => {
       await activeEditor?.afterComposition();
       if (
         !alive.current ||
+        intentRoute !== readerRouteEpoch.current ||
         activeEditor !== editorRef.current ||
+        navigation.pending ||
+        navigation.locked ||
         activeEditor?.getSnapshot().locked
       )
         return;
@@ -715,19 +838,84 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
         document.querySelector('.review-scroll')?.scrollTop ??
         document.querySelector('.document-scroll')?.scrollTop ??
         0;
+      if (!readers.length || readerEditing) {
+        const state = activeEditor?.getSnapshot();
+        readerOrigin.current = {
+          editorId: state?.editorId ?? null,
+          objectId: state?.objectId ?? null,
+          draftId: null,
+          destination,
+          selectedProposal,
+          aux,
+          tableOpen,
+          edited: false,
+          projectWriting:
+            document.querySelector('.document-pane')?.getAttribute('data-project-view') === 'write',
+          materialCount: document.querySelectorAll(
+            '[data-testid="project-material"] .linked-material-row',
+          ).length,
+          referenceCounts: {
+            continuation: document.querySelectorAll(
+              '[data-testid="project-continuation"] .project-reference-row',
+            ).length,
+            assets: document.querySelectorAll(
+              '[data-testid="project-assets"] .project-reference-row',
+            ).length,
+          },
+        };
+      }
+      const fallback =
+        origin instanceof Element
+          ? (origin.closest('section[aria-labelledby]')?.getAttribute('aria-labelledby') ??
+            (origin.closest('[data-testid="project-material"]')
+              ? 'project-material-heading'
+              : undefined))
+          : undefined;
       setReaders((old) => [
-        ...old,
-        { entryId: crypto.randomUUID(), reference, trigger, scrollTop, region },
+        ...(readerEditing ? [] : old),
+        { entryId: crypto.randomUUID(), reference, trigger, scrollTop, region, fallback },
       ]);
+      readerRouteEpoch.current++;
+      setReaderEditing(false);
+      setSourceAction(null);
       setListOpen(false);
     })().finally(() => {
       openingReference.current = false;
     });
   }
-  function backFromReference() {
-    const current = readers.at(-1);
-    setReaders((old) => old.slice(0, -1));
-    requestAnimationFrame(() => {
+  function restoreReaderLocation(
+    current: ReaderEntry | undefined,
+    expectedEditor?: EditorSession | null,
+  ) {
+    const route = readerRouteEpoch.current,
+      capturedEditor = expectedEditor ?? editorRef.current,
+      generation = capturedEditor?.getSnapshot().generation;
+    let attempts = 0;
+    let projectView: string | null | undefined;
+    let viewCaptured = false;
+    const restore = () => {
+      if (
+        !alive.current ||
+        readerRouteEpoch.current !== route ||
+        capturedEditor !== editorRef.current ||
+        capturedEditor?.getSnapshot().generation !== generation ||
+        navigation.pending
+      )
+        return;
+      const pane = document.querySelector('.document-pane');
+      if (
+        capturedEditor &&
+        (current?.region === 'document' || current?.region === 'context') &&
+        pane?.getAttribute('data-editor-id') !== capturedEditor.getSnapshot().editorId
+      ) {
+        if (++attempts < 90) requestAnimationFrame(restore);
+        return;
+      }
+      const view = pane?.getAttribute('data-project-view');
+      if (!viewCaptured) {
+        projectView = view;
+        viewCaptured = true;
+      } else if (projectView !== view) return;
       const selector =
         current?.region === 'context'
           ? '.context-scroll'
@@ -738,13 +926,128 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
               : current?.region === 'source'
                 ? '.source-reader:not([hidden]) .document-scroll'
                 : '.document-pane .document-scroll';
+      const trigger = current?.trigger
+        ? (document.getElementById(current.trigger) ??
+          (current.trigger.startsWith('relation-')
+            ? document.querySelector<HTMLElement>(
+                `${selector} [id$="-${current.trigger.slice(-36)}"]`,
+              )
+            : null))
+        : document.getElementById('proposal-heading');
+      if (!trigger && ++attempts < 90) {
+        requestAnimationFrame(restore);
+        return;
+      }
       const scroll = document.querySelector(selector);
       if (scroll && current) scroll.scrollTop = current.scrollTop;
-      (current?.trigger
-        ? document.getElementById(current.trigger)
-        : document.getElementById('proposal-heading')
-      )?.focus();
+      const focus =
+        trigger ??
+        (current?.fallback ? document.getElementById(current.fallback) : null) ??
+        document.querySelector<HTMLElement>('.document-pane .document-title, .document-pane h1');
+      focus?.focus({ preventScroll: true });
+    };
+    requestAnimationFrame(restore);
+  }
+  function editCurrentFromReader(entry: ReaderEntry, trigger: string) {
+    if (
+      navigation.pending ||
+      navigation.locked ||
+      readerEditing ||
+      readers.at(-1)?.entryId !== entry.entryId
+    )
+      return;
+    readerEditTrigger.current = trigger;
+    void protect(async (ticket) => {
+      const original = editorRef.current;
+      const origin = readerOrigin.current;
+      if (original && origin?.editorId === original.getSnapshot().editorId) {
+        const state = original.getSnapshot();
+        origin.objectId = state.objectId;
+        origin.draftId = original.dirty && state.draft?.retained ? state.draft.draftId : null;
+      }
+      const own = await readEditor(entry.reference.objectId, ticket, {
+        preserveReaders: true,
+        reuseExisting: true,
+        sourceEntryId: entry.entryId,
+        requireWritable: true,
+      });
+      if (!own) return;
+      if (origin) origin.edited = true;
+      readerRouteEpoch.current++;
+      setReaderEditing(true);
+      setExistingReaderDraft(own.dirty);
+      setWritingRequest((value) => value + 1);
+    }).then(() =>
+      requestAnimationFrame(() => {
+        const button = document.getElementById(trigger);
+        if (button?.getClientRects().length) button.focus({ preventScroll: true });
+      }),
+    );
+  }
+  function returnToReading() {
+    if (navigation.pending || navigation.locked) return;
+    const current = editorRef.current;
+    const route = readerRouteEpoch.current;
+    void (current?.afterComposition() ?? Promise.resolve()).then(() => {
+      if (
+        !alive.current ||
+        route !== readerRouteEpoch.current ||
+        current !== editorRef.current ||
+        navigation.pending ||
+        navigation.locked
+      )
+        return;
+      setReaderEditing(false);
+      readerRouteEpoch.current++;
+      requestAnimationFrame(() =>
+        document.getElementById(readerEditTrigger.current ?? '')?.focus({ preventScroll: true }),
+      );
     });
+  }
+  function backFromReference() {
+    if (navigation.pending || navigation.locked) return;
+    const current = readers.at(-1);
+    const origin = readerOrigin.current;
+    if (readers.length === 1 && origin?.edited) {
+      void protect(async (ticket) => {
+        let own = editorRef.current;
+        if (
+          !(origin.destination === 'review' && origin.selectedProposal) &&
+          !origin.tableOpen &&
+          own?.getSnapshot().editorId !== origin.editorId
+        ) {
+          if (origin.draftId)
+            own = await readDraftEditor(origin.draftId, ticket, {
+              preserveReaders: true,
+              sourceEntryId: current?.entryId,
+              returning: true,
+            });
+          else if (origin.objectId && own?.getSnapshot().objectId !== origin.objectId)
+            own = await readEditor(origin.objectId, ticket, {
+              preserveReaders: true,
+              sourceEntryId: current?.entryId,
+              returning: true,
+            });
+          if (!own) return;
+        }
+        if (!alive.current || !navigation.isCurrent(ticket)) return;
+        setDestination(origin.destination);
+        setSelectedProposal(origin.selectedProposal);
+        setAux(origin.aux);
+        setTableOpen(origin.tableOpen);
+        setListOpen(false);
+        if (origin.projectWriting) setWritingRequest((value) => value + 1);
+        setRestoreMaterialCount(origin.materialCount);
+        setRestoreReferenceCounts(origin.referenceCounts);
+        clearReaders();
+        restoreReaderLocation(current, own);
+      });
+      return;
+    }
+    setReaders((old) => old.slice(0, -1));
+    readerRouteEpoch.current++;
+    if (readers.length === 1) readerOrigin.current = null;
+    restoreReaderLocation(current);
   }
   function chooseDestination(value: Destination) {
     void protect(async () => {
@@ -752,7 +1055,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       setText('');
       setKind(undefined);
       setProjectId(null);
-      setReaders([]);
+      clearReaders();
       setAux(null);
       setTableOpen(false);
       setListOpen(true);
@@ -838,7 +1141,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
   const activeObject = editor?.getSnapshot().objectId;
   const recordItems = useMemo(() => objects.filter((item) => item.kind === 'record'), [objects]);
   const lastPrepared = activity.find((entry) => entry.stage === 'prepared');
-  const reader = readers.at(-1);
+  const reader = readerEditing ? undefined : readers.at(-1);
   return (
     <TaskContext.Provider value={operations.current}>
       <ReferenceRefreshContext.Provider value={refresh}>
@@ -1011,7 +1314,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                     onClick={() => {
                       void protect(async () => {
                         setTableOpen(true);
-                        setReaders([]);
+                        clearReaders();
                         setAux(null);
                         setSelectedProposal(null);
                         setListOpen(false);
@@ -1075,7 +1378,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                       onClick={() => {
                         void protect(async () => {
                           setSelectedProposal(proposal.id);
-                          setReaders([]);
+                          clearReaders();
                           setAux(null);
                           setListOpen(false);
                         });
@@ -1181,7 +1484,16 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                   )}
                 </span>
                 {navigation.cancellable && (
-                  <button onClick={() => navigation.cancelOpening()}>
+                  <button
+                    onClick={() => {
+                      navigation.cancelOpening();
+                      requestAnimationFrame(() =>
+                        document
+                          .getElementById(readerEditTrigger.current ?? '')
+                          ?.focus({ preventScroll: true }),
+                      );
+                    }}
+                  >
                     {t(locale, 'common.cancel')}
                   </button>
                 )}
@@ -1247,10 +1559,16 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                 />
               ) : editor ? (
                 <DocumentPane
+                  key={editor.getSnapshot().editorId}
                   editor={editor}
                   api={api}
                   session={session}
                   refresh={refresh}
+                  writingRequest={writingRequest}
+                  existingDraft={existingReaderDraft}
+                  restoreMaterialCount={restoreMaterialCount}
+                  restoreReferenceCounts={restoreReferenceCounts}
+                  onReturnReading={readerEditing && readers.length ? returnToReading : undefined}
                   onOpen={openReference}
                   onHistory={() => setAux((old) => (old === 'history' ? null : 'history'))}
                   onDetails={() => setAux('details')}
@@ -1266,6 +1584,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                   onReuseFields={reuseFields}
                   onProjectMaterial={(id) => {
                     void protect(async () => {
+                      clearReaders();
                       setDestination('library');
                       setProjectId(id);
                       setAux(null);
@@ -1299,7 +1618,20 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                 api={api}
                 session={session}
                 reference={entry.reference}
-                hidden={index !== readers.length - 1}
+                hidden={readerEditing || index !== readers.length - 1}
+                editingBusy={!!transitionStage || navigation.locked}
+                editError={
+                  sourceAction?.entryId === entry.entryId && !sourceAction.returning
+                    ? sourceAction.error
+                    : null
+                }
+                returnError={
+                  sourceAction?.entryId === entry.entryId && sourceAction.returning
+                    ? sourceAction.error
+                    : null
+                }
+                currentArchived={sourceAction?.entryId === entry.entryId && sourceAction.archived}
+                onEditCurrent={(trigger) => editCurrentFromReader(entry, trigger)}
                 onBack={backFromReference}
                 onOpen={openReference}
                 onCopyVersion={(view) => {

@@ -2,6 +2,27 @@ import type { Dictionary } from './types.js';
 
 export const es = Object.freeze({
   'app.name': 'AgentSpace',
+  'project.overview': 'Resumen del proyecto',
+  'project.editBody': 'Editar texto del proyecto',
+  'project.readBody': 'Leer texto del proyecto',
+  'project.editGoal': 'Editar objetivo del proyecto',
+  'project.excerpt': 'Extracto del texto del proyecto',
+  'project.emptyGoal': 'Añade un objetivo o notas de trabajo para describir este proyecto.',
+  'project.assets': 'Referencias directas a recursos',
+  'project.referenceCount': 'Se muestran {shown} de {total} referencias registradas',
+  'project.moreReferences': 'Mostrar más referencias',
+  'project.noAssets': 'Aún no hay referencias directas a recursos.',
+  'project.noContinuation': 'Aún no hay referencias para continuar.',
+  'project.pinnedReference': 'Versión {version} fijada',
+  'project.archivedAtVersion': 'Archivado en esta versión',
+  'project.loadedCount': '{count} elementos cargados',
+  'source.editCurrent': 'Editar original actual',
+  'source.returnReading': 'Volver a la lectura',
+  'source.existingDraft': 'Continúas con tus cambios sin guardar, basados en la versión {version}.',
+  'source.currentArchived':
+    'El original actual está archivado. Puedes leer su versión actual, pero no editarlo aquí.',
+  'source.archivedVersion':
+    'Esta versión citada registra un objeto archivado. Su estado actual puede ser distinto.',
   'nav.continue': 'Continuar trabajando',
   'nav.projects': 'Proyectos',
   'nav.library': 'Biblioteca',

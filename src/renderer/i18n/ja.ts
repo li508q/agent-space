@@ -2,6 +2,27 @@ import type { Dictionary } from './types.js';
 
 export const ja = Object.freeze({
   'app.name': 'AgentSpace',
+  'project.overview': 'プロジェクト概要',
+  'project.editBody': 'プロジェクト本文を編集',
+  'project.readBody': 'プロジェクト本文を読む',
+  'project.editGoal': '目標を編集',
+  'project.excerpt': 'プロジェクト本文からの抜粋',
+  'project.emptyGoal': '目標や作業メモを追加して、このプロジェクトを説明してください。',
+  'project.assets': '直接参照するアセット',
+  'project.referenceCount': '記録済みの参照 {total} 件中 {shown} 件を表示',
+  'project.moreReferences': '参照をさらに表示',
+  'project.noAssets': '直接のアセット参照はまだありません。',
+  'project.noContinuation': '引き継ぎ用の参照はまだありません。',
+  'project.pinnedReference': '第{version}版に固定',
+  'project.archivedAtVersion': 'この版ではアーカイブ済み',
+  'project.loadedCount': '{count}件を読み込み済み',
+  'source.editCurrent': '現在の原文を編集',
+  'source.returnReading': '閲覧に戻る',
+  'source.existingDraft': '第{version}版に基づく、未保存の編集を続けています。',
+  'source.currentArchived':
+    '現在の原文はアーカイブ済みです。現在の版を閲覧できますが、ここでは編集できません。',
+  'source.archivedVersion':
+    'この引用版ではアーカイブ済みです。現在の状態とは異なる場合があります。',
   'nav.continue': '作業を再開',
   'nav.projects': 'プロジェクト',
   'nav.library': 'ライブラリ',

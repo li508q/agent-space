@@ -18,7 +18,9 @@ Crea notas independientes cuando las necesites. Los proyectos agrupan contenido 
 
 Las ediciones se guardan tras una pausa breve; también puedes guardar de inmediato. «Guardado» significa que la generación visible se ha persistido. Conservar un borrador de recuperación es un estado distinto. Ante un conflicto o un fallo, usa las opciones de reintento, borrador o copia. Una revisión posterior no se sobrescribe en silencio.
 
-Los objetivos del proyecto usan el mismo editor. Puedes añadir campos tipados y referencias para continuar el trabajo sin definir una rutina fija.
+Un proyecto abre con un resumen: extracto de su texto, referencias para continuar, referencias directas a recursos y material paginado. Los botones de sección quedan fuera del texto completo. Elige **Editar texto del proyecto** para escribir; un proyecto vacío ofrece **Editar objetivo del proyecto**. Los recuentos indican elementos cargados o referencias registradas, no totales de todo el espacio. No se impone una rutina fija.
+
+En el lector de fuentes, **Editar original actual** abre la versión actual del mismo objeto interno tras proteger el guardado o borrador. Leer K1 y editar K2 guarda K3 con el mismo ID; K1 y sus citas siguen fijados. Los cambios sin guardar de ese objeto permanecen en su editor, con su base y cualquier conflicto visibles. **Volver a la lectura** recupera la versión citada y la posición anterior. Si el original actual está archivado o no disponible, el historial legible se conserva. Esta acción modifica el objeto gestionado, no un archivo externo.
 
 Los registros admiten texto, números finitos, booleanos, fechas y opciones. Las etiquetas pueden estar en cualquier idioma y conservan su clave al renombrarlas. Sin valor, texto vacío, cero y false son valores distintos. Reutilizar las definiciones crea un registro nuevo con valores vacíos. La tabla es una vista limitada de esos mismos registros, no un esquema global independiente.
 

@@ -4,6 +4,8 @@ Review date: 2026-11-23. Baseline: 0.1.0 at `59353e7` and its actual macOS arm64
 
 The local collaboration foundation is implemented and technically verified. The product remains focused, but the original pains are not yet fully resolved in the default human workflows. Engineering delivery and complete usability acceptance are separate conclusions. This review records open work; it does not claim the changes below have shipped.
 
+The 0.1.1 candidate implements project overviews and editing the current original from a reader. Its source checks are recorded in TESTING; new-package and independent acceptance remain separate gates. The findings below describe the 0.1.0 review baseline. The other corrections remain open.
+
 ## The product promise
 
 A person owns the shared workspace and can write directly. Different agents use the same material and continue work through explicit references. Proposed changes, their declared reasons, their evidence and their accepted results remain understandable. The person can correct, reject and recover work.
@@ -20,7 +22,7 @@ The recurring scenarios are the knowledge/projects/HANDOFF/repository folder pra
 
 The architecture has useful AI-facing semantics rather than a decorative chat interface. The open issues concern how people discover and combine those capabilities.
 
-## Open work tied to the original pains
+## Review findings tied to the original pains
 
 | Problem                                                   | Current behavior                                                                                                                          | Bounded correction                                                                                                | Observable acceptance                                                                                                                             |
 | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |

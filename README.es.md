@@ -6,6 +6,8 @@
 
 Un espacio local para escribir y compartir contexto con distintos agentes. Consulta el motivo de cada propuesta, la versión citada y los cambios; tú decides qué pasa a formar parte de tu trabajo.
 
+**Estado:** Versión local inicial. La base de colaboración está implementada; seguimos mejorando los flujos de uso. [Alcance de la verificación y trabajo pendiente](docs/PRODUCT_REVIEW.md).
+
 <img src="docs/assets/workbench.es.png" alt="El escritorio real de AgentSpace con material de ejemplo sintético" width="1200">
 
 ## Qué puedes hacer

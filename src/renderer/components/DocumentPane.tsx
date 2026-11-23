@@ -1,14 +1,15 @@
-import { useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Check, ChevronLeft, History, Link2, PanelRight, Save } from 'lucide-react';
 import type { DesktopApi, SpaceSession } from '../../contracts/app.js';
 import type { ObjectContent, ObjectRef } from '../../contracts/schema.js';
 import type { ErrorCode } from '../../contracts/errors.js';
 import type { EditorSession } from '../state/editor.js';
 import { t, titleText } from '../i18n/index.js';
-import { ErrorNotice, fieldText, ObjectMetadata, RefLink, SafeMarkdown, useLocale } from '../ui.js';
+import { ErrorNotice, fieldText, ObjectMetadata, SafeMarkdown, useLocale } from '../ui.js';
 import { MarkdownEditor, type MarkdownEditorHandle } from './MarkdownEditor.js';
 import { CopySavedContext } from './CopySavedContext.js';
 import { LinkedMaterial } from './LinkedMaterial.js';
+import { ProjectOverview, projectSection } from './ProjectOverview.js';
 
 export function DocumentPane({
   editor,
@@ -23,6 +24,11 @@ export function DocumentPane({
   onFields,
   onReuseFields,
   refresh,
+  writingRequest = 0,
+  onReturnReading,
+  existingDraft = false,
+  restoreMaterialCount,
+  restoreReferenceCounts,
 }: {
   editor: EditorSession;
   api: DesktopApi;
@@ -36,14 +42,62 @@ export function DocumentPane({
   onFields: () => void;
   onReuseFields: (properties: ObjectContent['properties']) => void;
   refresh: number;
+  writingRequest?: number;
+  onReturnReading?: () => void;
+  existingDraft?: boolean;
+  restoreMaterialCount?: number;
+  restoreReferenceCounts?: { continuation: number; assets: number };
 }) {
   const locale = useLocale();
   const state = useSyncExternalStore(editor.subscribe, editor.getSnapshot);
   const [preview, setPreview] = useState(false);
+  const [projectWriting, setProjectWriting] = useState(() => writingRequest > 0);
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [copyError, setCopyError] = useState<ErrorCode | null>(null);
   const markdown = useRef<MarkdownEditorHandle>(null);
   const writable = state.object?.lifecycle !== 'archived';
+  const overview = state.kind === 'project' && !projectWriting;
+  function writeProject() {
+    const origin = document.activeElement,
+      generation = editor.getSnapshot().generation;
+    setProjectWriting(true);
+    setPreview(false);
+    requestAnimationFrame(() => {
+      if (document.activeElement === origin && editor.getSnapshot().generation === generation)
+        document
+          .querySelector<HTMLElement>(
+            `[data-editor-id="${state.editorId}"] [data-testid="markdown-input"]`,
+          )
+          ?.focus();
+    });
+  }
+  useEffect(() => {
+    if (writingRequest > 0) {
+      setProjectWriting(true);
+      setPreview(false);
+      const origin = document.activeElement,
+        snapshot = editor.getSnapshot();
+      // A person may already have moved to another control after the route mounted.
+      if (
+        origin instanceof HTMLElement &&
+        origin.closest('.document-pane')?.getAttribute('data-editor-id') === snapshot.editorId &&
+        origin.getClientRects().length
+      )
+        return;
+      const frame = requestAnimationFrame(() => {
+        if (
+          document.activeElement === origin &&
+          editor.getSnapshot().generation === snapshot.generation
+        )
+          document
+            .querySelector<HTMLElement>(
+              `[data-editor-id="${snapshot.editorId}"] [data-testid="markdown-input"]`,
+            )
+            ?.focus();
+      });
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [editor, writingRequest]);
   const placeholder = {
     document: 'object.untitledNote',
     project: 'object.untitledProject',
@@ -63,9 +117,24 @@ export function DocumentPane({
     error: 'editor.notSaved',
   } as const;
   return (
-    <section className="document-pane" data-testid="document-pane">
+    <section
+      className="document-pane"
+      data-testid="document-pane"
+      data-editor-id={state.editorId}
+      data-project-view={state.kind === 'project' ? (overview ? 'overview' : 'write') : undefined}
+    >
       <header className="document-header">
         <div className="document-tools as-actions">
+          {onReturnReading && (
+            <button
+              data-testid="return-to-reading"
+              onClick={onReturnReading}
+              disabled={state.locked}
+            >
+              <ChevronLeft size={16} />
+              {t(locale, 'source.returnReading')}
+            </button>
+          )}
           {compact && (
             <button onClick={onBrowse} disabled={state.locked}>
               <ChevronLeft size={16} />
@@ -94,7 +163,7 @@ export function DocumentPane({
             </button>
           </div>
         </div>
-        {writable ? (
+        {writable && !overview ? (
           <input
             className="document-title"
             aria-label={t(locale, 'object.title')}
@@ -108,7 +177,7 @@ export function DocumentPane({
             onCompositionEnd={() => editor.setComposing(false)}
           />
         ) : (
-          <h1>{titleText(locale, state.content.title, state.kind)}</h1>
+          <h1 tabIndex={-1}>{titleText(locale, state.content.title, state.kind)}</h1>
         )}
         <div className="save-row as-actions">
           <span
@@ -127,7 +196,27 @@ export function DocumentPane({
             <small>{t(locale, 'source.version', { version: state.revision })}</small>
           )}
           <div className="push as-actions">
-            {writable && (
+            {state.kind === 'project' && (
+              <>
+                <button
+                  data-testid="project-overview-button"
+                  aria-pressed={overview}
+                  disabled={state.locked}
+                  onClick={() => setProjectWriting(false)}
+                >
+                  {t(locale, 'project.overview')}
+                </button>
+                <button
+                  data-testid="project-edit"
+                  aria-pressed={!overview}
+                  disabled={state.locked}
+                  onClick={writeProject}
+                >
+                  {t(locale, writable ? 'project.editBody' : 'project.readBody')}
+                </button>
+              </>
+            )}
+            {writable && !overview && (
               <>
                 <button
                   aria-pressed={!preview}
@@ -201,6 +290,11 @@ export function DocumentPane({
           />
         )}
         <ErrorNotice code={copyError} />
+        {existingDraft && editor.dirty && (
+          <p className="attention" role="status">
+            {t(locale, 'source.existingDraft', { version: state.revision ?? 0 })}
+          </p>
+        )}
         {(state.error || state.draftError) && (
           <div className="as-actions">
             <button
@@ -236,34 +330,51 @@ export function DocumentPane({
         {state.object?.lifecycle === 'archived' && (
           <p className="attention">{t(locale, 'ui.archiveOutcome')}</p>
         )}
+        {overview && (
+          <nav
+            className="project-section-nav as-actions"
+            aria-label={t(locale, 'project.overview')}
+          >
+            {(['goal', 'continuation', 'material', 'assets'] as const).map((section) => (
+              <button
+                key={section}
+                data-testid={`project-section-${section}`}
+                onClick={() => projectSection(section)}
+              >
+                {t(
+                  locale,
+                  section === 'assets'
+                    ? 'project.assets'
+                    : section === 'material'
+                      ? 'project.material'
+                      : section === 'continuation'
+                        ? 'project.continuation'
+                        : 'project.goal',
+                )}
+              </button>
+            ))}
+          </nav>
+        )}
       </header>
       <div className="document-scroll as-scroll-region" id="document-scroll">
         <div className="document-sheet">
-          {state.kind === 'project' && (
-            <section className="project-summary">
-              <p className="secondary">{t(locale, 'org.projectHint')}</p>
-              {Object.entries(state.content.properties).map(([key, field]) => (
-                <dl className="property-row" key={key}>
-                  <dt>{field.label}</dt>
-                  <dd>{fieldText(locale, field)}</dd>
-                </dl>
-              ))}
-              {state.content.relations
-                .filter((relation) => relation.predicate === 'continues_from')
-                .map((relation) => (
-                  <div className="relation-row" key={relation.id}>
-                    <span>{t(locale, 'project.continuation')}</span>
-                    <RefLink
-                      api={api}
-                      session={session}
-                      reference={relation.target}
-                      onOpen={onOpen}
-                      id={`continuation-${relation.id}`}
-                    />
-                  </div>
-                ))}
-              <h2>{t(locale, 'project.goal')}</h2>
-            </section>
+          {state.kind === 'project' && state.objectId && (
+            <div hidden={!overview}>
+              <ProjectOverview
+                api={api}
+                session={session}
+                objectId={state.objectId}
+                content={state.content}
+                refresh={refresh}
+                writable={writable}
+                locked={state.locked}
+                onEdit={writeProject}
+                onOpen={onOpen}
+                onProjectMaterial={() => onProjectMaterial(state.objectId!)}
+                restoreMaterialCount={restoreMaterialCount}
+                restoreReferenceCounts={restoreReferenceCounts}
+              />
+            </div>
           )}
           {state.kind === 'record' && (
             <section className="record-fields" data-testid="record-fields">
@@ -303,24 +414,24 @@ export function DocumentPane({
           )}
           {writable ? (
             <>
-              <div hidden={preview}>
+              <div hidden={preview || overview}>
                 <MarkdownEditor ref={markdown} editor={editor} locale={locale} />
               </div>
-              {preview && (
+              {preview && !overview && (
                 <article className="as-prose markdown-preview">
                   <SafeMarkdown text={state.content.body} api={api} />
                 </article>
               )}
             </>
           ) : (
-            <>
+            <div hidden={overview}>
               <article className="as-prose">
                 <SafeMarkdown text={state.content.body} api={api} />
               </article>
               <ObjectMetadata content={state.content} api={api} session={session} onOpen={onOpen} />
-            </>
+            </div>
           )}
-          {state.objectId && (state.kind === 'project' || state.kind === 'asset') && (
+          {state.objectId && state.kind === 'asset' && (
             <LinkedMaterial
               api={api}
               session={session}
@@ -329,11 +440,6 @@ export function DocumentPane({
               refresh={refresh}
               onOpen={onOpen}
             />
-          )}
-          {state.kind === 'project' && state.objectId && (
-            <button onClick={() => onProjectMaterial(state.objectId!)}>
-              {t(locale, 'ui.projectMaterial')}
-            </button>
           )}
         </div>
       </div>

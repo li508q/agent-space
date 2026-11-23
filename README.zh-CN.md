@@ -6,6 +6,8 @@
 
 AgentSpace 是你拥有的本地工作空间。你可以直接写作，也可以与不同 Agent 共用上下文。修改的原因、引用的版本和实际变化清楚可见，由你决定哪些内容进入长期积累。
 
+**当前状态：** 本地早期版本。协作基础已实现，核心使用路径仍在完善。[查看验收范围与待办](docs/PRODUCT_REVIEW.md)。
+
 <img src="docs/assets/workbench.zh-CN.png" alt="AgentSpace 真实桌面界面，使用合成示例内容" width="1200">
 
 ## 核心能力
