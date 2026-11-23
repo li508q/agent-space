@@ -78,7 +78,7 @@ export const ja = Object.freeze({
   'activity.changeUndone': '変更を取り消し',
   'review.unresolved': '未処理',
   'review.processed': '処理済み',
-  'review.loadedPending': '未処理の提案 {count} 件を読み込み済み',
+  'review.loadedPending': '読み込み済みの提案（未処理・競合あり）：{count} 件',
   'review.createdAt': '作成日時',
   'review.resolvedAt': '処理日時',
   'review.emptyGroup': '読み込み済みの範囲に提案はありません。',

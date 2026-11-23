@@ -75,7 +75,7 @@ export const ko = Object.freeze({
   'activity.changeUndone': '변경 실행 취소됨',
   'review.unresolved': '처리 대기',
   'review.processed': '처리됨',
-  'review.loadedPending': '대기 중인 제안 {count}개 로드됨',
+  'review.loadedPending': '불러온 제안(처리 대기 또는 충돌): {count}개',
   'review.createdAt': '생성 시각',
   'review.resolvedAt': '처리 시각',
   'review.emptyGroup': '로드된 이 그룹에 제안이 없습니다.',

@@ -6,13 +6,13 @@ export const es = Object.freeze({
     'Comprueba las versiones guardadas que quieres compartir y copia una explicación breve o configura el acceso del agente.',
   'contextPrep.task': 'Tarea breve (opcional)',
   'contextPrep.taskLimit': '{count} / 1.000 caracteres',
-  'contextPrep.selected': '{count} seleccionadas · hasta 20 versiones guardadas',
+  'contextPrep.selected': 'Versiones seleccionadas: {count} · hasta 20 versiones guardadas',
   'contextPrep.selectionLimit': 'Selecciona hasta 20 versiones guardadas.',
   'contextPrep.seed': 'Versión guardada de partida',
   'contextPrep.direct': 'Enlaces directos de esta versión',
   'contextPrep.directScope':
     'Estos enlaces se declararon en la versión de partida. Los destinos actuales se fijan a versiones concretas para esta preparación.',
-  'contextPrep.loaded': '{count} cargados',
+  'contextPrep.loaded': 'Resultados cargados: {count}',
   'contextPrep.unavailableLink': 'Este enlace no está disponible. Vuelve a comprobarlo.',
   'contextPrep.goalExcerpt': 'Extracto del objetivo del proyecto (hasta 280 caracteres)',
   'contextPrep.members': 'Material activo vinculado actualmente',
@@ -49,7 +49,7 @@ export const es = Object.freeze({
   'activity.changes': 'Cambios reales',
   'activity.prepared': 'Contexto preparado',
   'activity.refresh': 'Actualizar',
-  'activity.loaded': '{count} cargados',
+  'activity.loaded': 'Resultados cargados: {count}',
   'activity.retained':
     'Falló la actualización o la página siguiente. Se conservan los registros cargados.',
   'activity.emptyChanges': 'No hay cambios locales en este intervalo.',
@@ -78,7 +78,7 @@ export const es = Object.freeze({
   'activity.changeUndone': 'Cambio deshecho',
   'review.unresolved': 'Pendientes',
   'review.processed': 'Procesadas',
-  'review.loadedPending': '{count} propuestas pendientes cargadas',
+  'review.loadedPending': 'Propuestas cargadas (pendientes o en conflicto): {count}',
   'review.createdAt': 'Creación',
   'review.resolvedAt': 'Procesamiento',
   'review.emptyGroup': 'No hay propuestas en este grupo cargado.',
@@ -95,13 +95,13 @@ export const es = Object.freeze({
   'project.excerpt': 'Extracto del texto del proyecto',
   'project.emptyGoal': 'Añade un objetivo o notas de trabajo para describir este proyecto.',
   'project.assets': 'Referencias directas a recursos',
-  'project.referenceCount': 'Se muestran {shown} de {total} referencias registradas',
+  'project.referenceCount': 'Referencias registradas: {total}; mostradas: {shown}.',
   'project.moreReferences': 'Mostrar más referencias',
   'project.noAssets': 'Aún no hay referencias directas a recursos.',
   'project.noContinuation': 'Aún no hay referencias para continuar.',
   'project.pinnedReference': 'Versión {version} fijada',
   'project.archivedAtVersion': 'Archivado en esta versión',
-  'project.loadedCount': '{count} elementos cargados',
+  'project.loadedCount': 'Elementos cargados: {count}',
   'source.editCurrent': 'Editar original actual',
   'source.returnReading': 'Volver a la lectura',
   'source.existingDraft': 'Continúas con tus cambios sin guardar, basados en la versión {version}.',
@@ -471,13 +471,13 @@ export const es = Object.freeze({
   'relations.apply': 'Usar estas relaciones',
   'records.list': 'Lista',
   'records.table': 'Tabla de registros',
-  'records.tableScope': 'Se muestran {count} de los {loaded} registros cargados.',
+  'records.tableScope': 'Registros mostrados: {count}; registros cargados: {loaded}.',
   'records.reference': 'Registro de referencia para las columnas',
   'records.columnNotice':
     'Las columnas usan los campos de este registro. Otras filas pueden tener campos distintos; esta vista no impone un esquema común.',
   'records.missingField': 'Campo ausente',
   'records.otherDefinition': 'Definición de campo distinta',
-  'records.extraFields': '{count} campos adicionales',
+  'records.extraFields': 'Campos adicionales: {count}',
   'records.reuse': 'Nuevo registro con estos campos',
   'records.reuseNotice':
     'Conserva las definiciones y claves. Todos los valores empiezan sin establecer; no se copian el texto, las fuentes ni los proyectos.',
@@ -498,7 +498,7 @@ export const es = Object.freeze({
   'ui.creatingMaterial': 'Creando material. La escritura está en pausa.',
   'ui.openingSpace': 'Abriendo el espacio. La escritura está en pausa.',
   'links.incoming': 'Referencias entrantes',
-  'links.scope': 'Un nivel de relaciones entrantes; {count} enlaces cargados.',
+  'links.scope': 'Un nivel de relaciones entrantes. Enlaces cargados: {count}.',
   'links.targetsVersion': 'Referencia a la versión {version} del destino',
   'links.none': 'No hay referencias entrantes en el ámbito devuelto.',
   'links.limited': 'La búsqueda alcanzó un límite. Esto no representa el grafo completo.',
@@ -546,7 +546,7 @@ export const es = Object.freeze({
   'transfer.exportScope':
     'Exporta el contenido actual legible, sus campos tipados y enlaces. Excluye historial, borradores de recuperación y textos de fuentes históricas.',
   'transfer.chooseBackup': 'Elegir copia de seguridad',
-  'transfer.snapshotCounts': 'Instantánea: {objects} objetos y {revisions} versiones.',
+  'transfer.snapshotCounts': 'Instantánea. Objetos: {objects}; versiones: {revisions}.',
   'transfer.prepareFailed':
     'No se pudo confirmar que los cambios estén guardados o conservados. Cópialos o cierra este diálogo para reintentar el guardado.',
   'transfer.waitBeforeClose':
@@ -579,7 +579,7 @@ export const es = Object.freeze({
   'import.profile': 'Interpretación de carpetas',
   'import.profilePlain': 'Archivos simples',
   'import.profileKnowledge': 'Conocimiento, proyectos y repositorios',
-  'import.loaded': '{loaded} entradas cargadas; {selected} seleccionadas; {roots} orígenes.',
+  'import.loaded': 'Entradas cargadas: {loaded}; seleccionadas: {selected}; orígenes: {roots}.',
   'import.loadingPages':
     'Cargando todas las páginas de la vista previa acotada antes de confirmar…',
   'import.profileUsed': 'Esta vista previa usa: {profile}.',
@@ -592,9 +592,9 @@ export const es = Object.freeze({
   'import.independent': 'Elemento independiente',
   'import.moreAssets': 'Cargar más recursos existentes',
   'import.confirmScope':
-    'Confirma {count} elementos de origen. Los proyectos y enlaces generados pueden aumentar el número de operaciones.',
+    'Elementos de origen para confirmar: {count}. Los proyectos y enlaces generados pueden aumentar el número de operaciones.',
   'import.runCounts':
-    '{committed} guardados, {reused} reutilizados, {failed} fallidos, {blocked} bloqueados; {total} elementos en total.',
+    'Guardados: {committed}; reutilizados: {reused}; fallidos: {failed}; bloqueados: {blocked}; total de elementos: {total}.',
   'import.selectRetry': 'Reintentar {path}',
   'import.pause': 'Pausar importación',
   'import.resume': 'Reanudar o revisar de nuevo el origen',
@@ -604,7 +604,7 @@ export const es = Object.freeze({
   'import.reuseNotice':
     'La agrupación solo se aplica a copias nuevas. La misma versión del mismo origen reutiliza el objeto original y conserva sus relaciones.',
   'import.reusedNotice': 'Objeto original reutilizado; no se ha reagrupado.',
-  'import.itemsRange': 'Se muestran {loaded} de los {total} elementos.',
+  'import.itemsRange': 'Elementos mostrados: {loaded} de {total}.',
   'import.refNotice':
     'Solo se registrará una referencia externa; no se copian los bytes originales.',
   'importIssue.symlink': 'Enlace simbólico excluido',

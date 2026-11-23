@@ -48,6 +48,7 @@ Headings should express the reader's purpose. They need not mirror English word 
 
 - Keep all dictionary keys and named placeholders identical. Preserve literal protocol names, command flags, paths in examples and machine-readable formats such as `YYYY-MM-DD`.
 - Translate product copy only. Preserve authored titles, body text, field labels, agent reasons and imported content exactly; never save a translated display placeholder into content.
+- Use the existing singular/plural messages when quantity changes wording. A shared counter can use a caption such as “Loaded results: {count}” to stay grammatical at zero, one and many; check the actual referent and gender.
 - Format displayed numbers and dates through the shared formatters. Calendar dates must keep their day; instants use an explicit time zone.
 - The current language-only locale settings use the runtime's `Intl` conventions. Spanish copy is internationally neutral; that does not make one runtime's regional date or number format universal. There is no separate country-format selector.
 - Keep limits exact: Unicode code points are not bytes or user-perceived characters. Do not shorten an error, conflict or recovery message until it loses a condition or next action.

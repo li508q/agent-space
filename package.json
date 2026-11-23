@@ -1,6 +1,6 @@
 {
   "name": "agent-space",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "A local workbench for clear human–agent collaboration",
   "private": true,
   "type": "module",

@@ -71,7 +71,7 @@ export const zhCN = Object.freeze({
   'activity.changeUndone': '已撤销变化',
   'review.unresolved': '待处理',
   'review.processed': '已处理',
-  'review.loadedPending': '已加载 {count} 项待处理提案',
+  'review.loadedPending': '已加载的待处理或冲突提案：{count} 项',
   'review.createdAt': '创建时间',
   'review.resolvedAt': '处理时间',
   'review.emptyGroup': '此已加载分组没有提案。',
