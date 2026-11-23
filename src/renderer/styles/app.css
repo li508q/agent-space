@@ -1139,6 +1139,7 @@ button.primary:hover:not(:disabled) {
   max-block-size: calc(100dvh - 2rem);
   margin: auto;
   padding: 0;
+  scroll-padding-block: var(--as-space-2);
   color: var(--as-text);
   background: var(--as-surface);
   border: 1px solid var(--as-control-border);

@@ -616,8 +616,15 @@ test(
         sequences,
         Array.from({ length: 50 }, (_, i) => top - i),
       );
+      await activity.getByRole('button', { name: t(locale, 'common.close'), exact: true }).focus();
+      await tabTo(native, 'activity-earlier', true);
+      assert.equal(
+        await native.page.evaluate(() => document.activeElement?.getAttribute('data-testid')),
+        'activity-earlier',
+      );
+      requireFocus(await recordFocus(native, 'activity-pagination-more-tab'), 'Activity More');
       await arm(native, 'changes');
-      await activity.getByTestId('activity-earlier').click();
+      await native.page.keyboard.press('Enter');
       await activity
         .getByRole('button', { name: t(locale, 'common.retry'), exact: true })
         .waitFor();
@@ -1005,78 +1012,120 @@ test(
     try {
       await open(native, fixture);
       await installFault(native);
-      await native.setWindowBounds({ width: 980, height: 850 });
-      for (const locale of supportedLocales)
-        for (const scale of [1, 2] as const) {
-          await native.page.getByTestId('settings-button').click();
-          await native.page.getByTestId('locale-select').selectOption(locale);
-          await native.page.getByTestId('text-scale-select').selectOption(String(scale));
-          await native.page.waitForFunction(
-            ({ locale, scale }) =>
-              document.documentElement.lang === locale &&
-              document.querySelector('[data-testid="desktop-app"]')?.getAttribute('data-scale') ===
-                String(scale),
-            { locale, scale },
-          );
-          await native.page.keyboard.press('Escape');
-          assert.equal(
-            await native.application.evaluate(({ BrowserWindow }) =>
-              BrowserWindow.getAllWindows()[0]!.webContents.getZoomFactor(),
-            ),
-            scale,
-          );
-          await native.page.getByTestId('open-activity').click();
-          const activity = native.page.getByTestId('activity-pane');
-          const controls = [];
-          controls.push(await visibleControl(native, 'activity-changes'));
-          assert.equal(
-            await native.page.getByTestId('activity-changes').innerText(),
-            t(locale, 'activity.changes'),
-          );
-          controls.push(await visibleControl(native, 'activity-prepared'));
-          await native.page.keyboard.press('Enter');
-          controls.push(await visibleControl(native, 'activity-changes'));
-          await native.page.keyboard.press('Enter');
-          await arm(native, 'changes');
-          controls.push(await visibleControl(native, 'activity-refresh'));
-          await native.page.keyboard.press('Enter');
-          const retry = activity.getByRole('button', {
-            name: t(locale, 'common.retry'),
-            exact: true,
-          });
-          await retry.waitFor();
-          await retry.focus();
-          await native.page.keyboard.press('Enter');
-          await activity
-            .getByTestId(
-              `change-row-${requireSuccess(fixture.human.readObject({ objectId: fixture.ids.retryPolicy })).object.changeId}`,
-            )
-            .waitFor();
-          await snapshot(native, `activity-${locale}-${scale}x`);
-          await native.page.keyboard.press('Escape');
-          await selectProcessed(native);
-          controls.push(await visibleControl(native, 'review-unresolved'));
-          controls.push(await visibleControl(native, 'review-processed'));
-          await native.page.getByTestId(`proposal-row-${p.id}`).click();
-          controls.push(await visibleControl(native, 'open-proposal-saved-version'));
-          await native.page.keyboard.press('Enter');
-          await native.page
-            .getByTestId('source-reader')
-            .getByText('Accepted multilingual result.', { exact: true })
-            .waitFor();
-          await visibleControl(native, 'source-back');
-          await native.page.keyboard.press('Enter');
-          await native.page.waitForFunction(
-            (id) => document.activeElement?.id === id,
-            `proposal-result-${p.id}`,
-          );
-          const overflow = await native.page.evaluate(
-            () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-          );
-          assert.ok(overflow <= 1);
-          await snapshot(native, `processed-${locale}-${scale}x`);
-          results.push({ locale, scale, controls, overflow, keyboardResultAndReturn: true });
-        }
+      const combinations: (readonly [Locale, 1 | 2, 980 | 1024])[] = [
+        ['en', 2, 1024],
+        ...supportedLocales.flatMap((locale) =>
+          [1, 2].map((scale) => [locale, scale, 980] as readonly [Locale, 1 | 2, 980 | 1024]),
+        ),
+      ];
+      for (const [locale, scale, width] of combinations) {
+        await native.setWindowBounds({ width, height: width === 1024 ? 688 : 850 });
+        await native.page.getByTestId('settings-button').click();
+        await native.page.getByTestId('locale-select').selectOption(locale);
+        await native.page.getByTestId('text-scale-select').selectOption(String(scale));
+        await native.page.waitForFunction(
+          ({ locale, scale }) =>
+            document.documentElement.lang === locale &&
+            document.querySelector('[data-testid="desktop-app"]')?.getAttribute('data-scale') ===
+              String(scale),
+          { locale, scale },
+        );
+        await native.page.keyboard.press('Escape');
+        assert.equal(
+          await native.application.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()[0]!.webContents.getZoomFactor(),
+          ),
+          scale,
+        );
+        await native.page.getByTestId('open-activity').click();
+        const activity = native.page.getByTestId('activity-pane');
+        const controls = [];
+        controls.push(await visibleControl(native, 'activity-changes'));
+        assert.equal(
+          await native.page.getByTestId('activity-changes').innerText(),
+          t(locale, 'activity.changes'),
+        );
+        controls.push(await visibleControl(native, 'activity-prepared'));
+        await native.page.keyboard.press('Enter');
+        controls.push(await visibleControl(native, 'activity-changes'));
+        await native.page.keyboard.press('Enter');
+        await arm(native, 'changes');
+        controls.push(await visibleControl(native, 'activity-refresh'));
+        await native.page.keyboard.press('Enter');
+        const retry = activity.getByRole('button', {
+          name: t(locale, 'common.retry'),
+          exact: true,
+        });
+        await retry.waitFor();
+        await native.page.keyboard.press('Tab');
+        assert.ok(await retry.evaluate((element) => element === document.activeElement));
+        const prefix = `activity-${locale}-${width}-${scale}x`;
+        const retryGeometry = await recordFocus(native, `${prefix}-retry-tab`);
+        requireFocus(retryGeometry, `${prefix} Retry`);
+        await native.page.keyboard.press('Enter');
+        await activity
+          .getByTestId(
+            `change-row-${requireSuccess(fixture.human.readObject({ objectId: fixture.ids.retryPolicy })).object.changeId}`,
+          )
+          .waitFor();
+        const versionId = `change-version-${requireSuccess(fixture.human.readObject({ objectId: fixture.ids.retryPolicy })).object.changeId}`;
+        await native.page.getByTestId('activity-refresh').focus();
+        await tabTo(native, versionId);
+        const source = await recordFocus(native, `${prefix}-source-tab`);
+        requireFocus(source, `${prefix} source`);
+        await native.page.keyboard.press('Enter');
+        await native.page
+          .getByTestId('source-reader')
+          .getByText('Accepted multilingual result.', { exact: true })
+          .waitFor();
+        await tabTo(native, 'source-back', true);
+        requireFocus(await focusGeometry(native), `${prefix} Reader back`);
+        await native.page.keyboard.press('Enter');
+        await native.page.waitForFunction((id) => document.activeElement?.id === id, versionId);
+        const returned = await recordFocus(native, `${prefix}-source-return`);
+        requireFocus(returned, `${prefix} returned source`);
+        assert.ok(Math.abs(returned.rect.top - source.rect.top) <= 1);
+        assert.ok(
+          Math.abs(
+            returned.scrollAncestors.find((item) => item.classes === 'modal')!.scrollTop -
+              source.scrollAncestors.find((item) => item.classes === 'modal')!.scrollTop,
+          ) <= 1,
+        );
+        await snapshot(native, prefix);
+        await native.page.keyboard.press('Escape');
+        await selectProcessed(native);
+        controls.push(await visibleControl(native, 'review-unresolved'));
+        controls.push(await visibleControl(native, 'review-processed'));
+        await native.page.getByTestId(`proposal-row-${p.id}`).click();
+        controls.push(await visibleControl(native, 'open-proposal-saved-version'));
+        await native.page.keyboard.press('Enter');
+        await native.page
+          .getByTestId('source-reader')
+          .getByText('Accepted multilingual result.', { exact: true })
+          .waitFor();
+        await visibleControl(native, 'source-back');
+        await native.page.keyboard.press('Enter');
+        await native.page.waitForFunction(
+          (id) => document.activeElement?.id === id,
+          `proposal-result-${p.id}`,
+        );
+        const overflow = await native.page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        );
+        assert.ok(overflow <= 1);
+        await snapshot(native, `processed-${locale}-${width}-${scale}x`);
+        results.push({
+          locale,
+          scale,
+          width,
+          controls,
+          retryGeometry,
+          source,
+          returned,
+          overflow,
+          keyboardResultAndReturn: true,
+        });
+      }
       mkdirSync(evidence, { recursive: true });
       writeFileSync(
         join(evidence, 'locales.json'),
@@ -1172,7 +1221,7 @@ test(
   },
 );
 
-const focusEvidence = join(root, '.coordination/7B-ci-small');
+const focusEvidence = join(root, '.coordination/7B-modal-focus');
 async function focusGeometry(native: NativeHarness) {
   return native.page.evaluate(() => {
     const element = document.activeElement as HTMLElement;
@@ -1348,6 +1397,7 @@ async function tabTo(native: NativeHarness, testId: string, reverse = false) {
     if (
       await native.page.evaluate(
         (id) =>
+          document.activeElement?.id === id ||
           document.activeElement?.getAttribute('data-testid') === id ||
           document.activeElement?.textContent?.trim() === id,
         testId,
