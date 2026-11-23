@@ -1048,6 +1048,7 @@ test(
       const rescueAttempts = await reader
         .getByTestId('source-edit-current')
         .getAttribute('data-background-focus-attempts');
+      mkdirSync(join(root, '.coordination'), { recursive: true });
       writeFileSync(
         join(root, '.coordination/7A-focus-rescue-observation.json'),
         JSON.stringify(

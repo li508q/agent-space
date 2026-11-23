@@ -85,15 +85,22 @@ export function DocumentPane({
       )
         return;
       const frame = requestAnimationFrame(() => {
+        const active = document.activeElement,
+          sourceLostFocus =
+            active === document.body &&
+            origin instanceof HTMLElement &&
+            !!origin.closest('.source-reader') &&
+            !origin.getClientRects().length;
         if (
-          document.activeElement === origin &&
-          editor.getSnapshot().generation === snapshot.generation
-        )
-          document
-            .querySelector<HTMLElement>(
-              `[data-editor-id="${snapshot.editorId}"] [data-testid="markdown-input"]`,
-            )
-            ?.focus();
+          (active === origin || sourceLostFocus) &&
+          editor.getSnapshot().generation === snapshot.generation &&
+          !document.querySelector('dialog[open]')
+        ) {
+          const input = document.querySelector<HTMLElement>(
+            `[data-editor-id="${snapshot.editorId}"] [data-testid="markdown-input"]`,
+          );
+          if (input?.getClientRects().length) input.focus();
+        }
       });
       return () => cancelAnimationFrame(frame);
     }

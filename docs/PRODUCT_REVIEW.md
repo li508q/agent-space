@@ -14,6 +14,8 @@ The subsequent remote run exposed a smaller-window boundary at about 328 CSS pix
 
 The 0.2.0 application from `d7202a4` implements shared current-head review states, bounded filtering, a distinct Continue view and explicit saved/reviewed versions. The integrated source gate passed 133/133; the affected final source runs passed 14/14 at normal and 688px-capped bounds, and 10/10 at 681px. Its rebuilt, relocated package passed bundled CLI/MCP verification and a focused independent check of review controls, history return, Details return, failure/retry and Spanish rows. Earlier candidates exposed clipped focus and return-position defects; their failures remain separate evidence. The new package did not repeat every earlier Core and native flow. Contextual setup and writing-detail work remain unimplemented; complete workflow acceptance remains open.
 
+A following CI run exposed an original-edit focus timeout at 1.5× text, with the correct saved body already installed. A bounded source correction handles a hidden source trigger's natural blur without taking focus from a later control or dialog. Original assertions and the delayed failure mechanism now pass locally; publication CI is checked separately. The preceding package acceptance retains its original scope. See [the follow-up evidence](TESTING.md#original-edit-focus-follow-up).
+
 ## The product promise
 
 A person owns the shared workspace and can write directly. Different agents use the same material and continue work through explicit references. Proposed changes, their declared reasons, their evidence and their accepted results remain understandable. The person can correct, reject and recover work.

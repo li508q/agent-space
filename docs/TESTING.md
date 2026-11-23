@@ -61,6 +61,14 @@ Earlier 0.2.0 candidates exposed a clipped Spanish row, an offscreen returning h
 
 The final candidate repeated these affected UI paths, not the earlier complete Core/MCP, restore or 24-group native batch. Byte comparison found only the two renderer payloads changed from the preceding candidate; all six non-renderer ASAR files matched. The new production package separately passed its actual bundled CLI and legacy/modern MCP verification, including all ten tools, Unicode reads, scope denial and proposals. Independent source/bundle/ASAR/ZIP and Git/provenance checks matched at entry and exit after normal application exit, with no owned processes remaining. This is engineering acceptance of this slice, not first-user or long-term validation. Contextual setup, writing-detail changes and the final two-agent integrated flow remain separate gates.
 
+### Original-edit focus follow-up
+
+A subsequent 0.2.0 macOS CI run reached the actual native step and passed 31/32 cases. The five-language original-edit case timed out waiting for CodeMirror focus at 1.5× text, while the correct K2 body was already installed. A separate earlier attempt never acquired a macOS runner; its capacity cancellation is a different result. [Original run](https://github.com/li508q/agent-space/actions/runs/45189881995).
+
+An isolated source probe retained the original predicate and ten-second timeout. Delaying only the real editing-focus callback by one animation frame reproduced a hidden source button naturally losing focus to the page body; the unchanged generation guard then skipped the intended editor focus. The original remote log did not capture its active element, so this is a demonstrated matching failure mechanism, not a recovered remote trace. Only DocumentPane's writing-request effect now permits that hidden-source/body transition, with the same generation, a visible editor target and no open dialog. Later visible focus still wins. The same delayed case, the unchanged default and short-window fifteen-combination runs, original draft protections and a real later-dialog check passed. The integrated isolated source check passed 133/133. New publication CI remains a separate gate; the older relocated package's evidence does not establish this source correction.
+
+The follow-up also makes one existing test create its evidence directory before writing, so a fresh checkout can run that case alone. Its business assertions remain unchanged. Probe helpers remain private and are absent from the application and public test file.
+
 ## Change discovery in the source build
 
 The change-discovery baseline passed **6/6** native cases and **19/19** in the combined serial run with existing project-reading, navigation, review and locale cases. This is development Electron evidence; the earlier 0.1.2 package does not establish these new controls. The later modal correction has separate run results below, alongside package acceptance.
