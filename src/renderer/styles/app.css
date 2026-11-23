@@ -246,6 +246,7 @@ button.primary:hover:not(:disabled) {
 .list-scroll {
   flex: 1;
   padding-block: 0.3rem 1rem;
+  scroll-padding-block: 2px;
 }
 /* Keep edge-aligned list controls' focus paint inside their scrollport. */
 .list-scroll button:focus-visible {
@@ -330,6 +331,9 @@ button.primary:hover:not(:disabled) {
   margin-block: 0.9rem 0.65rem;
 }
 @media (max-height: 640px) {
+  .material-list > header {
+    padding-block: 0.5rem;
+  }
   .document-header {
     max-block-size: 55%;
     overflow-y: auto;

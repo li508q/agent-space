@@ -81,9 +81,9 @@ npm run package:mac -- --skip-build
 
 For version 0.1.1, outputs are:
 
-- `release/AgentSpace-0.1.3-macOS-arm64/AgentSpace.app`
-- `release/AgentSpace-0.1.3-macOS-arm64.zip`
-- `release/AgentSpace-0.1.3-macOS-arm64.sha256` and `release/SHA256SUMS`
+- `release/AgentSpace-0.1.4-macOS-arm64/AgentSpace.app`
+- `release/AgentSpace-0.1.4-macOS-arm64.zip`
+- `release/AgentSpace-0.1.4-macOS-arm64.sha256` and `release/SHA256SUMS`
 
 The ZIP contains the app, five-language `START.md`, license material and `BUILDINFO.json`. ZIP creation preserves macOS framework symlinks. ASAR entries are checked against the exact staged allowlist and hashes; signature verification fails the package command if invalid. No installer writes `/Applications`, no host configuration is edited, and nothing is uploaded.
 
@@ -99,4 +99,4 @@ npm run package:verify
 
 The moved executable passes real CLI and simultaneous legacy/modern SDK stdio MCP checks with `PATH=/usr/bin:/bin:/usr/sbin:/sbin`, where system Node does not resolve. Each protocol invokes the ten tools, reconstructs exact pinned Unicode pages, rejects outside-scope reads and creates a proposal whose content remains unapplied until explicit human review. Agent modes create no desktop preferences/installation/instance lock. The tested built-in runtime is Electron45.4.1, Node24.22.3 and SQLite3.54.1. A supplemental Node-mode query reads those runtime versions; the product CLI/MCP checks use the real app entry without Node mode.
 
-`release/AgentSpace-0.1.3-macOS-arm64.verification.json` records artifact hashes and observed runtime checks without personal paths or tokens. The moved app is retained privately for native acceptance. CI can run `package:verify` after `package:mac`; it requires Apple Silicon macOS and makes no support claim elsewhere. These checks do not launch a GUI. Packaged GUI/five-language/source/import/restore acceptance remains separate, as do Developer ID, notarization and downloaded-copy Gatekeeper acceptance.
+`release/AgentSpace-0.1.4-macOS-arm64.verification.json` records artifact hashes and observed runtime checks without personal paths or tokens. The moved app is retained privately for native acceptance. CI can run `package:verify` after `package:mac`; it requires Apple Silicon macOS and makes no support claim elsewhere. These checks do not launch a GUI. Packaged GUI/five-language/source/import/restore acceptance remains separate, as do Developer ID, notarization and downloaded-copy Gatekeeper acceptance.

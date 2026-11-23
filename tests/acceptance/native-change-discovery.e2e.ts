@@ -248,6 +248,7 @@ test(
           })
         ).structuredContent as Result<ProposalReceipt>,
       );
+      await native.page.getByTestId('nav-review').click();
       await native.page.getByTestId(`proposal-row-${created.id}`).click();
       await native.page.getByTestId('accept-proposal').click();
       await eventually(
@@ -374,6 +375,24 @@ test(
           2,
         ),
       );
+    } catch (error) {
+      await recordFocus(native, 'case1-failure').catch(() => undefined);
+      mkdirSync(focusEvidence, { recursive: true });
+      const state = await native.page.evaluate(() => ({
+        view: document.querySelector('[data-testid="workbench"]')?.getAttribute('data-compact'),
+        listOpen: document
+          .querySelector('[data-testid="workbench"]')
+          ?.getAttribute('data-list-open'),
+        rows: Array.from(
+          document.querySelectorAll<HTMLElement>('[data-testid^="proposal-row-"]'),
+          (row) => ({ id: row.dataset.testid, visible: row.getClientRects().length > 0 }),
+        ),
+      }));
+      writeFileSync(
+        join(focusEvidence, 'case1-failure-state.json'),
+        JSON.stringify(state, null, 2),
+      );
+      throw error;
     } finally {
       await client?.close().catch(() => undefined);
       await native.close();
@@ -1153,22 +1172,59 @@ test(
   },
 );
 
-const focusEvidence = join(root, '.coordination/7B-outline');
+const focusEvidence = join(root, '.coordination/7B-ci-small');
 async function focusGeometry(native: NativeHarness) {
   return native.page.evaluate(() => {
     const element = document.activeElement as HTMLElement;
     const r = element.getBoundingClientRect();
     const clip = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+    const scrollAncestors = [];
     for (let parent = element.parentElement; parent; parent = parent.parentElement) {
       const style = getComputedStyle(parent),
         box = parent.getBoundingClientRect();
+      const borderTop = parseFloat(style.borderTopWidth) || 0,
+        borderRight = parseFloat(style.borderRightWidth) || 0,
+        borderBottom = parseFloat(style.borderBottomWidth) || 0,
+        borderLeft = parseFloat(style.borderLeftWidth) || 0;
+      const horizontalScrollbar =
+        style.overflowX === 'scroll' ||
+        (style.overflowX === 'auto' && parent.scrollWidth > parent.clientWidth)
+          ? Math.max(0, parent.offsetHeight - parent.clientHeight - borderTop - borderBottom)
+          : 0;
+      const verticalScrollbar =
+        style.overflowY === 'scroll' ||
+        (style.overflowY === 'auto' && parent.scrollHeight > parent.clientHeight)
+          ? Math.max(0, parent.offsetWidth - parent.clientWidth - borderLeft - borderRight)
+          : 0;
+      const clientBounds = {
+        left: box.left + borderLeft,
+        top: box.top + borderTop,
+        right: box.right - borderRight - verticalScrollbar,
+        bottom: box.bottom - borderBottom - horizontalScrollbar,
+      };
       if (/auto|scroll|hidden|clip/.test(style.overflowY)) {
-        clip.top = Math.max(clip.top, box.top + parent.clientTop);
-        clip.bottom = Math.min(clip.bottom, box.top + parent.clientTop + parent.clientHeight);
+        scrollAncestors.push({
+          classes: parent.className,
+          rect: box.toJSON(),
+          clientHeight: parent.clientHeight,
+          clientBounds,
+          borders: { top: borderTop, right: borderRight, bottom: borderBottom, left: borderLeft },
+          scrollbars: { horizontal: horizontalScrollbar, vertical: verticalScrollbar },
+          legacyIntegerClientBottom: box.top + parent.clientTop + parent.clientHeight,
+          scrollHeight: parent.scrollHeight,
+          scrollTop: parent.scrollTop,
+          paddingTop: style.paddingTop,
+          paddingBottom: style.paddingBottom,
+          scrollPaddingTop: style.scrollPaddingTop,
+          scrollPaddingBottom: style.scrollPaddingBottom,
+          scrollBehavior: style.scrollBehavior,
+        });
+        clip.top = Math.max(clip.top, clientBounds.top);
+        clip.bottom = Math.min(clip.bottom, clientBounds.bottom);
       }
       if (/auto|scroll|hidden|clip/.test(style.overflowX)) {
-        clip.left = Math.max(clip.left, box.left + parent.clientLeft);
-        clip.right = Math.min(clip.right, box.left + parent.clientLeft + parent.clientWidth);
+        clip.left = Math.max(clip.left, clientBounds.left);
+        clip.right = Math.min(clip.right, clientBounds.right);
       }
     }
     const style = getComputedStyle(element),
@@ -1192,12 +1248,24 @@ async function focusGeometry(native: NativeHarness) {
     const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
     const scroll = document.querySelector<HTMLElement>('.review-scroll');
     const scrollStyle = scroll && getComputedStyle(scroll);
+    const listHeader = document.querySelector<HTMLElement>('.material-list > header');
+    const listHeaderStyle = listHeader && getComputedStyle(listHeader);
     return {
       id: element.id,
       testId: element.dataset.testid,
       text: element.innerText,
       rect: r.toJSON(),
       clip,
+      viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
+      scrollAncestors,
+      listHeader: listHeader
+        ? {
+            rect: listHeader.getBoundingClientRect().toJSON(),
+            paddingTop: listHeaderStyle!.paddingTop,
+            paddingBottom: listHeaderStyle!.paddingBottom,
+            boxSizing: listHeaderStyle!.boxSizing,
+          }
+        : null,
       focusVisible: element.matches(':focus-visible'),
       outline: style.outline,
       outlineOffset: style.outlineOffset,
@@ -1239,6 +1307,13 @@ async function recordFocus(native: NativeHarness, name: string) {
   const geometry = await focusGeometry(native);
   mkdirSync(focusEvidence, { recursive: true });
   writeFileSync(join(focusEvidence, name + '.json'), JSON.stringify(geometry, null, 2));
+  if (!geometry.fullVisible || !geometry.centerClear) {
+    await delay(250);
+    writeFileSync(
+      join(focusEvidence, name + '.settled.json'),
+      JSON.stringify(await focusGeometry(native), null, 2),
+    );
+  }
   const capture = await native.application.evaluate(async ({ BrowserWindow }) => {
     const w = BrowserWindow.getAllWindows()[0]!,
       image = await w.capturePage();

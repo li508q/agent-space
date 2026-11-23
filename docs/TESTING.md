@@ -1,6 +1,6 @@
 # Verification and evidence
 
-Updated 2026-11-23 for the 0.1.3 candidate, persistent format 2. Checks trace to the interview-origin scenarios SC-01–SC-09 and acceptance targets AS-01–AS-15 in [PRD.md](PRD.md). All fixtures are synthetic. Concurrency, crashes and response loss are engineering risk cases, not incidents attributed to the user.
+Updated 2026-11-23 for the 0.1.4 small-window follow-up, persistent format 2. Checks trace to the interview-origin scenarios SC-01–SC-09 and acceptance targets AS-01–AS-15 in [PRD.md](PRD.md). All fixtures are synthetic. Concurrency, crashes and response loss are engineering risk cases, not incidents attributed to the user.
 
 ## Run the checks
 
@@ -41,6 +41,8 @@ Bounded cases load contiguous 50-event windows, 53 applied proposals and a separ
 A subsequent independent 0.1.3 package check found a focused source partly hidden by the review footer at 980px/2×. The source correction gives short viewports one actual `review-scroll` for the header, content and actions; normal-height viewports retain the body scrollport. The added real-Tab case covers all five languages at 1×/2×, a wrapped source label taller than one line, complete focus outlines and center hit tests. Enter opens original K1 and the accepted result; returning restores the actual scrolled container, source position and trigger. Pending accept/reject and processed footer controls remain keyboard reachable. The source regression and final moved-package follow-up passed; their scopes are recorded below.
 
 A second package check found an outward list-button focus outline clipped at the list edge, while the button and center remained visible. Only buttons within `list-scroll` now draw the existing high-contrast outline inward; global thickness and color stay unchanged. The same native case now covers 12 groups: five locales at 980px/1×/2×, plus English at 1380px/1×/2×. Real Tab checks collection/refresh, ordinary and selected full-width rows, bounded More and retry after one injected append failure. Geometry separately requires the complete component and the actual outline paint bounds to fit the ancestor clip, including negative outline offsets. The original-source K1/Enter/scroll-return checks remain. Case counts stay 6/6 and 19/19; the final moved-package follow-up is recorded below.
+
+The subsequent CI small-screen follow-up reproduced two failures with `AGENTSPACE_TEST_WINDOW_MAX=1024x688`: a fixture selected a hidden compact-list row, and the shared 64px top/bottom scroll clearance exceeded a 98px list viewport. The fixture now reopens Review through its visible entry. Only the list uses 2px scroll clearance; below 640 CSS pixels, its header uses 8px top/bottom decorative padding so a selected row also fits. Fonts, controls, the inset focus outline and review scroll checkpoints remain unchanged. Both affected cases passed at actual 1024/980×688 native bounds, 656px content height and 328 CSS pixels at 2×, including all 12 keyboard groups. Fractional clip bounds come from the real border box minus borders and any scrollbars, rather than rounded integer client dimensions; complete component, outline-paint and center-hit requirements retain their original tolerance. These are source-build results, separate from the earlier package acceptance.
 
 Ten locale/size combinations cover all five languages at requested 980px width and native 1×/2× zoom, with actual window/content/CSS sizes recorded separately. Keyboard checks reach activity groups, refresh/retry, processed groups, the fixed result and reader return. Native window captures verify the visible layout; no physical IME or OS chooser coverage is inferred.
 
@@ -137,7 +139,7 @@ The production build pins Electron 45.4.1 / bundled Node 24.22.3 / SQLite 3.54.1
 
 The earlier 0.1.0 moved application passed native bridge/reopen, composition, organization, five-language review/layout, accepted history, asset lifecycle, import/restore and response-loss/navigation checks. Published screenshots show that application with synthetic example material and an actual SDK-created proposal. The 0.1.1 moved application separately passed project-inspection/correction acceptance; the 0.1.2 moved application then passed the compact-navigation follow-up above. Older UI results are not silently reassigned to a new build.
 
-Build-specific runtime/checksum evidence is generated in `release/AgentSpace-0.1.3-macOS-arm64.verification.json` (older artifacts are retained separately); generated applications and reports are excluded from source control. Rebuild and repeat relevant checks whenever production inputs change. See [DESKTOP.md](DESKTOP.md) for packaging commands and signing scope.
+Build-specific runtime/checksum evidence is generated in `release/AgentSpace-0.1.4-macOS-arm64.verification.json` (older artifacts are retained separately); generated applications and reports are excluded from source control. Rebuild and repeat relevant checks whenever production inputs change. See [DESKTOP.md](DESKTOP.md) for packaging commands and signing scope.
 
 ## Bounded performance observation
 

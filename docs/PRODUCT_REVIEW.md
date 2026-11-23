@@ -10,6 +10,8 @@ The expanded CI subsequently found a separate compact-list control defect: an op
 
 The 0.1.3 application adds durable recent changes and processed proposals through the existing Activity and Review entries. Independent keyboard checks exposed and closed two layout defects: a footer obscured a source at 200% zoom, and a list boundary clipped an outer focus outline. The final moved package passed the focused follow-up and complete English/Spanish keyboard flows. Earlier candidates retain their separately scoped data, pagination and failure evidence; they are not described as full reruns of the final artifact.
 
+The subsequent remote run exposed a smaller-window boundary at about 328 CSS pixels high. One new test had assumed the proposal list stayed visible after compact navigation; another correctly exposed oversized list scroll clearance. The 0.1.4 source follow-up uses a 2px list clearance and tighter short-window title spacing, preserves control sizes, and passed the affected small-window checks and existing regressions. Its rebuilt-package follow-up and complete remote CI remain pending.
+
 ## The product promise
 
 A person owns the shared workspace and can write directly. Different agents use the same material and continue work through explicit references. Proposed changes, their declared reasons, their evidence and their accepted results remain understandable. The person can correct, reject and recover work.
