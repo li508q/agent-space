@@ -1,6 +1,6 @@
 # Verification and evidence
 
-Updated 2026-11-23 for knowledge-review discovery source work and the preceding 0.1.4 small-window follow-up, persistent format 2. Checks trace to the interview-origin scenarios SC-01–SC-09 and acceptance targets AS-01–AS-15 in [PRD.md](PRD.md). All fixtures are synthetic. Concurrency, crashes and response loss are engineering risk cases, not incidents attributed to the user.
+Updated 2026-11-23 for the 0.2.0 knowledge-review discovery acceptance, persistent format 2. Checks trace to the interview-origin scenarios SC-01–SC-09 and acceptance targets AS-01–AS-15 in [PRD.md](PRD.md). All fixtures are synthetic. Concurrency, crashes and response loss are engineering risk cases, not incidents attributed to the user.
 
 ## Run the checks
 
@@ -50,6 +50,16 @@ The first related run passed 26/28. One returning project mounted its first quer
 Actual Tab, Enter, focus paint, center-hit and collapsed text-caret checks cover English, Simplified Chinese, Japanese, Korean and Spanish, widths 1380/1024/980 and native 1×/2× text. The existing material disclosure and search/type/lifecycle/review controls share the one list scrollport in normal flow. An initial short-window layout left about 21px for rows; moving only the filters left 63.67px. Moving the disclosure into that same scrollport leaves 103.67px in English at 1024×688 native bounds / 328 CSS pixels at 2×, sufficient for the original approximately 95px selected row. The stricter 681px cap yields 649px content / 324 CSS pixels. Controls and fonts retain their sizes, and the existing 2px focus outline is drawn inward only for list controls; summary text and SVG geometry are checked separately.
 
 These are development Electron and synthetic-space observations. A new packaged application, its independent acceptance and physical OS IME behavior require separate evidence.
+
+## Independent knowledge-discovery package acceptance
+
+The relocated 0.2.0 application from `d7202a4` passed its focused independent follow-up. Its source gate passed 133/133; affected native source runs passed 14/14 at normal and 1024×688 capped bounds, and 10/10 at 1024×681. These are separate runs, not a combined final-package test count.
+
+Nine actual Mark-reviewed layout groups covered all five locales, normal English/Spanish and Spanish short windows at two widths. Four history paths covered a changed head, an unchanged exact return, a held newer reply and a later reply after new input elsewhere. Details checks preserved both nonzero inner and outer scroll positions and the original trigger at the same viewport; after a real resize, the old outer checkpoint was not applied. Fields, relationships and archive cancellation remained usable. A real pre-commit hold exposed Refresh; one actual head-read failure, Retry and the eventual review completed without losing unrelated input. Four Spanish ordinary/selected-row groups also passed. Full native captures, fractional clips, text/glyph bounds, focus paint and center hits were observed separately.
+
+Earlier 0.2.0 candidates exposed a clipped Spanish row, an offscreen returning history target, a clipped Mark focus outline and small strict-paint history overshoots. The fixes retain font/control sizes, limit scroll clearance to the affected region, round corrective history movement outward and restore outer-document positions only for guarded Details origins. Original failed observations remain attached to their candidates. Source checks allow their existing 0.5 CSS-pixel tolerance; the independent paint observations use a separate zero-epsilon predicate. No tolerance was relaxed to close these failures.
+
+The final candidate repeated these affected UI paths, not the earlier complete Core/MCP, restore or 24-group native batch. Byte comparison found only the two renderer payloads changed from the preceding candidate; all six non-renderer ASAR files matched. The new production package separately passed its actual bundled CLI and legacy/modern MCP verification, including all ten tools, Unicode reads, scope denial and proposals. Independent source/bundle/ASAR/ZIP and Git/provenance checks matched at entry and exit after normal application exit, with no owned processes remaining. This is engineering acceptance of this slice, not first-user or long-term validation. Contextual setup, writing-detail changes and the final two-agent integrated flow remain separate gates.
 
 ## Change discovery in the source build
 
@@ -168,7 +178,7 @@ The production build pins Electron 45.4.1 / bundled Node 24.22.3 / SQLite 3.54.1
 
 The earlier 0.1.0 moved application passed native bridge/reopen, composition, organization, five-language review/layout, accepted history, asset lifecycle, import/restore and response-loss/navigation checks. Published screenshots show that application with synthetic example material and an actual SDK-created proposal. The 0.1.1 moved application separately passed project-inspection/correction acceptance; the 0.1.2 moved application then passed the compact-navigation follow-up above. Older UI results are not silently reassigned to a new build.
 
-Build-specific runtime/checksum evidence is generated in `release/AgentSpace-0.1.4-macOS-arm64.verification.json` (older artifacts are retained separately); generated applications and reports are excluded from source control. Rebuild and repeat relevant checks whenever production inputs change. See [DESKTOP.md](DESKTOP.md) for packaging commands and signing scope.
+Build-specific runtime/checksum evidence is generated in `release/AgentSpace-0.2.0-macOS-arm64.verification.json` (older artifacts are retained separately); generated applications and reports are excluded from source control. Rebuild and repeat relevant checks whenever production inputs change. See [DESKTOP.md](DESKTOP.md) for packaging commands and signing scope.
 
 ## Bounded performance observation
 
