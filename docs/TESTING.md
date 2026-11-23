@@ -81,7 +81,17 @@ Earlier 0.2.0 candidates exposed a clipped Spanish row, an offscreen returning h
 
 The final candidate repeated these affected UI paths, not the earlier complete Core/MCP, restore or 24-group native batch. Byte comparison found only the two renderer payloads changed from the preceding candidate; all six non-renderer ASAR files matched. The new production package separately passed its actual bundled CLI and legacy/modern MCP verification, including all ten tools, Unicode reads, scope denial and proposals. Independent source/bundle/ASAR/ZIP and Git/provenance checks matched at entry and exit after normal application exit, with no owned processes remaining. This is engineering acceptance of this slice, not first-user or long-term validation. Contextual setup, writing-detail changes and the final two-agent integrated flow remain separate gates.
 
-### Original-edit focus follow-up
+### Context preparation package acceptance
+
+The first 0.2.1 package from `805e780` completed six independent contextual-collaboration business batches without an observed failure. Seven layout groups found a clipped task field/outline and associated version descriptions outside the dialog. Those failures retain their original candidate scope.
+
+The corrected, freshly built and relocated 0.2.1 package from `a68aec7` passed a bounded independent follow-up: EN 980×720/1×, five locales at 980×688/2×, and ES 980×681/2×. Natural keyboard traversal checked every loaded choice: 826 forward targets plus 21 targeted Shift+Tab visits, with full task labels/counts, choice titles/version text, glyphs, outline paint and center hits at zero epsilon. All units fitted their actual ports. Short-window pointer entry retained geometry, caret placement and the intended checked state. One minimal Reader/preparation/Settings path preserved actual human writing, selected exact pins, preview/clipboard equality and zero grants; it did not repeat the earlier six business batches or run a model.
+
+Source 220 entries, complete bundle 280 entries, the production manifest's 2,615 inputs/eight outputs and actual output directory sets, ASAR/ZIP, provenance, plan and 14 raw symlink modes matched on entry and exit. Embedded outputs matched the recorded build. Normal quit returned exit 0 and all owned product processes stopped. The source Git domain and ignored production dependencies were verified separately; this does not claim an independent reconstruction of the complete dependency graph.
+
+Runtime source is `a68aec7484595e5213d18e2e75473da7bdbaac29`. Its ASAR SHA-256 is `5d1d6f364e981a92143835e2dfca30572d6f05552fff821150d3c8acc21b434a`; ZIP SHA-256 is `cf9598d21fcacbc1ebaf432b76ba9dafe62905de536342a16e981cc085ef7fee`. Later documentation-only publication has a separate Git identity and CI result. This closes the bounded local contextual-setup slice, not writing-detail work, visual refinement, personal-source intake or the final two-fresh-agent lifecycle.
+
+## Original-edit focus follow-up
 
 A subsequent 0.2.0 macOS CI run reached the actual native step and passed 31/32 cases. The five-language original-edit case timed out waiting for CodeMirror focus at 1.5× text, while the correct K2 body was already installed. A separate earlier attempt never acquired a macOS runner; its capacity cancellation is a different result. [Original run](https://github.com/li508q/agent-space/actions/runs/45189881995).
 
