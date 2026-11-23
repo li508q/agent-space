@@ -1,6 +1,6 @@
 # Product completeness and focus review
 
-Review date: 2026-11-23. Original review: 0.1.0 at `59353e7`. Project-inspection/correction: moved 0.1.1 from `4786bf0`. Compact-navigation follow-up: moved 0.1.2 from `a169b6d`. Change discovery: moved 0.1.3 from `fbd5417`, on macOS arm64.
+Review date: 2026-11-23. Original review: 0.1.0 at `59353e7`. Project-inspection/correction: moved 0.1.1 from `4786bf0`. Compact-navigation follow-up: moved 0.1.2 from `a169b6d`. Change discovery: moved 0.1.3 from `fbd5417`; small-window and repeated-reader-return follow-up: moved 0.1.4 from `9d0ff13`, on macOS arm64.
 
 The local collaboration foundation is implemented and technically verified. The product remains focused, but the original pains are not yet fully resolved in the default human workflows. Engineering delivery and complete usability acceptance are separate conclusions. This review separates accepted corrections from open work; the whole human workflow has not yet passed acceptance.
 
@@ -10,7 +10,7 @@ The expanded CI subsequently found a separate compact-list control defect: an op
 
 The 0.1.3 application adds durable recent changes and processed proposals through the existing Activity and Review entries. Independent keyboard checks exposed and closed two layout defects: a footer obscured a source at 200% zoom, and a list boundary clipped an outer focus outline. The final moved package passed the focused follow-up and complete English/Spanish keyboard flows. Earlier candidates retain their separately scoped data, pagination and failure evidence; they are not described as full reruns of the final artifact.
 
-The subsequent remote run exposed a smaller-window boundary at about 328 CSS pixels high. One new test had assumed the proposal list stayed visible after compact navigation; another correctly exposed oversized list scroll clearance. The 0.1.4 source follow-up uses a 2px list clearance and tighter short-window title spacing, preserves control sizes, and passed the affected small-window checks and existing regressions. Its rebuilt-package follow-up and complete remote CI remain pending.
+The subsequent remote run exposed a smaller-window boundary at about 328 CSS pixels high. One new test had assumed the proposal list stayed visible after compact navigation; another correctly exposed oversized list scroll clearance. The 0.1.4 source follow-up uses a 2px list clearance and tighter short-window title spacing, preserves control sizes, and passed the affected small-window checks and existing regressions. Its rebuilt package also corrects clipped dialog focus and repeated Activity-return scroll drift. Independent checks passed eight layout groups and 32 middle/end returns with exact positions, preserved records and focus; the complete remote CI gate remains pending. Earlier failures retain their original candidate scope.
 
 ## The product promise
 
