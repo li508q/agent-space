@@ -543,9 +543,22 @@ test(
         await n.page.getByTestId('text-scale-select').selectOption(String(group.scale));
         await n.page.keyboard.press('Escape');
         const geometry = await n.setWindowBounds(group);
-        record(`${group.id}-geometry`, geometry);
-        assert.equal(geometry.bounds.width, group.width);
-        assert.equal(geometry.bounds.height, group.height);
+        const controlledRequest = {
+          width: Math.min(group.width, geometry.controlledMaximum?.width ?? group.width),
+          height: Math.min(group.height, geometry.controlledMaximum?.height ?? group.height),
+        };
+        record(`${group.id}-geometry`, { ...geometry, controlledRequest });
+        for (const dimension of ['width', 'height'] as const) {
+          assert.equal(geometry.requestedWindow?.[dimension], group[dimension]);
+          const requested = controlledRequest[dimension],
+            actual = geometry.bounds[dimension],
+            available = geometry.workArea[dimension];
+          // Native window managers may clamp an oversized request to the work area.
+          assert.ok(
+            actual === requested || (requested > available && actual === available),
+            `${dimension}: native ${actual}, controlled request ${requested}, work area ${available}`,
+          );
+        }
         assert.equal(geometry.zoomFactor, group.scale);
         await n.page.getByTestId('prepare-source-context').click();
         const prep = n.page.getByTestId('context-preparation'),

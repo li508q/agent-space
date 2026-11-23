@@ -50,6 +50,16 @@ The final integrated source gate passed **138/138**, including strict TypeScript
 
 These are synthetic macOS development-source observations. They do not establish host receipt, model understanding, a real-model handoff, actual-user validation or final packaged acceptance. Physical OS IMEs and chooser interaction retain the limitations below; the chooser substitution only supplies an isolated path to the real import flow. No user host configuration is written, no model is run, and prepared/copy state does not certify knowledge or expand grants.
 
+### Context checks on smaller native desktops
+
+The subsequent [publication run](https://github.com/li508q/agent-space/actions/runs/45236916414) first failed to acquire a hosted macOS runner without executing a step. Its retry ran 38 native cases: 36 passed and two exposed test preconditions. A requested 720px-high window was actually 684px high on the runner; another case returned to the foreground History panel, then tried to click the editor that compact navigation correctly hid. The packaging steps did not run in that attempt.
+
+Both failures were reproduced before changing the two context test files. Geometry checks now distinguish the original request, the harness-only maximum and native bounds. Native dimensions must equal the controlled request, or exactly the work area when an oversized request is clamped. The History case uses its visible Close button before continuing; the original human-session assertion remains, with added before/after identity, generation, body, caret and fixed-K1 checks. No application code, styles, permissions, shared harness or visibility tolerance changed.
+
+The final context files passed separately at normal local bounds (**6/6**) and a test-only 1024×684 maximum (**6/6**). Each retained seven focus groups and 42 strict glyph/semantic-unit/outline/center observations, pointer placement, fixed versions and the original SDK assertions. At the cap, the enlarged 688px request actually produced 684px native height, 652px content and 326 CSS pixels; the 681px request produced 649px content and 324 CSS pixels. These local controlled bounds are distinct from the runner's physical work area.
+
+An earlier passing business run in each environment left Settings open, so the existing harness eventually killed that child after the product canceled quitting with a dialog open. Those two cleanup failures remain recorded. The final version explicitly closes Settings after the last assertions: all twelve children across the two final runs exited normally, all copy-device hooks were restored, and no product process remained. Source, dependencies, development outputs, release files and the accepted moved application's fingerprints were unchanged. The local package still belongs to `a68aec7`; a test-only follow-up does not relabel it. The [Verify workflow](https://github.com/li508q/agent-space/actions/workflows/ci.yml) records publication checks for the corrected source revision.
+
 ## Knowledge review and rediscovery source checks
 
 ```sh

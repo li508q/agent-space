@@ -544,11 +544,43 @@ test(
         humanBefore,
         'Preparation and reading return keep the exact human session.',
       );
+      const history = n.page.getByTestId('history-pane'),
+        historyWindow = await n.logWindow('context-history-return');
+      assert.equal(historyWindow.view.auxiliary, 'history');
+      assert.equal(await history.isVisible(), true);
+      assert.equal(await n.page.getByTestId('source-reader').count(), 0);
       await release(n, 'human-save');
       await n.page.waitForFunction(() =>
         document.querySelector('[data-testid="save-state"]')?.classList.contains('saved'),
       );
-      const savedHuman = ok(f.human.readObject({ objectId: f.project.id })).object;
+      const savedHuman = ok(f.human.readObject({ objectId: f.project.id })).object,
+        savedSession = await editorState(n);
+      assert.deepEqual(savedSession, {
+        ...humanBefore,
+        revision: savedHuman.revision,
+        saveState: 'saved',
+      });
+      assert.equal(savedHuman.content.body, humanBefore.body);
+      // Returning from a historical reader restores History, which covers the
+      // editor in compact windows. Use its real Close control before preparation.
+      await history.getByRole('button', { name: t('en', 'common.close'), exact: true }).click();
+      await history.waitFor({ state: 'hidden' });
+      const returnedSession = await editorState(n),
+        editorWindow = await n.logWindow('context-editor-return'),
+        fixedProject = ok(f.human.readObject({ objectId: f.project.id, revision: 1 })).object;
+      assert.deepEqual(returnedSession, savedSession, 'Closing History keeps the saved session.');
+      assert.equal(editorWindow.view.auxiliary, '');
+      assert.equal(await n.page.getByTestId('markdown-input').isVisible(), true);
+      assert.equal(await n.page.getByTestId('prepare-document-context').isVisible(), true);
+      assert.deepEqual(fixedProject, f.project);
+      writeFileSync(
+        join(out, 'response-loss-history-return.json'),
+        JSON.stringify(
+          { humanBefore, historyWindow, savedSession, returnedSession, editorWindow, fixedProject },
+          null,
+          2,
+        ),
+      );
       await n.page.getByTestId('prepare-document-context').click();
       prep = n.page.getByTestId('context-preparation');
       await prep.getByTestId('context-direct-more').waitFor();
@@ -1495,6 +1527,8 @@ test(
       );
       assert.equal(ok(f.human.listGrants()).length, 2);
       assert.deepEqual(n.pageErrors, []);
+      await n.page.keyboard.press('Escape');
+      await settings.waitFor({ state: 'hidden' });
     } finally {
       try {
         writeFileSync(
