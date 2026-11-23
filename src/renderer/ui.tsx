@@ -209,6 +209,7 @@ export function RefLink({
   id,
   passive = false,
   summary,
+  onResolved,
 }: {
   api: DesktopApi;
   session: SpaceSession;
@@ -217,6 +218,7 @@ export function RefLink({
   id?: string;
   passive?: boolean;
   summary?: Pick<ObjectSummary, 'ref' | 'title' | 'kind'>;
+  onResolved?: (summary: Pick<ObjectSummary, 'ref' | 'title' | 'kind'>) => void;
 }) {
   const locale = useLocale();
   const [view, setView] = useState<ObjectView | null>(null);
@@ -252,6 +254,16 @@ export function RefLink({
           if (result.ok) {
             setView(result.value);
             setUnavailable(false);
+            if (revision)
+              onResolved?.({
+                ref: {
+                  mode: 'pinned',
+                  objectId: result.value.object.id,
+                  revision: result.value.object.revision,
+                },
+                title: result.value.object.content.title,
+                kind: result.value.object.kind,
+              });
           } else {
             setView(null);
             setUnavailable(true);
@@ -267,7 +279,7 @@ export function RefLink({
     return () => {
       active = false;
     };
-  }, [api, session.bindingId, reference.objectId, revision, currentRefresh, known]);
+  }, [api, session.bindingId, reference.objectId, revision, currentRefresh, known, onResolved]);
   const text = known
     ? titleText(locale, known.title, known.kind)
     : view

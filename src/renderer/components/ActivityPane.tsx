@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { DesktopApi, SpaceSession } from '../../contracts/app.js';
-import type { ActivityEntry, ChangeSummary } from '../../contracts/core.js';
+import type { ActivityEntry, ChangeSummary, ObjectSummary } from '../../contracts/core.js';
 import type { ErrorCode } from '../../contracts/errors.js';
-import type { ObjectRef } from '../../contracts/schema.js';
+import type { ObjectRef, PinnedRef } from '../../contracts/schema.js';
 import { formatNumber, t } from '../i18n/index.js';
 import { bound } from '../state/binding.js';
 import { RecentWindow } from '../state/change-discovery.js';
@@ -26,6 +26,9 @@ const eventKeys = {
   'grant.revoked': 'activity.grantRevoked',
   'change.undone': 'activity.changeUndone',
 } as const;
+function pinKey(reference: Pick<PinnedRef, 'objectId' | 'revision'>) {
+  return `${reference.objectId}/${reference.revision}`;
+}
 export function ActivityPane({
   api,
   session,
@@ -65,6 +68,34 @@ export function ActivityPane({
   }, [api, session.bindingId, session.status.spaceId, session.status.instanceId]);
   const changes = useSyncExternalStore(windows.changes.subscribe, windows.changes.getSnapshot);
   const prepared = useSyncExternalStore(windows.prepared.subscribe, windows.prepared.getSnapshot);
+  const pinSummaries = useMemo(
+    () => new Map<string, Pick<ObjectSummary, 'ref' | 'title' | 'kind'>>(),
+    [api, session.bindingId, session.status.spaceId, session.status.instanceId],
+  );
+  const retainedPins = useMemo(() => {
+    const keys = new Set<string>();
+    for (const entry of changes.items)
+      if (entry.objectId && entry.afterRevision !== null)
+        keys.add(pinKey({ objectId: entry.objectId, revision: entry.afterRevision }));
+    for (const entry of prepared.items)
+      if (entry.stage === 'prepared')
+        for (const delivered of entry.delivered) keys.add(pinKey(delivered.ref));
+    return keys;
+  }, [changes.items, prepared.items]);
+  const summaryOwner = useRef({ summaries: pinSummaries, retainedPins });
+  summaryOwner.current = { summaries: pinSummaries, retainedPins };
+  const rememberPin = useCallback(
+    (summary: Pick<ObjectSummary, 'ref' | 'title' | 'kind'>) => {
+      const owner = summaryOwner.current,
+        key = pinKey(summary.ref);
+      if (owner.summaries === pinSummaries && owner.retainedPins.has(key))
+        pinSummaries.set(key, summary);
+    },
+    [pinSummaries],
+  );
+  useEffect(() => {
+    for (const key of pinSummaries.keys()) if (!retainedPins.has(key)) pinSummaries.delete(key);
+  }, [pinSummaries, retainedPins]);
   const page = tab === 'changes' ? changes : prepared;
   const selected = windows[tab];
   const positions = useRef({ changes: { top: 0, trigger: '' }, prepared: { top: 0, trigger: '' } });
@@ -190,6 +221,10 @@ export function ActivityPane({
                     }}
                     onOpen={read}
                     id={`change-version-${entry.id}`}
+                    summary={pinSummaries.get(
+                      pinKey({ objectId: entry.objectId, revision: entry.afterRevision }),
+                    )}
+                    onResolved={rememberPin}
                   />
                   <button
                     onClick={() =>
@@ -248,6 +283,8 @@ export function ActivityPane({
                     reference={delivered.ref}
                     onOpen={read}
                     id={`prepared-${entry.id}-${index}`}
+                    summary={pinSummaries.get(pinKey(delivered.ref))}
+                    onResolved={rememberPin}
                   />
                   {delivered.section ? (
                     <small>

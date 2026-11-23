@@ -411,6 +411,10 @@ type DiscoveryFault = {
   calls: number;
   failAfterRelease: boolean;
   statusSequence: number;
+  holdPinnedReads: boolean;
+  heldPinKeys: string[];
+  heldPinnedReads: number;
+  pinnedReplies: (() => void)[];
 };
 type FaultMain = typeof globalThis & { __discoveryFault: DiscoveryFault };
 async function installFault(native: NativeHarness) {
@@ -421,7 +425,9 @@ async function installFault(native: NativeHarness) {
           string,
           (
             event: unknown,
-            request: { input?: { status?: string; afterId?: string } },
+            request: {
+              input?: { status?: string; afterId?: string; objectId?: string; revision?: number };
+            },
           ) => Promise<unknown>
         >;
       }
@@ -437,6 +443,10 @@ async function installFault(native: NativeHarness) {
       calls: 0,
       failAfterRelease: false,
       statusSequence: -1,
+      holdPinnedReads: false,
+      heldPinKeys: [],
+      heldPinnedReads: 0,
+      pinnedReplies: [],
     };
     (globalThis as FaultMain).__discoveryFault = state;
     for (const method of [
@@ -464,6 +474,15 @@ async function installFault(native: NativeHarness) {
         if (method === 'status') {
           const status = result as Result<{ authoritySequence: number }>;
           if (status.ok) state.statusSequence = status.value.authoritySequence;
+        }
+        if (
+          method === 'readObject' &&
+          request?.input?.revision &&
+          state.holdPinnedReads &&
+          state.heldPinKeys.includes(`${request.input.objectId}/${request.input.revision}`)
+        ) {
+          state.heldPinnedReads++;
+          await new Promise<void>((resolve) => state.pinnedReplies.push(resolve));
         }
         if (match) {
           state.calls++;
@@ -507,10 +526,12 @@ async function release(native: NativeHarness) {
     state.method = null;
     state.release?.();
     state.release = null;
+    state.holdPinnedReads = false;
+    state.pinnedReplies.splice(0).forEach((resume) => resume());
   });
 }
 
-function bulkFixture() {
+function bulkFixture(wrappedPinTitles = false) {
   const fixture = createAcceptanceFixture();
   const { agent } = grant(fixture);
   const applied: string[] = [],
@@ -582,7 +603,16 @@ function bulkFixture() {
         operationKey: `7b:after-prepared:${index}`,
         targetId: target.id,
         expectedRevision: target.revision,
-        content: { ...target.content, body: `Human accumulation ${index}` },
+        content: {
+          ...target.content,
+          ...(wrappedPinTitles
+            ? {
+                title:
+                  'Original pinned measurements and continuation evidence: a deliberately long immutable source title with multilingual details · 中文 日本語 한국어 café.',
+              }
+            : {}),
+          body: `Human accumulation ${index}`,
+        },
       }),
     );
   }
@@ -593,7 +623,7 @@ test(
   '7B numerical windows, processed append retries, sparse prepared and old replies use actual Core records',
   { skip: process.platform !== 'darwin', timeout: 120_000 },
   async () => {
-    const fixture = bulkFixture();
+    const fixture = bulkFixture(true);
     const alternate = createAcceptanceFixture();
     const native = await launchNative({
       entry: root,
@@ -602,6 +632,11 @@ test(
     try {
       await open(native, fixture);
       await installFault(native);
+      await native.setWindowBounds({ width: 1024, height: 688 });
+      await native.page.getByTestId('settings-button').click();
+      await native.page.getByTestId('locale-select').selectOption('en');
+      await native.page.getByTestId('text-scale-select').selectOption('2');
+      await native.page.keyboard.press('Escape');
       const locale = (await native.page.locator('html').getAttribute('lang')) as Locale;
       await native.page.getByTestId('open-activity').click();
       const activity = native.page.getByTestId('activity-pane');
@@ -640,6 +675,7 @@ test(
         older,
         Array.from({ length: 100 }, (_, i) => top - i),
       );
+      await inspectActivityReturns(native, fixture, top);
       await activity.getByTestId('activity-prepared').click();
       await activity.getByText(t(locale, 'activity.emptyPrepared'), { exact: true }).waitFor();
       await activity.getByTestId('activity-earlier').click();
@@ -1004,6 +1040,21 @@ test(
         expectedTarget: { state: 'revision', revision: 1 },
       }),
     );
+    const fixed = requireSuccess(
+      fixture.human.readObject({ objectId: fixture.ids.retryPolicy }),
+    ).object;
+    const current = requireSuccess(
+      fixture.human.saveObject({
+        operationKey: '7b:locale-current-label',
+        targetId: fixed.id,
+        expectedRevision: fixed.revision,
+        content: {
+          ...fixed.content,
+          title: 'Current title after the fixed accepted version',
+          body: 'Current K3 remains separate from the accepted K2 label and text.',
+        },
+      }),
+    ).object;
     const native = await launchNative({
       entry: root,
       userData: join(fixture.root, 'Discovery locales'),
@@ -1063,12 +1114,8 @@ test(
         const retryGeometry = await recordFocus(native, `${prefix}-retry-tab`);
         requireFocus(retryGeometry, `${prefix} Retry`);
         await native.page.keyboard.press('Enter');
-        await activity
-          .getByTestId(
-            `change-row-${requireSuccess(fixture.human.readObject({ objectId: fixture.ids.retryPolicy })).object.changeId}`,
-          )
-          .waitFor();
-        const versionId = `change-version-${requireSuccess(fixture.human.readObject({ objectId: fixture.ids.retryPolicy })).object.changeId}`;
+        await activity.getByTestId(`change-row-${fixed.changeId}`).waitFor();
+        const versionId = `change-version-${fixed.changeId}`;
         await native.page.getByTestId('activity-refresh').focus();
         await tabTo(native, versionId);
         const source = await recordFocus(native, `${prefix}-source-tab`);
@@ -1078,6 +1125,25 @@ test(
           .getByTestId('source-reader')
           .getByText('Accepted multilingual result.', { exact: true })
           .waitFor();
+        if (locale === 'en' && width === 1024) {
+          const project = requireSuccess(
+            fixture.human.readObject({ objectId: fixture.ids.compass }),
+          ).object;
+          const reader = native.page.getByTestId('source-reader');
+          await reader.getByRole('button', { name: project.content.title, exact: true }).waitFor();
+          const advanced = requireSuccess(
+            fixture.human.saveObject({
+              operationKey: '7b:current-reference-label',
+              targetId: project.id,
+              expectedRevision: project.revision,
+              content: {
+                ...project.content,
+                title: 'Fresh current project label after opening the pinned reader',
+              },
+            }),
+          ).object;
+          await reader.getByRole('button', { name: advanced.content.title, exact: true }).waitFor();
+        }
         await tabTo(native, 'source-back', true);
         requireFocus(await focusGeometry(native), `${prefix} Reader back`);
         await native.page.keyboard.press('Enter');
@@ -1090,6 +1156,33 @@ test(
             returned.scrollAncestors.find((item) => item.classes === 'modal')!.scrollTop -
               source.scrollAncestors.find((item) => item.classes === 'modal')!.scrollTop,
           ) <= 1,
+        );
+        assert.equal(source.text, fixed.content.title);
+        assert.equal(returned.text, fixed.content.title);
+        await native.page.keyboard.press('Tab');
+        assert.equal(
+          await native.page.evaluate(() => document.activeElement?.id),
+          `change-current-${fixed.changeId}`,
+        );
+        requireFocus(await focusGeometry(native), `${prefix} current original`);
+        await native.page.keyboard.press('Enter');
+        await native.page
+          .getByTestId('source-reader')
+          .getByText(current.content.body, { exact: true })
+          .waitFor();
+        await native.page
+          .getByTestId('source-reader')
+          .getByRole('heading', { name: current.content.title, exact: true })
+          .waitFor();
+        await tabTo(native, 'source-back', true);
+        await native.page.keyboard.press('Enter');
+        await native.page.waitForFunction(
+          (id) => document.activeElement?.id === id,
+          `change-current-${fixed.changeId}`,
+        );
+        assert.equal(
+          await activity.locator(`[id="${versionId}"]`).innerText(),
+          fixed.content.title,
         );
         await snapshot(native, prefix);
         await native.page.keyboard.press('Escape');
@@ -1221,7 +1314,166 @@ test(
   },
 );
 
-const focusEvidence = join(root, '.coordination/7B-modal-focus');
+async function inspectActivityReturns(
+  native: NativeHarness,
+  fixture: ReturnType<typeof bulkFixture>,
+  through: number,
+) {
+  const activity = native.page.getByTestId('activity-pane');
+  const locale = (await native.page.locator('html').getAttribute('lang')) as Locale;
+  const loadingText = t(locale, 'ui.loading');
+  await native.page.waitForFunction(
+    (loading) =>
+      Array.from(document.querySelectorAll('.activity-record .reference button')).every(
+        (button) => button.textContent !== loading,
+      ),
+    loadingText,
+  );
+  const ids = await activity
+    .locator('[data-sequence]')
+    .evaluateAll((rows) => rows.map((row) => row.getAttribute('data-testid')));
+  assert.equal(ids.length, 100);
+  const pins = await activity
+    .locator('[id^="change-version-"]')
+    .evaluateAll((buttons) => buttons.map((button) => button.id));
+  const events = [
+    ...requireSuccess(
+      fixture.human.changes({ after: through - 100, through: through - 50, limit: 50 }),
+    ).items,
+    ...requireSuccess(fixture.human.changes({ after: through - 50, through, limit: 50 })).items,
+  ];
+  const pinKeys = events
+    .filter((entry) => entry.objectId && entry.afterRevision)
+    .map((entry) => `${entry.objectId}/${entry.afterRevision}`);
+  const traces = [];
+  for (const [position, trigger] of [
+    ['middle', pins[Math.floor(pins.length / 2)]!],
+    ['near-end', pins.at(-1)!],
+  ] as const) {
+    await activity.getByRole('button', { name: t(locale, 'common.close'), exact: true }).focus();
+    await tabTo(native, trigger, true, ids.length * 5);
+    const baseline = await recordFocus(native, `return-${position}-baseline`);
+    requireFocus(baseline, `${position} initial source`);
+    const original = baseline.scrollAncestors.find((item) => item.classes === 'modal')!;
+    const maximum = original.scrollHeight - original.clientHeight;
+    if (position === 'middle')
+      assert.ok(original.scrollTop > maximum * 0.25 && original.scrollTop < maximum * 0.8);
+    else
+      assert.ok(
+        maximum - original.scrollTop < 500,
+        'The second source must actually be near the end of the real scrollport.',
+      );
+    const event = events.find((entry) => `change-version-${entry.id}` === trigger)!;
+    assert.ok(event.objectId && event.afterRevision);
+    const pinned = requireSuccess(
+      fixture.human.readObject({ objectId: event.objectId, revision: event.afterRevision }),
+    ).object;
+    for (let cycle = 1; cycle <= 2; cycle++) {
+      assert.equal(await native.page.evaluate(() => document.activeElement?.id), trigger);
+      await native.page.keyboard.press('Enter');
+      await native.page
+        .getByTestId('source-reader')
+        .getByText(pinned.content.body, { exact: true })
+        .waitFor();
+      await native.application.evaluate((_, keys) => {
+        const state = (globalThis as FaultMain).__discoveryFault;
+        state.holdPinnedReads = true;
+        state.heldPinnedReads = 0;
+        state.heldPinKeys = keys;
+      }, pinKeys);
+      await tabTo(native, 'source-back', true);
+      await native.page.keyboard.press('Enter');
+      await activity.waitFor();
+      await native.page.waitForFunction((id) => document.activeElement?.id === id, trigger);
+      const unresolvedLabels = await activity
+        .locator('.reference button')
+        .evaluateAll(
+          (buttons, loading) => buttons.filter((button) => button.textContent === loading).length,
+          loadingText,
+        );
+      for (let attempt = 0; attempt < 100; attempt++) {
+        if (
+          (await native.application.evaluate(
+            () => (globalThis as FaultMain).__discoveryFault.heldPinnedReads,
+          )) >= unresolvedLabels
+        )
+          break;
+        await delay(20);
+      }
+      assert.ok(
+        (await native.application.evaluate(
+          () => (globalThis as FaultMain).__discoveryFault.heldPinnedReads,
+        )) >= unresolvedLabels,
+        'The actual pinned-title read replies must be held after the real handler.',
+      );
+      const loading = await recordFocus(native, `return-${position}-${cycle}-loading`);
+      assert.equal(loading.id, trigger);
+      const heldActualPinnedReplies = await native.application.evaluate(
+        () => (globalThis as FaultMain).__discoveryFault.heldPinnedReads,
+      );
+      if (unresolvedLabels) assert.equal(loading.text, loadingText);
+      else {
+        assert.equal(
+          heldActualPinnedReplies,
+          0,
+          'Observed fixed labels must not refetch merely to reopen Activity.',
+        );
+        assert.equal(loading.text, baseline.text);
+        requireFocus(loading, `${position}/${cycle} immediately restored source`);
+      }
+      await release(native);
+      await native.page.waitForFunction(
+        (loading) =>
+          Array.from(document.querySelectorAll('.activity-record .reference button')).every(
+            (button) => button.textContent !== loading,
+          ),
+        loadingText,
+      );
+      const settled = await recordFocus(native, `return-${position}-${cycle}-settled`);
+      assert.equal(settled.id, trigger);
+      assert.deepEqual(
+        await activity
+          .locator('[data-sequence]')
+          .evaluateAll((rows) => rows.map((row) => row.getAttribute('data-testid'))),
+        ids,
+      );
+      traces.push({
+        position,
+        cycle,
+        baseline,
+        loading,
+        settled,
+        unresolvedLabels,
+        heldActualPinnedReplies,
+      });
+      mkdirSync(focusEvidence, { recursive: true });
+      writeFileSync(
+        join(focusEvidence, 'controlled-returns.json'),
+        JSON.stringify(
+          { fixture: 'synthetic', armedPinCount: pins.length, records: ids, traces },
+          null,
+          2,
+        ),
+      );
+    }
+  }
+  for (const trace of traces) {
+    requireFocus(trace.settled, `${trace.position}/${trace.cycle} returned source`);
+    assert.ok(
+      Math.abs(trace.settled.rect.top - trace.baseline.rect.top) <= 0.5,
+      `${trace.position}/${trace.cycle} source position must not drift`,
+    );
+    assert.ok(
+      Math.abs(
+        trace.settled.scrollAncestors.find((item) => item.classes === 'modal')!.scrollTop -
+          trace.baseline.scrollAncestors.find((item) => item.classes === 'modal')!.scrollTop,
+      ) <= 0.5,
+      `${trace.position}/${trace.cycle} actual modal scroll checkpoint must remain fixed`,
+    );
+  }
+}
+
+const focusEvidence = join(root, '.coordination/7B-return-focus');
 async function focusGeometry(native: NativeHarness) {
   return native.page.evaluate(() => {
     const element = document.activeElement as HTMLElement;
@@ -1267,6 +1519,7 @@ async function focusGeometry(native: NativeHarness) {
           scrollPaddingTop: style.scrollPaddingTop,
           scrollPaddingBottom: style.scrollPaddingBottom,
           scrollBehavior: style.scrollBehavior,
+          overflowAnchor: style.overflowAnchor,
         });
         clip.top = Math.max(clip.top, clientBounds.top);
         clip.bottom = Math.min(clip.bottom, clientBounds.bottom);
@@ -1391,8 +1644,8 @@ function requireFocus(geometry: Awaited<ReturnType<typeof focusGeometry>>, label
     `${label}: complete focus/outline must be visible and center must hit the control: ${JSON.stringify(geometry)}`,
   );
 }
-async function tabTo(native: NativeHarness, testId: string, reverse = false) {
-  for (let step = 0; step < 70; step++) {
+async function tabTo(native: NativeHarness, testId: string, reverse = false, maxSteps = 70) {
+  for (let step = 0; step < maxSteps; step++) {
     await native.page.keyboard.press(reverse ? 'Shift+Tab' : 'Tab');
     if (
       await native.page.evaluate(
