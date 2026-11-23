@@ -1010,6 +1010,14 @@ test(
       await native.application.evaluate(({ BrowserWindow }) =>
         BrowserWindow.getAllWindows()[0]!.setBounds({ width: 1380, height: 900 }),
       );
+      const nativeWindow = await native.application.evaluate(({ BrowserWindow }) => {
+        const window = BrowserWindow.getAllWindows()[0]!;
+        return {
+          bounds: window.getBounds(),
+          contentBounds: window.getContentBounds(),
+          zoomFactor: window.webContents.getZoomFactor(),
+        };
+      });
       await openProject(native, fixture);
       const locale = (await native.page.locator('html').getAttribute('lang')) as Locale;
       const overview = native.page.getByTestId('project-overview');
@@ -1175,8 +1183,11 @@ test(
         JSON.stringify(
           {
             fixture: 'synthetic',
-            sourceMode: 'development build',
-            nativeWindow: { width: 1380, height: 900 },
+            sourceMode: process.env.AGENTSPACE_TEST_EXECUTABLE
+              ? 'packaged executable'
+              : 'development build',
+            requestedWindow: { width: 1380, height: 900 },
+            nativeWindow,
             initialLayoutCss: positions,
             originalObjectId: fixture.k1.id,
             k1Digest: fixture.k1.digest,
