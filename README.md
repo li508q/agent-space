@@ -39,7 +39,7 @@ npm run dev
 
 Create your space or explore the separate example space. To build a standalone app with its own runtime, run `npm run package:mac`. [Build and platform details](docs/DESKTOP.md).
 
-To connect an agent, open **Settings → Set up agent access**, choose material and capabilities, and copy the configuration into your MCP host. Creating new notes or records needs a separate permission. [MCP and CLI](docs/AGENT_PROTOCOL.md).
+To connect an agent, open **Settings → Set up agent access**, choose material and capabilities, and add the configuration to your agent application's MCP settings. Creating new notes or records needs a separate permission. [MCP and CLI](docs/AGENT_PROTOCOL.md).
 
 ## One core for people and agents
 
@@ -51,7 +51,7 @@ The Electron/React desktop, MCP server and CLI use the same TypeScript Core and 
 
 Import editable copies without moving the originals. Keep history in a full backup or export current content in a readable format. Files behind external references remain separately managed.
 
-Spaces are local files; AgentSpace does not encrypt them. A connected agent’s host may send authorized material to a model provider. Revocation stops future requests; it cannot recall material already shared.
+Spaces are local files; AgentSpace does not encrypt them. The application running a connected agent may send authorized material to a model provider. Revocation stops future requests; it cannot recall material already shared.
 
 [Data and trust boundaries](docs/SECURITY.md) · [Backup and recovery](docs/LOCAL_DATA.md)
 

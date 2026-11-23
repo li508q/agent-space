@@ -18,6 +18,7 @@ Use the guide to operate the workspace. Use the contracts to build or integrate 
 - [Requirements](PRD.md): supported behaviors and acceptance criteria.
 - [Interaction specification](UX.md): navigation, writing, review and recovery.
 - [Design system](design-system.md): visual and interaction rules.
+- [Localization](LOCALIZATION.md): shared meaning, terminology and voice in five languages.
 
 ## Engineering and operations
 

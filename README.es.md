@@ -39,7 +39,7 @@ npm run dev
 
 Crea tu espacio o explora el espacio de ejemplo, que se guarda por separado. Ejecuta `npm run package:mac` para crear una aplicación independiente con su propio entorno de ejecución. [Compilación y plataforma](docs/DESKTOP.md).
 
-Para conectar un agente, abre **Ajustes → Configurar acceso de agentes**, elige el material y los permisos y copia la configuración a tu anfitrión MCP. Crear notas o registros requiere un permiso adicional. [MCP y CLI](docs/AGENT_PROTOCOL.md).
+Para conectar un agente, abre **Ajustes → Configurar acceso de agentes**, elige el material y los permisos y copia la configuración a la aplicación anfitriona del agente (host MCP). Crear notas o registros requiere un permiso adicional. [MCP y CLI](docs/AGENT_PROTOCOL.md).
 
 ## Un núcleo compartido por personas y agentes
 
@@ -51,7 +51,7 @@ El escritorio Electron/React, el servidor MCP y la CLI usan el mismo Core de Typ
 
 Importa copias editables sin mover los originales. Conserva el historial en una copia de seguridad completa o exporta el contenido actual en un formato legible. Los archivos a los que apuntan las referencias externas se gestionan por separado.
 
-Los espacios son archivos locales; AgentSpace no los cifra. El anfitrión de un agente conectado puede enviar material autorizado a un proveedor de modelos. Revocar el acceso bloquea futuras solicitudes, pero no recupera material ya compartido.
+Los espacios son archivos locales; AgentSpace no los cifra. La aplicación anfitriona de un agente conectado puede enviar material autorizado a un proveedor de modelos. Revocar el acceso bloquea futuras solicitudes, pero no recupera material ya compartido.
 
 [Datos y confianza](docs/SECURITY.md) · [Copias y recuperación](docs/LOCAL_DATA.md)
 

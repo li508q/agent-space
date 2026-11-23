@@ -8,7 +8,7 @@ AgentSpace reúne tus textos, material de proyectos y propuestas de agentes en u
 
 Elige **Crear espacio** para una carpeta local nueva, **Abrir espacio** para una carpeta de AgentSpace existente o **Abrir espacio de ejemplo** para probar material ficticio guardado por separado de tu trabajo. El encabezado identifica el espacio seleccionado.
 
-La aplicación y el espacio son independientes: mover la aplicación no mueve los datos. Colócala en su ubicación habitual antes de generar la configuración del agente; vuelve a generarla si cambia la ruta del ejecutable.
+La aplicación y el espacio son independientes: mover la aplicación no mueve los datos. Colócala en su ubicación habitual y ábrela desde allí antes de crear el acceso del agente. Si la mueves después, actualiza la ruta del ejecutable en la configuración MCP de la aplicación anfitriona del agente y vuelve a conectar.
 
 En **Ajustes** puedes elegir el idioma y el tamaño del texto. Cambiar el idioma no traduce los títulos, textos ni etiquetas de campos que hayas escrito.
 
@@ -26,7 +26,7 @@ Abre **Importar material existente** desde Continuar, el menú del espacio o una
 2. Comprueba la vista previa: copias de texto, grupos de proyectos, referencias externas, elementos omitidos y límites del recorrido.
 3. Confirma la selección y consulta el resultado de cada elemento.
 
-Markdown y texto plano en UTF-8 válido se convierten en copias gestionadas editables con información de origen. Los archivos originales no cambian. Los repositorios y otros formatos pueden seleccionarse como referencias externas; su contenido no se copia, ejecuta ni sincroniza. El perfil que reconoce knowledge, projects, HANDOFF y repos ayuda a sugerir grupos y es opcional.
+Markdown y texto plano en UTF-8 válido se convierten en copias gestionadas editables con información de origen. Los archivos originales no cambian. Los repositorios y otros formatos pueden seleccionarse como referencias externas; su contenido no se copia, ejecuta ni sincroniza. El perfil **Conocimiento, proyectos y repositorios** ayuda a sugerir grupos de proyectos y referencias a repositorios; es opcional.
 
 Una vista previa limitada solo cubre el recorrido indicado. Si cambia una fuente después, vuelve a comprobarla y confirmarla. La importación guarda cada elemento por separado, por lo que los éxitos se conservan ante fallos parciales. Reintentar o importar la misma versión de origen reutiliza el objeto inicial y conserva las ediciones humanas posteriores y las relaciones actuales. La agrupación nueva se aplica a las copias nuevas; cambia explícitamente las relaciones de un objeto reutilizado. Otra versión de origen crea una copia independiente.
 
@@ -54,6 +54,8 @@ Las relaciones pueden **Seguir versión actual** o apuntar a una **Versión fija
 
 En el lector de fuentes, **Editar original actual** abre la versión actual del mismo objeto gestionado. Por ejemplo, leer la versión 1 y editar la versión 2 actual crea la versión 3 del mismo objeto; la versión 1 y sus citas no cambian. Si ya hay ediciones sin guardar, permanecen en su editor con su versión de base y cualquier conflicto visibles. **Volver a la lectura** recupera la versión citada y la posición anterior. Que el original actual esté archivado o no disponible no elimina el historial que siga siendo legible. Esta acción edita la copia gestionada, no el archivo de origen externo.
 
+**Copiar contexto guardado** copia el título, el cuerpo, los campos, los enlaces y los datos de versión y espacio de este elemento guardado. Si seleccionas parte del cuerpo, se incluye esa selección en lugar del cuerpo completo. No incluye el cuerpo de los documentos enlazados. Para reunir referencias a varias versiones y explicar una tarea, usa la preparación de contexto que se describe a continuación.
+
 ## Preparar contexto para un agente
 
 Desde un documento guardado o el lector de fuentes, elige **Preparar contexto**.
@@ -72,13 +74,15 @@ Elige **Configurar acceso de agentes** desde la preparación o abre esa sección
 
 1. Da un nombre al permiso, elige objetos concretos o todo el espacio y selecciona lectura y propuestas.
 2. Comprueba la selección, incluido el material preparado fuera de la primera página. Se conservan las elecciones del formulario; **Usar material seleccionado** las sustituye de forma explícita.
-3. Pulsa **Crear permiso de acceso**, copia la configuración de Codex o el JSON de inicio stdio, añádelo a los ajustes MCP del anfitrión y vuelve a conectar. Después entrega la explicación al agente. La [guía del protocolo](../AGENT_PROTOCOL.md) también documenta la CLI.
+3. Pulsa **Crear permiso de acceso**, copia la configuración de Codex o el JSON de inicio stdio, añádelo a los ajustes MCP de la aplicación anfitriona del agente (host MCP) y vuelve a conectar. Después entrega la explicación al agente. La [guía del protocolo](../AGENT_PROTOCOL.md) también documenta la CLI.
 
 La explicación fija versiones concretas, pero el permiso de un objeto abarca sus versiones legibles, **incluidas las futuras**. Los enlaces nuevos y el material del proyecto no añaden objetos a una selección fija. Proponer notas o registros nuevos requiere un permiso de creación adicional en un acceso a todo el espacio con lectura y propuestas. Un permiso limitado a ciertos objetos no permite crear otros. El agente no recibe tu autoridad para guardar directamente ni aplicar propuestas.
 
 La configuración contiene un token que se muestra una sola vez; AgentSpace guarda su hash. Cópialo mientras esté disponible. Si lo pierdes, revoca el acceso y crea otro. Una operación de acceso incierta bloquea el formulario hasta resolver el reintento de la solicitud original. Ir y volver de Ajustes en el mismo espacio abierto conserva la configuración de una sola visualización ya recibida.
 
 Un agente puede descubrir material, filtrar, buscar, seguir relaciones acotadas y leer versiones exactas dentro de su permiso. La búsqueda indica límites y no garantiza exhaustividad semántica. “Contexto preparado” registra las referencias y los rangos reunidos para resultados de herramientas; no demuestra recepción, comprensión del modelo ni finalización de la tarea.
+
+En **Detalles → Permisos de propuestas de agentes**, elige qué partes puede proponer cambiar un agente y pulsa **Guardar permisos de propuestas**. Editar el contenido mantiene los permisos existentes. Todas las propuestas siguen requiriendo tu revisión antes de aplicarlas.
 
 ## Revisar propuestas y consultar cambios
 
@@ -88,7 +92,7 @@ Abre **Revisión → Pendientes** para consultar una propuesta.
 2. Para una actualización, elige **Aplicar propuesta**. Para un objeto nuevo, elige **Crear nota** o **Crear registro**. **Rechazar propuesta** no cambia el contenido aceptado.
 3. Usa **Borrador de material nuevo** en una propuesta de creación para iniciar tu propio borrador del mismo tipo. Para una actualización, edita el objeto actual. La propuesta original se conserva por separado.
 
-Leer una propuesta no la resuelve. Leída/no leída, pendiente/aplicada/rechazada/en conflicto y la revisión humana del conocimiento son estados distintos. Si la versión de base ha avanzado, se bloquea la aplicación y se conservan ambas versiones. Usa **Copiar contenido propuesto** y edita el objeto actual, o pide una propuesta nueva al agente. Puedes rechazar un candidato antiguo después de revocar su acceso de origen.
+Leer una propuesta no la resuelve. Leída/no leída, pendiente/aplicada/rechazada/en conflicto y la revisión humana del conocimiento son estados distintos. Si la versión guardada actual ya no coincide con la versión de base de la propuesta, no puedes aplicarla; se conservan la propuesta y el contenido actual. Usa **Copiar contenido propuesto** y edita el objeto actual, o pide una propuesta nueva al agente. Puedes rechazar un candidato antiguo después de revocar su acceso de origen.
 
 En **Revisión → Procesadas** consulta propuestas aplicadas o rechazadas. **Leer la versión aceptada** abre el resultado guardado al aplicarla; otra acción abre el original actual. Las propuestas rechazadas conservan su motivo, diferencias y fuentes.
 
@@ -100,7 +104,7 @@ En **Historial**, usa **Revisar antes de deshacer**. Deshacer rechaza sobrescrib
 
 En **Detalles → Revisión de versiones**, compara la versión guardada actual con la última revisada por una persona. Después de comprobar la versión guardada actual, elige **Marcar como revisado**. Los cambios sin guardar quedan separados.
 
-En Biblioteca, **Estado de revisión** permite buscar **Sin revisar**, **Versión actual revisada** y **Cambios desde la revisión**. Sin revisar es información neutral. Importar, guardar, leer o aplicar propuestas no marca el conocimiento como revisado. La marca registra la revisión humana de esa versión; no certifica la verdad ni mantiene el conocimiento automáticamente.
+En Biblioteca, **Estado de revisión** permite buscar **Nunca revisado**, **Versión actual revisada** y **Cambios desde la revisión**. Nunca revisado solo indica que ninguna versión ha sido revisada. Importar, guardar, leer o aplicar propuestas no marca el conocimiento como revisado. La marca registra la revisión humana de esa versión; no certifica la verdad ni mantiene el conocimiento automáticamente.
 
 ## Archivar material o reconectar un recurso externo
 
@@ -125,7 +129,7 @@ Restaura una copia en un **destino nuevo**. Recibe una identidad de instancia nu
 
 ## Privacidad, límites y ayuda
 
-AgentSpace no cifra los datos locales. Protege el espacio y sus copias con el sistema operativo. Un agente conectado puede recibir contenido autorizado, que su anfitrión puede enviar a un proveedor de modelos según sus ajustes. Guardar en local no impide ese envío. Revocar el acceso bloquea futuras llamadas, pero no recupera material ya compartido.
+AgentSpace no cifra los datos locales. Protege el espacio y sus copias con el sistema operativo. Un agente conectado puede recibir contenido autorizado, que su aplicación anfitriona puede enviar a un proveedor de modelos según sus ajustes. Guardar en local no impide ese envío. Revocar el acceso bloquea futuras llamadas, pero no recupera material ya compartido.
 
 Un objeto gestionado admite hasta 1 MiB y la base, incluido el historial, hasta 512 MiB. La importación tiene límites de profundidad 12, 1.000 entradas visitadas y 50 MiB de texto seleccionado, entre otros. Las herramientas de contexto también limitan resultados y bytes. Un espacio lleno aún puede copiarse o exportarse a un destino con permiso de escritura.
 

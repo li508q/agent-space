@@ -53,7 +53,7 @@ The executable recognizes `--agent-server` and `--agent-cli` before creating a w
 
 Generated configuration uses the actual executable and compiled development entry, or the application executable when packaged. `AGENTSPACE_TOKEN` carries the one-time token; tokens are not command-line arguments. Configuration generation rechecks the binding and grant. JSON contains stdio launch parameters; TOML targets Codex's `mcp_servers` format. The application does not write either into host settings. Copying configuration establishes preparation, while actual tool calls establish connection activity.
 
-After moving an application or restoring a space, create fresh host configuration for its current executable and instance. Restored grants are disabled. [AGENT_PROTOCOL.md](AGENT_PROTOCOL.md) describes tools, grant scope and recovery under the original operation key.
+After moving an application, update its executable path in the host's existing MCP configuration and reconnect. A restored space has a new instance identity and disabled grants; create new access and configuration for that copy. [AGENT_PROTOCOL.md](AGENT_PROTOCOL.md) describes tools, grant scope and recovery under the original operation key.
 
 ## Checks during development
 

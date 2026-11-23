@@ -17,12 +17,12 @@ export const es = Object.freeze({
   'contextPrep.goalExcerpt': 'Extracto del objetivo del proyecto (hasta 280 caracteres)',
   'contextPrep.members': 'Material activo vinculado actualmente',
   'contextPrep.membersScope':
-    'Material activo vinculado a este proyecto en este momento, cargado de 20 en 20. No representa los miembros del proyecto en la versión histórica.',
+    'Material activo vinculado actualmente a este proyecto, en páginas de 20 elementos. No representa el material vinculado en la versión histórica.',
   'contextPrep.retained': 'Versiones seleccionadas de resultados anteriores',
   'contextPrep.unavailableSelection':
     'Vuelve a comprobar las versiones seleccionadas que no estén disponibles o quítalas antes de copiar o configurar el acceso.',
   'contextPrep.scope':
-    'Solo se incluyen las versiones guardadas seleccionadas. Los enlaces directos y los miembros actuales no forman una instantánea histórica completa del proyecto.',
+    'Solo incluye las versiones guardadas seleccionadas. Los enlaces directos y el material actual del proyecto no forman una instantánea histórica completa.',
   'contextPrep.preview': 'Revisar explicación y referencias',
   'contextPrep.copy': 'Copiar explicación y referencias',
   'contextPrep.import': 'Importar material existente',
@@ -54,7 +54,7 @@ export const es = Object.freeze({
     'Falló la actualización o la página siguiente. Se conservan los registros cargados.',
   'activity.emptyChanges': 'No hay cambios locales en este intervalo.',
   'activity.emptyPrepared':
-    'No hay contexto preparado en este intervalo. Puede consultar registros anteriores.',
+    'No hay contexto preparado en este intervalo. Puedes consultar registros anteriores.',
   'activity.human': 'Persona',
   'activity.savedVersion': 'Versión en este evento',
   'activity.current': 'Leer el original actual',
@@ -72,9 +72,9 @@ export const es = Object.freeze({
   'activity.proposalApplied': 'Propuesta aplicada',
   'activity.proposalRejected': 'Propuesta rechazada',
   'activity.knowledgeReviewed': 'Versión de conocimiento revisada',
-  'activity.grantCreated': 'Acceso de Agent creado',
-  'activity.grantUpdated': 'Acceso de Agent actualizado',
-  'activity.grantRevoked': 'Acceso de Agent revocado',
+  'activity.grantCreated': 'Acceso de agente creado',
+  'activity.grantUpdated': 'Acceso de agente actualizado',
+  'activity.grantRevoked': 'Acceso de agente revocado',
   'activity.changeUndone': 'Cambio deshecho',
   'review.unresolved': 'Pendientes',
   'review.processed': 'Procesadas',
@@ -158,7 +158,7 @@ export const es = Object.freeze({
   'project.continuation': 'Material para continuar',
   'project.material': 'Material del proyecto',
   'record.fieldLabel': 'Nombre del campo',
-  'record.notSet': 'Sin definir',
+  'record.notSet': 'Sin establecer',
   'record.emptyText': 'Texto vacío',
   'record.clearValue': 'Quitar valor',
   'record.text': 'Texto',
@@ -177,7 +177,7 @@ export const es = Object.freeze({
   'knowledge.headUnknown': 'El estado de revisión actual no está disponible.',
   'knowledge.refresh': 'Actualizar el estado de revisión',
   'knowledge.dirtyNotice':
-    'El borrador sin guardar se conserva por separado y no se marca como revisado.',
+    'Las ediciones sin guardar están separadas del contenido guardado y no se marcan como revisadas.',
   'continue.recent': 'Trabajo reciente',
   'continue.noRecent': 'No hay trabajo reciente en esta instalación.',
   'continue.storageUnavailable':
@@ -190,7 +190,7 @@ export const es = Object.freeze({
   'continue.removeRecent': 'Quitar del trabajo reciente',
   'continue.refresh': 'Actualizar el trabajo reciente',
   'continue.checking': 'Comprobando el trabajo reciente…',
-  'knowledge.notReviewed': 'Sin revisar',
+  'knowledge.notReviewed': 'Nunca revisado',
   'knowledge.reviewed': 'Versión actual revisada',
   'knowledge.needsReview': 'Cambios desde la revisión',
   'knowledge.markReviewed': 'Marcar como revisado',
@@ -213,11 +213,12 @@ export const es = Object.freeze({
     'No hay coincidencias en este ámbito. Prueba otro término o cambia los filtros.',
   'context.limitReached': 'Se alcanzó el límite de resultados. Puede quedar más material.',
   'agent.setup': 'Configurar acceso de agentes',
-  'agent.entryEnabled': 'Entrada habilitada',
+  'agent.entryEnabled': 'Acceso habilitado',
   'agent.readScope': 'Ámbito de lectura',
   'agent.proposalOnly': 'Los cambios requieren una propuesta y que una persona la aplique.',
   'agent.allowCreation': 'Permitir propuestas de nuevas notas y registros',
-  'agent.creationScope': 'Las propuestas de creación requieren un permiso para el espacio.',
+  'agent.creationScope':
+    'Proponer notas o registros nuevos requiere acceso a todo el espacio con lectura, propuestas y creación habilitadas.',
   'agent.lastCall': 'Última llamada a herramientas: {time}',
   'agent.deliveryNotice':
     'Registra el material preparado; no confirma que el cliente del agente lo haya recibido.',
@@ -271,7 +272,7 @@ export const es = Object.freeze({
   'import.assetReferences': 'Referencias a recursos',
   'import.assetLimit': 'Elige hasta {count} referencias de recursos.',
   'import.confirm': 'Confirmar importación',
-  'import.originalsUnchanged': 'Copias importadas; los originales no han cambiado.',
+  'import.originalsUnchanged': 'Importar no modifica los archivos originales.',
   'import.notLiveSync': 'Las copias importadas no se mantienen sincronizadas con los originales.',
   'import.results': 'Resultados de la importación',
   'import.retryUnfinished': 'Reintentar elementos sin terminar',
@@ -357,7 +358,7 @@ export const es = Object.freeze({
   'ui.drafts': 'Borradores de recuperación',
   'ui.newDraft': 'Borrador de material nuevo',
   'ui.resumeDraftNotice':
-    'Este es un borrador de recuperación. Al guardar se comprueba su versión de base; no sustituye contenido más reciente automáticamente.',
+    'Este es un borrador de recuperación. Al guardar se comprueban los conflictos y no se sobrescribe automáticamente contenido guardado más reciente.',
   'ui.leaveFailure': 'No se pudieron guardar tus cambios ni conservar un borrador de recuperación.',
   'ui.keepWorking': 'Seguir editando',
   'ui.discardEdits': 'Descartar cambios sin guardar',
@@ -365,7 +366,7 @@ export const es = Object.freeze({
   'ui.preparedRecord': 'Registro de preparación {id}',
   'ui.referenceOnly': 'Solo referencia a la versión; no se ha registrado una sección de contenido.',
   'ui.preparedRange': 'Intervalo preparado: {start}–{end} de {total} ({unit})',
-  'ui.codePoints': 'caracteres Unicode',
+  'ui.codePoints': 'puntos de código Unicode',
   'ui.entries': 'entradas',
   'ui.older': 'Cargar registros anteriores',
   'ui.currentVersion': 'Versión actual',
@@ -380,7 +381,7 @@ export const es = Object.freeze({
   'access.space': 'Todo el espacio',
   'access.objects': 'Objetos seleccionados',
   'access.objectsNotice':
-    'Es una selección fija. Los cambios de pertenencia a proyectos no amplían este acceso.',
+    'El acceso se limita a estos objetos. Añadir material al proyecto no amplía el acceso.',
   'access.read': 'Leer material',
   'access.propose': 'Proponer cambios',
   'access.create': 'Crear permiso de acceso',
@@ -421,7 +422,7 @@ export const es = Object.freeze({
   'ui.relationsCount': 'Relaciones {count}',
   'policy.title': 'Permisos de propuestas de agentes',
   'policy.notice':
-    'Elige las partes para las que los agentes pueden proponer cambios. Cada propuesta sigue necesitando tu revisión. Al editar una parte, vuelve a quedar protegida.',
+    'Elige las partes para las que los agentes pueden proponer cambios y guarda los permisos. Cada propuesta sigue necesitando tu revisión.',
   'policy.save': 'Guardar permisos de propuestas',
   'policy.reload': 'Recargar permisos actuales',
   'policy.allowed': 'Puede proponer cambios',
@@ -435,7 +436,7 @@ export const es = Object.freeze({
   'org.assetHint':
     'Este recurso gestionado tiene identidad propia y puede usarse en varios proyectos.',
   'org.relatedUses': 'Usado por',
-  'org.noneLinked': 'No hay material vinculado en los resultados revisados.',
+  'org.noneLinked': 'No hay material vinculado en los resultados obtenidos.',
   'fields.edit': 'Editar campos',
   'fields.add': 'Añadir campo',
   'fields.type': 'Tipo de campo',
@@ -447,7 +448,7 @@ export const es = Object.freeze({
   'fields.identity': 'Cambiar la etiqueta conserva la identidad del campo.',
   'fields.typeReset': 'Cambiar el tipo deja el valor sin establecer.',
   'fields.labelError': 'Introduce una etiqueta de entre 1 y 120 caracteres.',
-  'fields.dateError': 'Introduce una fecha válida con el formato AAAA-MM-DD.',
+  'fields.dateError': 'Introduce una fecha válida con el formato YYYY-MM-DD (año-mes-día).',
   'fields.selectError': 'Elige una opción definida o deja el valor sin establecer.',
   'fields.optionsError':
     'Define entre 1 y 50 opciones no vacías, de hasta 100 caracteres cada una.',
@@ -511,7 +512,7 @@ export const es = Object.freeze({
   'context.saveBeforeCopy':
     'Guarda primero estos cambios para copiar una versión exacta. Copiar cambios sigue disponible para recuperarlos.',
   'context.singleScope':
-    'Solo este elemento guardado: identidad, versión, resumen criptográfico, campos y enlaces. Si hay texto seleccionado, sustituye al cuerpo completo.',
+    'Copia el título, el cuerpo, los campos, los enlaces y los datos de versión y espacio de este elemento guardado. El texto seleccionado sustituye al cuerpo completo.',
   'lifecycle.archive': 'Archivar material',
   'lifecycle.restore': 'Restaurar del archivo',
   'lifecycle.notice':
@@ -529,7 +530,7 @@ export const es = Object.freeze({
     'Los cambios de ubicación no admiten deshacer automático. Vuelve a elegir la ubicación para cambiarla.',
   'recovery.title': 'Borradores de otra instalación',
   'recovery.notice':
-    'Lee el original conservado y cópialo como un borrador nuevo en esta instalación. El original no cambia y siguen aplicándose las protecciones por versiones antiguas.',
+    'Lee el borrador original conservado y cópialo como uno nuevo en esta instalación. El original no cambia. Los borradores de material existente conservan su versión de base original para comprobar conflictos al guardar.',
   'recovery.otherInstallation': 'De otra instalación',
   'recovery.generation': 'Generación del borrador {generation}',
   'recovery.empty': 'No se encontraron borradores conservados de otras instalaciones.',
@@ -551,7 +552,7 @@ export const es = Object.freeze({
   'transfer.waitBeforeClose':
     'Resuelve la solicitud pendiente o de resultado desconocido antes de cerrar este diálogo.',
   'transfer.unknown':
-    'El resultado del archivo no está confirmado. Comprueba la operación original; no supongas que falló.',
+    'El resultado de la operación no está confirmado. Comprueba la operación original; no supongas que falló.',
   'transfer.cancelled': 'Selección de destino cancelada.',
   'transfer.processedUnknown': 'Procesados: {count}; total sin informar.',
   'transfer.processed': 'Procesados: {count} de {total}.',
@@ -563,13 +564,13 @@ export const es = Object.freeze({
   'transfer.check': 'Comprobar estado',
   'transfer.retryOriginal': 'Comprobar solicitud original',
   'transfer.operation': 'ID de operación',
-  'transfer.digest': 'Resumen criptográfico del archivo',
+  'transfer.digest': 'Resumen criptográfico del resultado',
   'progress.scanning': 'Revisando material seleccionado',
   'progress.awaiting-confirmation': 'Esperando tu confirmación',
   'progress.importing': 'Importando elementos aprobados',
   'progress.copying': 'Copiando instantánea',
-  'progress.writing': 'Escribiendo archivo',
-  'progress.validating': 'Verificando archivo',
+  'progress.writing': 'Escribiendo los datos',
+  'progress.validating': 'Verificando los datos',
   'progress.complete': 'Completado',
   'progress.paused': 'En pausa',
   'progress.failed': 'Fallo informado',
@@ -593,12 +594,12 @@ export const es = Object.freeze({
   'import.confirmScope':
     'Confirma {count} elementos de origen. Los proyectos y enlaces generados pueden aumentar el número de operaciones.',
   'import.runCounts':
-    '{committed} confirmados, {reused} reutilizados, {failed} fallidos, {blocked} bloqueados; {total} elementos en total.',
+    '{committed} guardados, {reused} reutilizados, {failed} fallidos, {blocked} bloqueados; {total} elementos en total.',
   'import.selectRetry': 'Reintentar {path}',
   'import.pause': 'Pausar importación',
   'import.resume': 'Reanudar o revisar de nuevo el origen',
   'import.resumeNotice':
-    'Al reanudar puede pedirse elegir el origen otra vez. Una vista previa nueva requiere confirmación. Reintentar restablece los fallos seleccionados; reanudar inicia el proceso.',
+    'Al reanudar puede ser necesario seleccionar el origen de nuevo. Una vista previa nueva requiere otra confirmación. Reintentar devuelve solo los elementos fallidos o bloqueados seleccionados al estado pendiente; reanudar inicia el procesamiento.',
   'import.history': 'Importaciones anteriores',
   'import.reuseNotice':
     'La agrupación solo se aplica a copias nuevas. La misma versión del mismo origen reutiliza el objeto original y conserva sus relaciones.',
@@ -625,7 +626,7 @@ export const es = Object.freeze({
   'importRun.finished': 'Proceso finalizado',
   'importRun.finished-with-errors': 'Proceso finalizado con elementos pendientes',
   'importItem.pending': 'Pendiente',
-  'importItem.committed': 'Confirmado',
+  'importItem.committed': 'Guardado',
   'importItem.reused': 'Reutilizado',
   'importItem.skipped': 'Omitido',
   'importItem.failed': 'Fallido',

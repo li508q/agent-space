@@ -39,7 +39,7 @@ npm run dev
 
 创建自己的空间，或先体验独立的示例空间。运行 `npm run package:mac` 可构建内置运行时的独立应用。[构建与平台说明](docs/DESKTOP.md)。
 
-连接 Agent 时，打开**设置 → 设置 Agent 接入**，选择资料和权限，将配置复制到自己的 MCP 宿主。新建笔记或记录需要单独启用权限。[MCP 与 CLI](docs/AGENT_PROTOCOL.md)。
+连接 Agent 时，打开**设置 → 设置 Agent 接入**，选择资料和权限，在所用 Agent 工具的 MCP 设置中添加配置。新建笔记或记录需要单独启用权限。[MCP 与 CLI](docs/AGENT_PROTOCOL.md)。
 
 ## 人与 Agent，共用一套内核
 
@@ -51,7 +51,7 @@ Electron／React 桌面端、MCP 服务和 CLI 共用 TypeScript Core 与 SQLite
 
 导入可编辑副本，保留原件。用完整备份保留历史，或把当前内容导出为可阅读的文件。外部引用指向的文件仍由你另行管理。
 
-空间保存在本地，AgentSpace 不自行加密。已连接 Agent 的宿主可能将授权资料发送给模型服务商。撤销授权会阻止后续请求，无法收回已经分享的内容。
+空间保存在本地，AgentSpace 不自行加密。运行所连接 Agent 的工具可能将授权资料发送给模型服务商。撤销授权会阻止后续请求，无法收回已经分享的内容。
 
 [数据与信任边界](docs/SECURITY.md) · [备份与恢复](docs/LOCAL_DATA.md)
 

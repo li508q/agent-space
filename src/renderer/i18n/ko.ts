@@ -17,12 +17,12 @@ export const ko = Object.freeze({
   'contextPrep.goalExcerpt': '프로젝트 목표 발췌(최대 280자)',
   'contextPrep.members': '현재 연결된 활성 프로젝트 자료',
   'contextPrep.membersScope':
-    '현재 이 프로젝트에 연결된 활성 자료를 20개씩 불러옵니다. 과거 버전 당시의 프로젝트 구성원 목록이 아닙니다.',
+    '현재 이 프로젝트에 연결된 활성 자료를 한 번에 20개씩 불러옵니다. 과거 버전 당시에 연결되어 있던 자료 목록이 아닙니다.',
   'contextPrep.retained': '이전 결과에서 선택한 버전',
   'contextPrep.unavailableSelection':
     '사용할 수 없는 선택 버전을 다시 확인하거나 제외한 뒤 복사 또는 접근 설정을 진행하세요.',
   'contextPrep.scope':
-    '선택한 저장 버전만 포함됩니다. 직접 링크와 현재 자료는 과거 프로젝트 전체의 스냅샷을 구성하지 않습니다.',
+    '선택한 저장 버전만 포함합니다. 직접 링크와 현재 프로젝트 자료는 과거 프로젝트 전체의 스냅샷이 아닙니다.',
   'contextPrep.preview': '설명과 참조 확인',
   'contextPrep.copy': '설명과 참조 복사',
   'contextPrep.import': '기존 자료 가져오기',
@@ -171,7 +171,8 @@ export const ko = Object.freeze({
   'knowledge.refreshing': '현재 검토 상태 확인 중…',
   'knowledge.headUnknown': '현재 검토 상태를 확인할 수 없습니다.',
   'knowledge.refresh': '검토 상태 새로고침',
-  'knowledge.dirtyNotice': '저장하지 않은 초안은 별도로 보관되며 검토됨으로 표시되지 않습니다.',
+  'knowledge.dirtyNotice':
+    '저장하지 않은 편집 내용은 저장된 원문과 별개이며 검토됨으로 표시되지 않습니다.',
   'continue.recent': '최근 작업',
   'continue.noRecent': '이 설치 환경에 최근 작업이 없습니다.',
   'continue.storageUnavailable':
@@ -206,11 +207,12 @@ export const ko = Object.freeze({
   'context.noMatches': '이 범위에 일치하는 결과가 없습니다. 검색어나 필터를 바꿔 보세요.',
   'context.limitReached': '결과 한도에 도달했습니다. 표시되지 않은 자료가 더 있을 수 있습니다.',
   'agent.setup': '에이전트 접근 설정',
-  'agent.entryEnabled': '진입점이 활성화됨',
+  'agent.entryEnabled': '접근 권한 유효',
   'agent.readScope': '읽기 범위',
   'agent.proposalOnly': '변경하려면 제안을 제출하고 사람이 적용해야 합니다.',
   'agent.allowCreation': '새 노트와 레코드 생성 제안 허용',
-  'agent.creationScope': '새 객체 생성 제안에는 스페이스 범위의 권한이 필요합니다.',
+  'agent.creationScope':
+    '새 노트나 레코드 생성을 제안하려면 전체 스페이스의 읽기·제안 권한과 별도의 생성 권한이 필요합니다.',
   'agent.lastCall': '마지막 도구 호출: {time}',
   'agent.deliveryNotice':
     '반환할 준비가 된 자료를 기록합니다. 에이전트 클라이언트의 수신 여부는 확인되지 않았습니다.',
@@ -263,7 +265,7 @@ export const ko = Object.freeze({
   'import.assetReferences': '자산 참조',
   'import.assetLimit': '자산 참조를 최대 {count}개 선택하세요.',
   'import.confirm': '가져오기 확인',
-  'import.originalsUnchanged': '사본을 가져왔습니다. 원본은 변경되지 않았습니다.',
+  'import.originalsUnchanged': '가져오기는 원본 파일을 변경하지 않습니다.',
   'import.notLiveSync': '가져온 사본은 원본과 계속 동기화되지 않습니다.',
   'import.results': '가져오기 결과',
   'import.retryUnfinished': '미완료 항목 다시 시도',
@@ -340,7 +342,7 @@ export const ko = Object.freeze({
   'ui.drafts': '복구용 초안',
   'ui.newDraft': '새 자료 초안',
   'ui.resumeDraftNotice':
-    '복구용 초안입니다. 저장할 때 원래 기준 버전을 확인하며 최신 내용을 자동으로 바꾸지 않습니다.',
+    '복구용 초안입니다. 저장할 때 충돌을 확인하며 나중에 저장된 내용을 자동으로 덮어쓰지 않습니다.',
   'ui.leaveFailure': '편집 내용과 복구용 초안을 저장하지 못했습니다.',
   'ui.keepWorking': '계속 편집',
   'ui.discardEdits': '저장되지 않은 편집 내용 버리기',
@@ -348,7 +350,7 @@ export const ko = Object.freeze({
   'ui.preparedRecord': '준비 기록 {id}',
   'ui.referenceOnly': '버전 참조만 기록되어 있으며 내용 구역은 기록되지 않았습니다.',
   'ui.preparedRange': '준비 범위: {start}–{end} / {total} ({unit})',
-  'ui.codePoints': '유니코드 문자',
+  'ui.codePoints': '유니코드 코드 포인트',
   'ui.entries': '항목',
   'ui.older': '이전 기록 불러오기',
   'ui.currentVersion': '현재 버전',
@@ -363,17 +365,17 @@ export const ko = Object.freeze({
   'access.space': '전체 스페이스',
   'access.objects': '선택한 객체',
   'access.objectsNotice':
-    '고정된 선택입니다. 프로젝트 구성원이 늘어나도 접근 범위는 확대되지 않습니다.',
+    '선택한 객체로 접근 범위가 고정됩니다. 프로젝트에 자료가 추가되어도 접근 범위는 넓어지지 않습니다.',
   'access.read': '자료 읽기',
   'access.propose': '변경 제안',
   'access.create': '접근 권한 만들기',
-  'access.revoke': '접근 권한 해제',
-  'access.reissue': '해제 후 다시 발급',
-  'access.revoked': '해제됨',
+  'access.revoke': '접근 권한 취소',
+  'access.reissue': '취소 후 다시 발급',
+  'access.revoked': '취소됨',
   'access.once':
-    '이 설정에는 한 번만 표시되는 비밀 키가 포함됩니다. 지금 복사하세요. 분실하면 권한을 해제하고 다시 발급해야 합니다.',
+    '이 설정에는 한 번만 표시되는 비밀 키가 포함됩니다. 지금 복사하세요. 분실하면 권한을 취소하고 다시 발급해야 합니다.',
   'access.tokenLost':
-    '최초 발급 응답이 유실되었습니다. 비밀 키는 복구할 수 없습니다. 이 권한을 해제하고 새로 발급하세요.',
+    '최초 발급 응답이 유실되었습니다. 비밀 키는 복구할 수 없습니다. 이 권한을 취소하고 새로 발급하세요.',
   'access.copyToml': 'Codex 설정 복사',
   'access.copyJson': 'stdio JSON 복사',
   'access.development': '개발 환경 실행 설정',
@@ -404,7 +406,7 @@ export const ko = Object.freeze({
   'ui.relationsCount': '관계 {count}',
   'policy.title': '에이전트 제안 권한',
   'policy.notice':
-    '에이전트가 변경을 제안할 수 있는 부분을 선택하세요. 모든 제안은 여전히 검토가 필요합니다. 직접 편집한 부분은 다시 보호됩니다.',
+    '에이전트가 변경을 제안할 수 있는 부분을 선택한 뒤 권한을 저장하세요. 각 제안은 여전히 직접 검토해야 합니다.',
   'policy.save': '제안 권한 저장',
   'policy.reload': '현재 권한 다시 불러오기',
   'policy.allowed': '변경 제안 허용',
@@ -413,9 +415,10 @@ export const ko = Object.freeze({
   'org.newMaterial': '새 자료',
   'org.newProject': '프로젝트 만들기',
   'org.newRecord': '레코드 만들기',
-  'org.newAsset': '재사용 자료 만들기',
+  'org.newAsset': '재사용 자산 만들기',
   'org.project': '프로젝트',
-  'org.assetHint': '이 관리 자료는 고유한 정체성을 가지며 여러 프로젝트에서 참조할 수 있습니다.',
+  'org.assetHint':
+    '스페이스에서 관리하는 이 자산은 고유 ID가 있으며 여러 프로젝트에서 참조할 수 있습니다.',
   'org.relatedUses': '이 자료를 사용하는 항목',
   'org.noneLinked': '확인한 결과에 연결된 자료가 없습니다.',
   'fields.edit': '필드 편집',
@@ -424,9 +427,9 @@ export const ko = Object.freeze({
   'fields.value': '값',
   'fields.option': '선택지 {count}',
   'fields.addOption': '선택지 추가',
-  'fields.apply': '이 필드 사용',
+  'fields.apply': '필드 편집 내용 적용',
   'fields.unapplied': '이 편집 내용은 아직 객체에 적용되지 않았습니다.',
-  'fields.identity': '이름을 바꿔도 필드의 정체성은 유지됩니다.',
+  'fields.identity': '필드 이름을 바꿔도 고유 키는 유지됩니다.',
   'fields.typeReset': '필드 유형을 바꾸면 값이 설정되지 않은 상태가 됩니다.',
   'fields.labelError': '1~120자의 필드 이름을 입력하세요.',
   'fields.dateError': 'YYYY-MM-DD 형식의 유효한 날짜를 입력하세요.',
@@ -448,7 +451,7 @@ export const ko = Object.freeze({
   'relations.pinNotice': '관계를 추가할 때 선택한 버전을 확인하고 고정합니다.',
   'relations.currentNotice':
     '이 관계는 객체의 현재 버전을 따릅니다. 에이전트 접근 권한은 바뀌지 않습니다.',
-  'relations.apply': '이 관계 사용',
+  'relations.apply': '관계 편집 내용 적용',
   'records.list': '목록',
   'records.table': '레코드 표',
   'records.tableScope': '불러온 레코드 {loaded}개 중 {count}개를 표시합니다.',
@@ -488,7 +491,7 @@ export const ko = Object.freeze({
   'context.saveBeforeCopy':
     '정확한 저장 버전을 복사하려면 현재 편집 내용을 먼저 저장하세요. 복구에는 편집 내용 복사를 사용할 수 있습니다.',
   'context.singleScope':
-    '이 저장 항목의 식별 정보, 버전, 다이제스트, 필드와 관계만 복사합니다. 본문을 선택하면 전체 대신 선택 부분을 포함합니다.',
+    '이 항목에 저장된 제목, 본문, 필드, 관계, 버전 정보와 스페이스 정보를 복사합니다. 본문 일부를 선택하면 전체 본문 대신 선택한 부분을 포함합니다.',
   'lifecycle.archive': '자료 보관',
   'lifecycle.restore': '보관함에서 복원',
   'lifecycle.notice':
@@ -496,17 +499,17 @@ export const ko = Object.freeze({
   'lifecycle.filter': '보관 상태',
   'lifecycle.active': '활성 자료',
   'lifecycle.all': '활성 및 보관 자료',
-  'relink.choose': '자료 위치 선택',
+  'relink.choose': '외부 자산 위치 선택',
   'relink.notice':
-    '기본 선택 창에서 외부 원본을 선택한 뒤 이전 위치와 새 위치를 확인하세요. 객체의 정체성과 기록은 유지됩니다.',
+    '파일 선택 창에서 외부 원본을 선택한 뒤 이전 위치와 새 위치를 확인하세요. 객체의 고유 ID와 이력은 유지됩니다.',
   'relink.old': '이전 위치',
   'relink.new': '선택한 위치',
   'relink.confirm': '새 위치 확인',
   'relink.noUndo': '위치 변경은 자동으로 취소할 수 없습니다. 변경하려면 위치를 다시 선택하세요.',
   'recovery.title': '다른 설치의 초안',
   'recovery.notice':
-    '보존된 원본을 읽은 뒤 이 설치에 새 초안으로 복사하세요. 원본은 바뀌지 않으며 이전 기준 버전의 충돌도 계속 보호됩니다.',
-  'recovery.otherInstallation': '다른 설치에서 가져옴',
+    '보관된 원본 초안을 확인한 뒤 이 설치에 새 초안으로 복사하세요. 원본 초안은 바뀌지 않습니다. 기존 자료의 초안은 저장할 때 원래 기준 버전으로 충돌을 검사합니다.',
+  'recovery.otherInstallation': '다른 설치의 초안',
   'recovery.generation': '초안 세대 {generation}',
   'recovery.empty': '다른 설치에 보존된 초안이 없습니다.',
   'recovery.kept': '새 복구 초안이 이 설치에 보존되었습니다.',
@@ -563,16 +566,16 @@ export const ko = Object.freeze({
   'import.skip': '가져오지 않음',
   'import.managedCopy': '관리 텍스트 사본',
   'import.independent': '독립 자료',
-  'import.moreAssets': '기존 자료 더 불러오기',
+  'import.moreAssets': '기존 자산 더 불러오기',
   'import.confirmScope':
     '선택한 원본 항목 {count}개를 확인합니다. 생성되는 프로젝트나 관계로 인해 작업 항목 수가 늘어날 수 있습니다.',
   'import.runCounts':
-    '확정 {committed}개, 재사용 {reused}개, 실패 {failed}개, 차단 {blocked}개; 전체 작업 항목 {total}개.',
+    '저장 완료 {committed}개, 재사용 {reused}개, 실패 {failed}개, 차단 {blocked}개; 전체 작업 항목 {total}개.',
   'import.selectRetry': '{path} 다시 시도',
   'import.pause': '가져오기 일시 중지',
   'import.resume': '계속하거나 원본 다시 검토',
   'import.resumeNotice':
-    '계속할 때 원본을 다시 선택해야 할 수 있습니다. 새 미리 보기는 다시 확인해야 합니다. 재시도는 실패 항목을 초기화하고 계속은 처리를 시작합니다.',
+    '계속할 때 원본을 다시 선택해야 할 수 있습니다. 새 미리 보기는 다시 확인해야 합니다. 재시도는 선택한 실패·차단 항목만 대기 상태로 되돌리며, 계속은 처리를 시작합니다.',
   'import.history': '이전 가져오기 작업',
   'import.reuseNotice':
     '그룹 선택은 새 사본에만 적용됩니다. 같은 원본의 같은 버전은 기존 객체를 재사용하며 기존 관계를 유지합니다.',
@@ -598,7 +601,7 @@ export const ko = Object.freeze({
   'importRun.finished': '작업 종료됨',
   'importRun.finished-with-errors': '해결되지 않은 항목을 남기고 종료됨',
   'importItem.pending': '대기 중',
-  'importItem.committed': '확정됨',
+  'importItem.committed': '저장 완료',
   'importItem.reused': '재사용됨',
   'importItem.skipped': '건너뜀',
   'importItem.failed': '실패',

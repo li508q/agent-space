@@ -2,6 +2,8 @@
 
 English, Simplified Chinese, Japanese, Korean and Spanish use flat dictionaries with identical keys and placeholders. Messages are plain text. This module has no UI, storage, bridge or network dependency.
 
+Use the [localization guide](../../../docs/LOCALIZATION.md) for product meaning, shared terminology and each language's voice.
+
 ```ts
 import { t, formatCount, formatDate, formatDateTime, getErrorCopy, titleText } from './index.js';
 

@@ -8,7 +8,7 @@ AgentSpace keeps your writing, project material and agent proposals in a local s
 
 Choose **Create space** for a new local folder, **Open space** for an existing AgentSpace folder, or **Open example space** to try synthetic material stored separately from your work. The header identifies the selected space.
 
-The application and your space are separate: moving the application does not move your data. Put the application in its intended location before generating agent configuration; regenerate the configuration if its executable moves.
+The app and your space are separate: moving the app does not move the data. Put the app in its final location and open it there before creating agent access. If you move it later, update the executable path in your agent application's MCP configuration and reconnect.
 
 Choose the interface language and text size in **Settings**. Changing language keeps authored titles, text and field labels as written.
 
@@ -26,7 +26,7 @@ Open **Import existing material** from Continue, the space menu or an empty Libr
 2. Inspect the preview: text copies, proposed project groups, external references, skipped items and scan limits.
 3. Confirm your choices, then inspect each item's result.
 
-Valid UTF-8 Markdown and plain text become editable managed copies with origin information. Original files remain unchanged. Repositories and other native formats can be explicit external references; their contents are not copied, run or synchronized. The knowledge/project/HANDOFF/repository layout profile helps suggest grouping; it is optional.
+Valid UTF-8 Markdown and plain text become editable managed copies with origin information. Original files remain unchanged. Repositories and other native formats can be explicit external references; their contents are not copied, run or synchronized. The optional **Knowledge, projects and repositories** profile suggests project groups and repository references.
 
 A limited preview covers only the reported scan. If a source changes after preview, inspect and confirm it again. Import commits items separately, so successful items survive a partial failure. Retrying or importing the same source version reuses its original object and preserves later human edits and existing relationships. New grouping applies to new copies; edit a reused object's relationships explicitly. A different source version creates a separate copy.
 
@@ -54,6 +54,8 @@ Relationships can **Follow current** content or point to a **Pinned version**. A
 
 In the source reader, **Edit current original** opens the current managed object. For example, reading version 1 while editing current version 2 produces version 3 on the same object; version 1 and its citations remain intact. Existing unsaved edits stay in their editor with their original base and any conflict visible. **Return to reading** returns to the cited version and calling position. An archived or unavailable current original does not remove readable retained history. This action edits the managed copy, not an external source file.
 
+**Copy saved context** copies this item's saved title, body, fields, links, version details and space information. Selecting part of the body includes that text instead of the full body. Linked document bodies are not included. For a task brief with several version references, use context preparation below.
+
 ## Prepare context for an agent
 
 From a saved document or the source reader, choose **Prepare context**.
@@ -72,13 +74,15 @@ Choose **Set up agent access** from context preparation or open it in **Settings
 
 1. Label the access and choose selected objects or the whole space. Select reading and proposal capabilities.
 2. Inspect the choices, including prepared items beyond the first page. Existing form choices are kept; **Use selected material** explicitly replaces them.
-3. Choose **Create access**, copy the Codex configuration or stdio launch JSON, add the corresponding MCP settings in your host and reconnect. Then give the agent the brief. The [protocol guide](../AGENT_PROTOCOL.md) also documents CLI use.
+3. Choose **Create access**, copy the Codex configuration or stdio launch JSON, add it to your agent application's MCP settings and reconnect. Then give the agent the brief. The [protocol guide](../AGENT_PROTOCOL.md) also documents CLI use.
 
 The brief fixes particular versions; an object grant covers the object's readable versions, **including future versions**. New links and project membership do not add objects to a fixed selection. Proposing new notes or records needs separate creation permission on a whole-space grant with read and proposal capabilities. Object-specific grants cannot create new objects. Agent access does not include your direct-save or proposal-acceptance authority.
 
 The configuration contains a token shown once; AgentSpace stores its hash. Copy it while available. If it is lost, revoke that access and create another. An uncertain access operation keeps the form locked until the original retry resolves it. Ordinary Settings round trips in the same open space retain a known one-time configuration.
 
 An agent can discover the space, filter and search within its grant, follow bounded relationships and read exact versions. Search reports limits and does not guarantee semantic completeness. Prepared context records the references and ranges assembled for tool results; it does not prove host receipt, model understanding or task completion.
+
+In **Details → Agent proposal permissions**, choose which parts an agent may propose changing, then select **Save proposal permissions**. Editing content keeps the existing permissions. Every proposal still requires your review before it can be applied.
 
 ## Review proposals and inspect changes
 
@@ -88,7 +92,7 @@ Open **Review → Pending** to inspect a proposal.
 2. For an update, choose **Apply proposal**. For a new object, choose **Create note** or **Create record**. **Reject proposal** leaves accepted content unchanged.
 3. Use **Draft for new material** on a creation proposal to start your own draft of the same type. For an update, edit the current object. The original proposal remains separate.
 
-Reading a proposal does not resolve it. Read/unread, pending/applied/rejected/conflicted and human knowledge review are separate states. If the base has advanced, applying is blocked and both versions are preserved. Use **Copy proposed content** and edit the current object, or ask the agent for a new proposal. You can reject an old candidate after revoking its originating access.
+Reading a proposal does not resolve it. Read/unread, pending/applied/rejected/conflicted and human knowledge review are separate states. If the current saved version no longer matches the proposal's base version, applying is blocked; the proposal and current content are preserved. Use **Copy proposed content** and edit the current object, or ask the agent for a new proposal. You can reject an old candidate after revoking its originating access.
 
 Use **Review → Processed** to inspect applied or rejected proposals. **Read accepted version** opens the saved result at acceptance; a separate action opens the current original. Rejected proposals retain their reason, differences and sources.
 

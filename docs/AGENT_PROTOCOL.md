@@ -35,7 +35,7 @@ Set the three identity variables and `AGENTSPACE_TOKEN` securely from the select
 
 ### Packaged adapter
 
-The actual application executable accepts `--agent-server` and `--agent-cli` before window creation, preferences or the desktop single-instance lock. It uses bundled Node and needs no system Node. Generated configuration records that executable; copy it again after moving the app. See [Desktop](DESKTOP.md).
+The actual application executable accepts `--agent-server` and `--agent-cli` before window creation, preferences or the desktop single-instance lock. It uses bundled Node and needs no system Node. Generated configuration records that executable. Place and open the app in its intended location before creating access. After a later move, update the command path in the agent host's existing MCP configuration and reconnect. See [Desktop](DESKTOP.md).
 
 The server refuses missing, incompatible or incorrectly bound spaces and invalid/revoked grants. It never creates a space, migrates a database or falls back to another path. Each call and continuation rechecks authorization. EOF closes the connection; a committed proposal remains durable.
 

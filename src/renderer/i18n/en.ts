@@ -17,12 +17,12 @@ export const en = Object.freeze({
   'contextPrep.goalExcerpt': 'Project goal excerpt (up to 280 characters)',
   'contextPrep.members': 'Current active project material',
   'contextPrep.membersScope':
-    'Current active material linked to this project, loaded 20 at a time. This is not the project membership at the historical version.',
+    'Current active material linked to this project, loaded 20 at a time. This does not reconstruct the material linked at the historical version.',
   'contextPrep.retained': 'Selected from earlier results',
   'contextPrep.unavailableSelection':
     'Retry unavailable selected versions or remove them before copying or setting up access.',
   'contextPrep.scope':
-    'Only selected saved versions are included. Direct links and current members do not form a complete historical project snapshot.',
+    'Includes only selected saved versions. Direct links and current project material do not form a complete historical project snapshot.',
   'contextPrep.preview': 'Inspect brief and references',
   'contextPrep.copy': 'Copy brief and references',
   'contextPrep.import': 'Import existing material',
@@ -172,7 +172,8 @@ export const en = Object.freeze({
   'knowledge.refreshing': 'Checking current review status…',
   'knowledge.headUnknown': 'Current review status is unavailable.',
   'knowledge.refresh': 'Refresh review status',
-  'knowledge.dirtyNotice': 'Unsaved draft edits are separate and are not marked reviewed.',
+  'knowledge.dirtyNotice':
+    'Unsaved edits are separate from saved content and are not marked reviewed.',
   'continue.recent': 'Recent work',
   'continue.noRecent': 'No recent work on this installation.',
   'continue.storageUnavailable':
@@ -207,11 +208,12 @@ export const en = Object.freeze({
   'context.noMatches': 'No matches in this scope. Try another term or change the filters.',
   'context.limitReached': 'Result limit reached. More material may remain.',
   'agent.setup': 'Set up agent access',
-  'agent.entryEnabled': 'Entry enabled',
+  'agent.entryEnabled': 'Access active',
   'agent.readScope': 'Readable scope',
   'agent.proposalOnly': 'Changes require a proposal and human acceptance.',
   'agent.allowCreation': 'Allow proposals for new notes and records',
-  'agent.creationScope': 'New-object proposals require a space-scoped grant.',
+  'agent.creationScope':
+    'Proposing new notes or records requires whole-space access with reading, proposals and creation enabled.',
   'agent.lastCall': 'Last tool call: {time}',
   'agent.deliveryNotice':
     'Records prepared material; receipt by the agent client is not confirmed.',
@@ -264,7 +266,7 @@ export const en = Object.freeze({
   'import.assetReferences': 'Asset references',
   'import.assetLimit': 'Choose up to {count} asset references.',
   'import.confirm': 'Confirm import',
-  'import.originalsUnchanged': 'Imported copies; originals are unchanged.',
+  'import.originalsUnchanged': 'Importing leaves the original files unchanged.',
   'import.notLiveSync': 'Imported copies do not stay synchronized with the originals.',
   'import.results': 'Import results',
   'import.retryUnfinished': 'Retry unfinished items',
@@ -347,7 +349,7 @@ export const en = Object.freeze({
   'ui.drafts': 'Recovery drafts',
   'ui.newDraft': 'Draft for new material',
   'ui.resumeDraftNotice':
-    'This is a recovery draft. Saving checks its original base; it does not replace newer content automatically.',
+    'This is a recovery draft. Saving checks for conflicts and does not automatically replace newer saved content.',
   'ui.leaveFailure': 'Your edits could not be saved or retained as a recovery draft.',
   'ui.keepWorking': 'Keep editing',
   'ui.discardEdits': 'Discard unsaved edits',
@@ -355,7 +357,7 @@ export const en = Object.freeze({
   'ui.preparedRecord': 'Preparation record {id}',
   'ui.referenceOnly': 'Version reference only; no content section is recorded.',
   'ui.preparedRange': 'Prepared range: {start}–{end} of {total} ({unit})',
-  'ui.codePoints': 'Unicode characters',
+  'ui.codePoints': 'Unicode code points',
   'ui.entries': 'entries',
   'ui.older': 'Load earlier records',
   'ui.currentVersion': 'Current version',
@@ -370,7 +372,7 @@ export const en = Object.freeze({
   'access.space': 'Whole space',
   'access.objects': 'Selected objects',
   'access.objectsNotice':
-    'This is a fixed selection. Project membership does not expand this access.',
+    'Access stays limited to these objects. Adding project material does not expand it.',
   'access.read': 'Read material',
   'access.propose': 'Propose changes',
   'access.create': 'Create access',
@@ -410,7 +412,7 @@ export const en = Object.freeze({
   'ui.relationsCount': 'Relations {count}',
   'policy.title': 'Agent proposal permissions',
   'policy.notice':
-    'Choose the parts agents may propose changing. Every proposal still needs your review. Editing a part yourself protects it again.',
+    'Choose which parts agents may propose changing, then save these permissions. Every proposal still needs your review.',
   'policy.save': 'Save proposal permissions',
   'policy.reload': 'Reload current permissions',
   'policy.allowed': 'May propose changes',
@@ -499,7 +501,7 @@ export const en = Object.freeze({
   'context.saveBeforeCopy':
     'Save this buffer first to copy an exact saved version. Copy edits remains available for recovery.',
   'context.singleScope':
-    'Only this saved item: identity, revision, digest, fields and links. A body selection replaces the full body when selected.',
+    'Copies this saved item’s title, body, fields, links, version details and space information. Selected body text replaces the full body.',
   'lifecycle.archive': 'Archive material',
   'lifecycle.restore': 'Restore from archive',
   'lifecycle.notice':
@@ -517,7 +519,7 @@ export const en = Object.freeze({
     'Location changes do not support automatic undo. Choose a location again to change it.',
   'recovery.title': 'Drafts from another installation',
   'recovery.notice':
-    'Read the retained original, then copy it into this installation as a new draft. The original is unchanged; old-base conflicts still apply.',
+    'Read the retained original draft, then copy it as a new draft in this installation. The original stays unchanged. Drafts for existing material keep their original base version for save conflict checks.',
   'recovery.otherInstallation': 'From another installation',
   'recovery.generation': 'Draft generation {generation}',
   'recovery.empty': 'No retained drafts from other installations were found.',
@@ -578,12 +580,12 @@ export const en = Object.freeze({
   'import.confirmScope':
     'Confirm {count} selected source items. Generated project/link items may add to the run count.',
   'import.runCounts':
-    '{committed} committed, {reused} reused, {failed} failed, {blocked} blocked; {total} total run items.',
+    '{committed} saved, {reused} reused, {failed} failed, {blocked} blocked; {total} total run items.',
   'import.selectRetry': 'Retry {path}',
   'import.pause': 'Pause import',
   'import.resume': 'Resume or review source again',
   'import.resumeNotice':
-    'A resumed run may ask you to select its source again. A replacement preview always needs fresh confirmation. Retry resets selected failed items; resume starts processing.',
+    'Resuming may require selecting the source again. A replacement preview needs fresh confirmation. Retry resets only selected failed or blocked items; resume starts processing.',
   'import.history': 'Previous import runs',
   'import.reuseNotice':
     'Grouping applies to new copies only. The same source version reuses its original object and keeps its existing relationships.',
@@ -610,7 +612,7 @@ export const en = Object.freeze({
   'importRun.finished': 'Run finished',
   'importRun.finished-with-errors': 'Run finished with unresolved items',
   'importItem.pending': 'Pending',
-  'importItem.committed': 'Committed',
+  'importItem.committed': 'Saved',
   'importItem.reused': 'Reused',
   'importItem.skipped': 'Skipped',
   'importItem.failed': 'Failed',
