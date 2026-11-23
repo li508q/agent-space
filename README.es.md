@@ -1,27 +1,34 @@
-<p align="center"><img src="docs/assets/banner.svg" alt="AgentSpace" width="1200"></p>
+<img src="docs/assets/banner.svg" alt="AgentSpace" width="480">
 
-<p align="center"><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a> · <a href="README.ko.md">한국어</a> · Español</p>
+[English](README.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · Español
 
-AgentSpace es un espacio local para escribir, reunir material de proyectos y colaborar con distintos agentes. Consulta las fuentes, examina las propuestas y decide qué cambios incorporar a tu trabajo.
+# Tu trabajo, más allá del chat.
 
-Puedes usarlo sin una cuenta de un proveedor de modelos ni una clave API. Conecta un agente externo cuando quieras ayuda para leer o modificar material.
+Cambias de agente y vuelves a explicar el proyecto. Las notas y las decisiones quedan repartidas entre chats y carpetas. La IA avanza, pero seguir los cambios se convierte en otro trabajo.
 
-<img src="docs/assets/workbench.es.png" alt="El escritorio de AgentSpace con material de ejemplo" width="1200">
+**AgentSpace es un espacio de trabajo local que te pertenece.** Escribe y organiza tu material. Comparte contexto con distintos agentes, examina sus propuestas y decide qué cambios incorporar a tu trabajo.
 
-## Qué puedes hacer
+[Empieza aquí](#empieza-en-local) · [Guía de uso](docs/guides/es.md) · [Arquitectura](docs/ARCHITECTURE.md)
 
-- **Escribir y retomar.** Edita Markdown, conserva borradores de recuperación y vuelve al trabajo reciente.
-- **Reunir el contexto de un proyecto.** Relaciona notas, documentos, registros con campos tipados y recursos reutilizables. Consulta el texto, las referencias de continuidad y el material acumulado de cada proyecto.
-- **Preparar el contexto inicial de un agente.** Comprueba una explicación con referencias a versiones guardadas y crea permisos explícitos de MCP o CLI.
-- **Revisar cambios.** Lee el motivo, las diferencias y las fuentes antes de aplicar o rechazar una propuesta. Consulta la versión aceptada y deshaz cambios protegiendo las ediciones posteriores.
-- **Conservar y trasladar datos.** Importa copias editables sin modificar los originales; crea una copia de seguridad completa o una exportación legible del contenido actual.
-- **Elegir idioma.** Inglés, chino simplificado, japonés, coreano y español. El contenido que escribes conserva su idioma.
+## Conserva el contexto al cambiar de agente
 
-<img src="docs/assets/review.es.png" alt="Una propuesta de agente con su motivo, diferencias y versiones citadas" width="1200">
+Relaciona notas, documentos, registros con campos tipados y referencias reutilizables con sus proyectos. Revisa lo acumulado, lee y edita el material y prepara una explicación con referencias a versiones guardadas concretas.
 
-## Ejecutar en local
+Puedes usar el espacio sin una cuenta de modelos ni una clave API. Conecta un agente externo mediante MCP o CLI cuando quieras ayuda.
 
-El entorno de escritorio actual es **macOS Apple Silicon**. Para ejecutar desde el código fuente:
+<img src="docs/assets/workbench.es.png" alt="El espacio AgentSpace con proyectos, material relacionado y escritura directa; muestra contenido de ejemplo" width="1200">
+
+## Entiende los cambios. Decide qué conservar.
+
+Lee el motivo, todas las diferencias y las versiones citadas antes de aplicar o rechazar una propuesta. Tus propias ediciones se guardan directamente. La comprobación de versiones, los borradores de recuperación y el deshacer condicionado protegen el trabajo posterior.
+
+Consulta las versiones aceptadas y sus fuentes. El trabajo sigue siendo comprensible cuando termina la conversación que lo originó.
+
+<img src="docs/assets/review.es.png" alt="Una propuesta con diferencias, motivo y versiones citadas, y controles para aplicarla o rechazarla" width="1200">
+
+## Empieza en local
+
+La aplicación de escritorio funciona en **macOS Apple Silicon**. Usa la versión de Node de [`.nvmrc`](.nvmrc) y ejecuta:
 
 ```sh
 git clone https://github.com/li508q/agent-space.git
@@ -30,22 +37,28 @@ npm ci
 npm run dev
 ```
 
-Usa la versión de Node indicada en [`.nvmrc`](.nvmrc). Crea un espacio, abre uno existente o prueba el espacio de ejemplo, que se guarda por separado. [Guía de uso →](docs/guides/es.md)
+Crea tu espacio o explora el espacio de ejemplo, que se guarda por separado. Ejecuta `npm run package:mac` para crear una aplicación independiente con su propio entorno de ejecución. [Compilación y plataforma](docs/DESKTOP.md).
 
-En un Mac con Apple Silicon, `npm run package:mac` crea una aplicación independiente con su propio entorno de ejecución. Consulta [configuración de escritorio](docs/DESKTOP.md) para los detalles de compilación, firma y plataforma.
+Para conectar un agente, abre **Ajustes → Configurar acceso de agentes**, elige el material y los permisos y copia la configuración a tu anfitrión MCP. Crear notas o registros requiere un permiso adicional. [MCP y CLI](docs/AGENT_PROTOCOL.md).
 
-Abre **Ajustes → Configurar acceso de agentes**, elige los objetos y permisos y copia la configuración generada a tu anfitrión MCP. Crear notas o registros requiere un permiso adicional. [MCP y CLI →](docs/AGENT_PROTOCOL.md)
+## Un núcleo compartido por personas y agentes
 
-## Datos y permisos
+El escritorio Electron/React, el servidor MCP y la CLI usan el mismo Core de TypeScript y la misma fuente de datos en SQLite. La identidad de los objetos, las versiones de las fuentes, los permisos y las decisiones sobre propuestas siguen los mismos contratos. La edición Markdown utiliza CodeMirror.
 
-Los espacios son archivos locales que tú controlas. AgentSpace no los cifra; usa las funciones del sistema operativo para proteger tus datos y copias. Los archivos a los que apuntan los recursos externos se gestionan por separado.
+[Arquitectura](docs/ARCHITECTURE.md) · [Core API](docs/CORE_API.md) · [Verificación y límites](docs/TESTING.md) · [CI](https://github.com/li508q/agent-space/actions)
 
-Un agente conectado puede recibir material autorizado y su anfitrión puede enviarlo a un proveedor de modelos según su configuración. Guardar en local no impide ese envío. Revocar el acceso bloquea futuras solicitudes de herramientas, pero no recupera contenido ya compartido. Preparar o copiar contexto no acredita que el modelo lo haya entendido ni que haya terminado una tarea.
+## Tus datos siguen siendo tuyos
+
+Importa copias editables sin mover los originales. Conserva el historial en una copia de seguridad completa o exporta el contenido actual en un formato legible. Los archivos a los que apuntan las referencias externas se gestionan por separado.
+
+Los espacios son archivos locales; AgentSpace no los cifra. El anfitrión de un agente conectado puede enviar material autorizado a un proveedor de modelos. Revocar el acceso bloquea futuras solicitudes, pero no recupera material ya compartido.
 
 [Datos y confianza](docs/SECURITY.md) · [Copias y recuperación](docs/LOCAL_DATA.md)
 
-## Desarrollo y contribuciones
+## Construyámoslo juntos
 
-Consulta la [guía de contribución](CONTRIBUTING.md) para el desarrollo y las comprobaciones, la [arquitectura](docs/ARCHITECTURE.md) para el núcleo compartido y [CI](https://github.com/li508q/agent-space/actions) para los resultados automatizados.
+Las contribuciones deben ayudar a encontrar contexto, entender cambios o recuperar trabajo. Consulta la [guía de contribución](CONTRIBUTING.md) para la preparación y las comprobaciones, y el [índice de documentación](docs/README.md) para los contratos del producto y su implementación.
 
-[Documentación](docs/README.md) · [Alcance del producto](docs/PRD.md) · [Verificación y límites](docs/TESTING.md) · [Licencia MIT](LICENSE)
+La interfaz y las guías de uso están disponibles en **inglés, chino simplificado, japonés, coreano y español**. El contenido que escribes conserva su idioma.
+
+[Alcance del producto](docs/PRD.md) · [Licencia MIT](LICENSE)

@@ -1,27 +1,34 @@
-<p align="center"><img src="docs/assets/banner.svg" alt="AgentSpace — Work with AI. Stay in control." width="1200"></p>
+<img src="docs/assets/banner.svg" alt="AgentSpace" width="480">
 
-<p align="center">English · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a> · <a href="README.ko.md">한국어</a> · <a href="README.es.md">Español</a></p>
+English · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md)
 
-AgentSpace is a local workspace for writing, connected project material and collaboration with different agents. Read the sources, inspect proposed changes and decide what becomes part of your work.
+# Your work, beyond the chat.
 
-Use the workspace without a model account or API key. Connect an external agent when you want help reading or changing material.
+Switch agents, and you’re explaining the project again. Notes and decisions get scattered across chats and folders. AI moves the work forward, but keeping track becomes a job of its own.
 
-<img src="docs/assets/workbench.png" alt="The AgentSpace desktop with synthetic example material" width="1200">
+**AgentSpace is a local workspace you own.** Write and organize your material yourself. Share context with different agents, inspect their proposed changes and decide what becomes part of your work.
 
-## What you can do
+[Get started](#start-locally) · [User guide](docs/guides/en.md) · [Architecture](docs/ARCHITECTURE.md)
 
-- **Write and resume.** Edit Markdown, keep recovery drafts and return to recent work.
-- **Build project context.** Connect notes, documents, typed records and reusable assets. Open a project to see its text, continuation references and accumulated material.
-- **Prepare an agent's starting context.** Inspect a brief with saved-version references, then create explicit MCP or CLI access.
-- **Review changes.** Read a proposal's reason, diff and cited sources before applying or rejecting it. Inspect accepted versions and use guarded undo.
-- **Keep and move your data.** Import editable copies while preserving originals; create a full backup or a readable export of current content.
-- **Choose your language.** English, Simplified Chinese, Japanese, Korean and Spanish. Authored content keeps its original language.
+## Keep context when agents change
 
-<img src="docs/assets/review.png" alt="An agent proposal with its reason, diff and cited source versions" width="1200">
+Connect notes, documents, typed records and reusable references to the projects they support. See what’s accumulated, read and edit the material, and prepare a brief with exact saved-version references.
 
-## Run locally
+Use the space without a model account or API key. Connect an external agent through MCP or CLI when you want help.
 
-The current desktop target is **macOS Apple Silicon**. To run from source:
+<img src="docs/assets/workbench.png" alt="The AgentSpace workbench: projects, connected material and direct writing, shown with synthetic example content" width="1200">
+
+## See what changes. Decide what stays.
+
+Read a proposal’s reason, full diff and cited source versions before accepting or rejecting it. Your own edits save directly. Version checks, recoverable drafts and conditional undo protect later work.
+
+Inspect accepted versions and their sources. The work remains understandable beyond the conversation that produced it.
+
+<img src="docs/assets/review.png" alt="A proposal alongside its diff, reason and cited source versions, with controls to accept or reject it" width="1200">
+
+## Start locally
+
+The desktop runs on **macOS Apple Silicon**. Use the Node version in [`.nvmrc`](.nvmrc), then:
 
 ```sh
 git clone https://github.com/li508q/agent-space.git
@@ -30,22 +37,28 @@ npm ci
 npm run dev
 ```
 
-Use the Node version in [`.nvmrc`](.nvmrc). Create a space, open an existing one or try the separate example space. [Usage guide →](docs/guides/en.md)
+Create your space or explore the separate example space. To build a standalone app with its own runtime, run `npm run package:mac`. [Build and platform details](docs/DESKTOP.md).
 
-Run `npm run package:mac` on an Apple Silicon Mac to build a standalone app with its own runtime. See [desktop setup](docs/DESKTOP.md) for build, signing and platform details.
+To connect an agent, open **Settings → Set up agent access**, choose material and capabilities, and copy the configuration into your MCP host. Creating new notes or records needs a separate permission. [MCP and CLI](docs/AGENT_PROTOCOL.md).
 
-To connect an agent, open **Settings → Set up agent access**, choose objects and capabilities, and copy the generated configuration into your MCP host. Creation of new notes or records needs a separate permission. [MCP and CLI →](docs/AGENT_PROTOCOL.md)
+## One core for people and agents
 
-## Your data and access
+The Electron/React desktop, MCP server and CLI use the same TypeScript Core and SQLite authority. Object identity, source versions, access rules and proposal decisions follow the same contracts. Markdown editing uses CodeMirror.
 
-Spaces are local files you control. AgentSpace does not encrypt them; use your operating system to protect local data and backups. External asset references retain links to files you manage separately.
+[Architecture](docs/ARCHITECTURE.md) · [Core API](docs/CORE_API.md) · [Verification and limits](docs/TESTING.md) · [CI](https://github.com/li508q/agent-space/actions)
 
-A connected agent can receive authorized material, and its host may send it to a model provider under that host's settings. Local storage does not prevent this sharing. Revoking access stops future tool requests; it cannot recall content already supplied. Prepared or copied context does not prove model understanding or task completion.
+## Your data stays yours
+
+Import editable copies without moving the originals. Keep history in a full backup or export current content in a readable format. Files behind external references remain separately managed.
+
+Spaces are local files; AgentSpace does not encrypt them. A connected agent’s host may send authorized material to a model provider. Revocation stops future requests; it cannot recall material already shared.
 
 [Data and trust boundaries](docs/SECURITY.md) · [Backup and recovery](docs/LOCAL_DATA.md)
 
-## Develop and contribute
+## Build with us
 
-See [contributing](CONTRIBUTING.md) for the development workflow and checks, [architecture](docs/ARCHITECTURE.md) for the shared core, and [CI](https://github.com/li508q/agent-space/actions) for automated results.
+Contributions should help people find context, understand changes or recover their work. See [contributing](CONTRIBUTING.md) for setup and checks, and the [documentation index](docs/README.md) for product and engineering contracts.
 
-[Documentation](docs/README.md) · [Product scope](docs/PRD.md) · [Verification and limits](docs/TESTING.md) · [MIT license](LICENSE)
+The interface and user guides support **English, Simplified Chinese, Japanese, Korean and Spanish**. Authored content keeps its original language.
+
+[Product scope](docs/PRD.md) · [MIT license](LICENSE)
