@@ -22,6 +22,8 @@ type QueryFaults = {
   __contextSelectionFault: {
     holdText: string | null;
     held: boolean;
+    holdRead: string | null;
+    readHeld: boolean;
     failMore: boolean;
     failHomeAfterStale: boolean;
     failHome: boolean;
@@ -29,6 +31,7 @@ type QueryFaults = {
     failCopy: boolean;
     pages: { items: number; bytes: number; limit: number; maxBytes: number }[];
     release(): void;
+    releaseRead(): void;
     restore(): void;
   };
 };
@@ -129,10 +132,13 @@ async function installQueryFaults(native: NativeHarness) {
         return [channel, handler] as const;
       }),
     );
-    let release: (() => void) | null = null;
+    let release: (() => void) | null = null,
+      releaseRead: (() => void) | null = null;
     const state = {
       holdText: null as string | null,
       held: false,
+      holdRead: null as string | null,
+      readHeld: false,
       failMore: false,
       failHomeAfterStale: false,
       failHome: false,
@@ -145,8 +151,15 @@ async function installQueryFaults(native: NativeHarness) {
         state.held = false;
         next?.();
       },
+      releaseRead() {
+        const next = releaseRead;
+        releaseRead = null;
+        state.readHeld = false;
+        next?.();
+      },
       restore() {
         state.release();
+        state.releaseRead();
         for (const [channel, handler] of handlers) {
           ipcMain.removeHandler(channel);
           ipcMain.handle(channel, handler);
@@ -195,6 +208,13 @@ async function installQueryFaults(native: NativeHarness) {
             state.failHome = false;
             throw new Error('Synthetic fresh-page reply loss');
           }
+        }
+        if (channel.endsWith(':readObject') && state.holdRead === input?.objectId) {
+          state.holdRead = null;
+          state.readHeld = true;
+          await new Promise<void>((resolve) => {
+            releaseRead = resolve;
+          });
         }
         if (channel.endsWith(':readObject') && state.failRead === input?.objectId) {
           state.failRead = null;
@@ -300,6 +320,106 @@ test(
       assert.deepEqual(native.pageErrors, []);
     } finally {
       await native.page.evaluate(() => window.agentSpace.bootstrap()).catch(() => undefined);
+      await clipboard.restore();
+      await native.close();
+      f.dispose();
+    }
+  },
+);
+
+test(
+  'a completed candidate query preserves an in-flight copy of unchanged exact selections',
+  { skip: process.platform !== 'darwin', timeout: 120_000 },
+  async () => {
+    const f = fixture(),
+      native = await launchNative({
+        entry: root,
+        userData: join(f.root, 'Concurrent candidates and copy profile'),
+      });
+    const clipboard = await installClipboardFixture(native, 'context-query-during-copy');
+    let installed = false;
+    try {
+      const preparation = await openPreparation(native, f.directory, f.ids.compass),
+        task = 'Compare these exact saved versions while other candidates refresh.';
+      await preparation.getByTestId('context-task').fill(task);
+      await find(native, 'document', 'Cross material');
+      await native.page.getByTestId(`context-space-${f.notes[1]!.id}:1`).check();
+      const later = ok(
+        f.human.saveObject({
+          operationKey: 'selection:concurrent-candidate',
+          targetId: f.notes[1]!.id,
+          expectedRevision: 1,
+          content: { ...f.notes[1]!.content, body: 'A newer candidate is not a new selection.' },
+        }),
+      ).object;
+      const before = ok(f.human.status()).authoritySequence;
+      await installQueryFaults(native);
+      installed = true;
+      await native.application.evaluate((_electron, seedId) => {
+        const state = (globalThis as unknown as QueryFaults).__contextSelectionFault;
+        state.holdText = 'Cross material';
+        state.holdRead = seedId;
+      }, f.ids.compass);
+      await preparation.getByTestId('context-query-refresh').click();
+      const until = Date.now() + 5_000;
+      while (
+        !(await native.application.evaluate(
+          () => (globalThis as unknown as QueryFaults).__contextSelectionFault.held,
+        ))
+      ) {
+        assert.ok(Date.now() < until, 'The candidate query response must be held.');
+        await delay(20);
+      }
+      await preparation.getByTestId('copy-context-brief').click();
+      const readUntil = Date.now() + 5_000;
+      while (
+        !(await native.application.evaluate(
+          () => (globalThis as unknown as QueryFaults).__contextSelectionFault.readHeld,
+        ))
+      ) {
+        assert.ok(Date.now() < readUntil, 'The exact selection read must be held.');
+        await delay(20);
+      }
+      assert.equal(await clipboard.readText(), '');
+      await native.application.evaluate(() =>
+        (globalThis as unknown as QueryFaults).__contextSelectionFault.release(),
+      );
+      await preparation.getByTestId(`context-space-${later.id}:2`).waitFor();
+      await native.page.waitForFunction(
+        () =>
+          document.querySelector<HTMLButtonElement>('[data-testid="context-query-refresh"]')
+            ?.disabled === false,
+      );
+      assert.equal(await preparation.getByTestId('copy-context-brief').isDisabled(), true);
+      assert.equal(
+        await preparation.getByTestId(`context-retained-${later.id}:1`).isChecked(),
+        true,
+      );
+      await native.application.evaluate(() =>
+        (globalThis as unknown as QueryFaults).__contextSelectionFault.releaseRead(),
+      );
+      await preparation.getByTestId('context-brief-copied').waitFor();
+      const brief = JSON.parse(await clipboard.readText()) as Brief;
+      assert.equal(brief.task, task);
+      assert.equal(brief.references.length, 2);
+      assert.ok(
+        brief.references.some(
+          (reference) =>
+            reference.ref.objectId === later.id &&
+            reference.ref.revision === 1 &&
+            reference.digest === f.notes[1]!.digest,
+        ),
+      );
+      assert.equal(ok(f.human.status()).authoritySequence, before);
+      assert.deepEqual(ok(f.human.listGrants()), []);
+      assert.deepEqual(ok(f.human.readObject({ objectId: later.id })).object, later);
+      assert.equal(await preparation.getByTestId('context-task').inputValue(), task);
+      assert.deepEqual(native.pageErrors, []);
+    } finally {
+      if (installed)
+        await native.application.evaluate(() =>
+          (globalThis as unknown as QueryFaults).__contextSelectionFault.restore(),
+        );
       await clipboard.restore();
       await native.close();
       f.dispose();

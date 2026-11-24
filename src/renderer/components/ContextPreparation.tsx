@@ -286,7 +286,6 @@ export function ContextPreparation({
         return;
       }
       const rows = page.items.map(summaryReference);
-      invalidateSelection();
       setQueryStale(false);
       setQueryResultKey(expected);
       setQueryItems((old) =>
