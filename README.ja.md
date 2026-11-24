@@ -28,7 +28,19 @@
 
 ## 使い始める
 
-デスクトップ版は **macOS Apple Silicon** で動作します。[`.nvmrc`](.nvmrc) で指定した Node を使い、次を実行してください。
+デスクトップ版は **Apple Silicon 搭載の Mac、macOS 13 以降**に対応しています。
+
+[Mac アプリ](https://github.com/li508q/agent-space/releases/latest)と `SHA256SUMS` をダウンロードします。ダウンロード先で ZIP を検証してから展開してください。
+
+```sh
+shasum -a 256 -c SHA256SUMS
+```
+
+`AgentSpace.app` を今後使うローカルフォルダーに置き、開きます。ランタイムを内蔵しているため、Node の追加インストールやモデルのアカウントは不要です。配布版は ad-hoc 署名のみで、Apple の公証は受けていません。[インストールと macOS のセキュリティ](docs/DESKTOP.md#install-the-desktop)をご覧ください。
+
+### ソースから実行する
+
+[`.nvmrc`](.nvmrc) で指定した Node を使い、次を実行してください。
 
 ```sh
 git clone https://github.com/li508q/agent-space.git

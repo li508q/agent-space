@@ -50,12 +50,18 @@ button {
 }
 
 button:hover:not(:disabled) {
-  background: var(--as-color-selection);
+  background: var(--as-control-hover);
+}
+
+button:active:not(:disabled) {
+  background: var(--as-control-pressed);
 }
 
 button:disabled {
   cursor: default;
-  opacity: 0.6;
+  background: var(--as-control-disabled-bg);
+  color: var(--as-control-disabled-text);
+  border-color: var(--as-color-divider);
 }
 
 input,
@@ -78,7 +84,7 @@ textarea {
 }
 
 a {
-  color: var(--as-accent);
+  color: var(--as-link);
   text-underline-offset: 0.16em;
 }
 
@@ -89,7 +95,7 @@ a {
 
 ::selection {
   background: var(--as-color-selection);
-  color: var(--as-color-ink);
+  color: var(--as-selection-text);
 }
 
 .as-prose {

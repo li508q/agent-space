@@ -97,7 +97,7 @@ Undo is a new human mutation. The current revision must equal the revision produ
 
 ## Reads, pagination and visible activity
 
-Current-state query cursors bind the canonical filter, scope/grant generation, authority sequence and last object ID. Any authority change returns `CURSOR_STALE`; discard accumulated pages and restart. Exact revision reads have a different continuation contract: they retain the resolved pin/digest across head changes and recheck authorization on every page.
+Current-state query cursors bind the canonical filter, scope/grant generation, authority sequence and last object ID. Any authority change returns `CURSOR_STALE`; invalidate the continuation and restart. A human selection surface may retain its previous successful rows, marked stale, until the fresh first page succeeds; it must not append a new authority sequence to that old chain. Exact revision reads have a different continuation contract: they retain the resolved pin/digest across head changes and recheck authorization on every page.
 
 Agent reads select an explicit section and a 1–64 KiB encoded application-result budget. Body ranges count Unicode code points; properties and relations use stable entry order. Returned JSON includes the actual range, byte count, truncation and next cursor. Oversized entries return `LIMIT_EXCEEDED` with the needed minimum budget. Trusted human editor reads can return a complete managed object.
 
@@ -137,4 +137,6 @@ Live backup uses SQLite's online backup API, then validates the completed copy's
 
 Resource ceilings are 512 MiB of database pages, 1 MiB per managed object payload, 32 KiB per serialized typed field, 64 properties and 100 relations per object. Input trees are bounded to depth 32 and 20,000 nodes. Malformed Unicode, non-JSON/cyclic input and excess capacity fail explicitly. These ceilings are not large-library performance guarantees.
 
-The desktop currently prepares context from a saved starting object, its declared links and bounded current project members, with at most 20 selected pins. It has no general workspace-wide arbitrary-selection surface. Asset Details shows the origin label and relink/lifecycle actions; it has no dedicated stored-location inspect/copy control. Automatic semantic organization, external-file synchronization, cloud sync and multi-user coordination are outside the current implementation.
+Context preparation composes a saved starting object, declared links, current project members and workspace queries into at most 20 exact pins. The renderer holds this temporary selection. Core returns the requested saved snapshots; before preparation or access setup, the renderer verifies the binding, object ID, revision and digest against each selected pin. Object IDs are deduplicated separately when seeding a grant form. Selection creates neither a durable relationship nor a grant.
+
+Recorded locations are display-only data from a checked snapshot or approved import plan. The renderer can copy the literal text, but cannot submit it as path authority. Main continues to use native-selected locations and opaque handles. Automatic semantic organization, external-file synchronization, cloud sync and multi-user coordination are outside the current implementation.

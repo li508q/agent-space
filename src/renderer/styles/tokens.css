@@ -1,24 +1,38 @@
 /* Offline workbench tokens. Layout/semantics are wired by the renderer, not by this file. */
 :root {
   color-scheme: light;
-  --as-color-ink: #202936;
-  --as-color-slate: #536170;
+  --as-color-ink: #1e2a3b;
+  --as-color-slate: #526176;
   --as-color-paper: #ffffff;
-  --as-color-mist: #f3f5f7;
-  --as-color-blue: #3658ad;
-  --as-color-green: #246347;
-  --as-color-attention: #805600;
-  --as-color-danger: #b42318;
-  --as-color-divider: #d9e0e7;
-  --as-color-selection: #e8eefb;
+  --as-color-mist: #f1f4f8;
+  --as-color-blue: #315acc;
+  --as-color-green: #246548;
+  --as-color-attention: #835b05;
+  --as-color-danger: #b5373d;
+  --as-color-divider: #d8e0ea;
+  --as-color-selection: #e5edff;
 
   --as-surface: var(--as-color-paper);
+  --as-surface-subtle: #f7f9fc;
+  --as-chrome: #e9eef5;
   --as-canvas: var(--as-color-mist);
   --as-text: var(--as-color-ink);
   --as-text-secondary: var(--as-color-slate);
   --as-accent: var(--as-color-blue);
-  --as-control-border: var(--as-color-slate);
-  --as-focus: var(--as-color-blue);
+  --as-accent-hover: #284db6;
+  --as-accent-pressed: #223e91;
+  --as-link: #284db6;
+  --as-selection-text: #284db6;
+  --as-control-border: #6f7e94;
+  --as-control-hover: #eef3fa;
+  --as-control-pressed: #e1e9f5;
+  --as-control-disabled-bg: #f1f4f8;
+  --as-control-disabled-text: #5a6a80;
+  --as-success-bg: #eef7f1;
+  --as-warning-bg: #fff5dd;
+  --as-danger-bg: #fff0f0;
+  --as-info-bg: #edf3ff;
+  --as-focus: #284db6;
 
   --as-font-ui: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --as-font-prose: var(--as-font-ui);
@@ -28,7 +42,7 @@
   --as-type-prose: 1.0625rem;
   --as-type-title: 1.625rem;
   --as-leading-ui: 1.45;
-  --as-leading-prose: 1.6;
+  --as-leading-prose: 1.65;
 
   --as-space-1: 0.25rem;
   --as-space-2: 0.5rem;
@@ -37,20 +51,25 @@
   --as-space-6: 1.5rem;
 
   --as-control-size: 2rem;
-  --as-radius-control: 0.375rem;
-  --as-radius-dialog: 0.75rem;
+  --as-primary-size: 2.25rem;
+  --as-radius-control: 0.5rem;
+  --as-radius-dialog: 0.875rem;
   --as-border-width: 1px;
   --as-focus-width: 2px;
   --as-focus-offset: 2px;
-  --as-shadow-dialog: 0 1rem 3rem rgb(32 41 54 / 16%);
+  --as-shadow-dialog: 0 1rem 3rem rgb(30 42 59 / 16%);
+  --as-shadow-popover: 0 0.5rem 1.5rem rgb(30 42 59 / 14%);
+  --as-chrome-highlight: inset 0 1px 0 rgb(255 255 255 / 80%);
+  --as-scrim: rgb(30 42 59 / 35%);
 
-  --as-nav-width: 13rem;
-  --as-list-width: 14.5rem;
+  --as-nav-width: 12.5rem;
+  --as-list-width: 15.5rem;
   --as-details-width: 18rem;
   --as-prose-measure: 70ch;
   --as-page-gutter: 1.5rem;
   --as-scroll-clearance: 4rem;
-  --as-motion-feedback: 120ms;
+  --as-motion-feedback: 80ms;
+  --as-motion-selection: 120ms;
   --as-ease-feedback: ease-out;
 }
 
@@ -89,6 +108,7 @@
 @media (prefers-reduced-motion: reduce) {
   :root {
     --as-motion-feedback: 0ms;
+    --as-motion-selection: 0ms;
   }
 }
 

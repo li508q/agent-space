@@ -23,7 +23,7 @@ Markdown (`.md`, `.markdown`) and plain text (`.txt`) must be valid UTF-8. Accep
 
 Symlinks, `.git`, dependency/cache/build directories and nonregular files are skipped. Oversized, binary, unsupported or invalid-UTF-8 items report an issue. A truncated preview is not a full-directory inventory. Native preview pages expose bounded entries and grouping metadata.
 
-Main verifies source identity/version against the approved preview and again during capture. Changed text requires a fresh preview and approval. Source paths are provenance, not object identity or executable instructions. Import never writes or synchronizes originals, nor marks knowledge reviewed.
+Main verifies source identity/version against the approved preview and again during capture. Changed text requires a fresh preview and approval. Preview can disclose the checked source location as display-only text to distinguish same-named files. The renderer cannot submit that text as a trusted path; confirmation still uses the approved plan and opaque handle. Source paths are provenance, not object identity or executable instructions. Import never writes or synchronizes originals, nor marks knowledge reviewed.
 
 ### Progress and retry
 

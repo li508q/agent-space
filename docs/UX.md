@@ -34,6 +34,8 @@ Autosave follows 800 ms without input; recovery retention follows 250 ms. Save n
 
 An older save cannot mark newer input saved. Background reads never replace dirty input. Save and draft-retention failures remain visible near the editor; a toast is insufficient.
 
+The body footer contains a closed Context details section for copying saved context. Keep save state, errors and Copy edits immediately available. Recorded locations appear separately at the end of the body, and in Details: show the exact locator and origin mode of the displayed revision as inert text, with a dedicated copy action. Neither display nor copy opens, executes, checks or synchronizes the target. Keyboard focus reveals the complete location-copy control within the body scrollport.
+
 Before replacing an editor, finish composition, pause input and confirm either a saved version or a retained draft. Keep that guard through the pending read/create reply. A cancelled or failed opening retains the old editor. If save and draft retention both fail, offer retry, copy or explicit discard and keep the input available. Each transition and native close owns an independent lock; a late callback cannot release another lock.
 
 ## Projects, fields and relationships
@@ -65,12 +67,13 @@ Copy saved context copies the displayed saved version's identity, digest, body, 
 Prepare context starts with only the displayed saved version selected. It retains an optional task of up to 1,000 Unicode code points and at most 20 distinct object/revision pins.
 
 1. Keep the starting version's declared links separate from current active project material as queried. Resolve current targets to exact pins.
-2. Page candidates in at most 20 items/32 KiB. Show More and loaded counts; do not label the result a complete historical project snapshot.
-3. Verify every selected pin and digest before preview, copy or access setup. Unavailable selections must be retried or removed; never substitute the current head.
-4. Show the exact `agentspace-brief/v1` preview. Its groups index only selected pins. A selected project's optional goal excerpt is at most 280 code points; removing that project removes its title and excerpt.
-5. Invalidate preview and success/error feedback when the task, selection, binding or candidate chain changes. A copy failure retains choices and exposes retry.
+2. Add material from the space through an optional literal-text query, with object-kind and lifecycle filters. These results remain separate from declared links and project material. Page candidates in at most 20 items/32 KiB. Show More and loaded counts; do not label the result a complete historical project snapshot. Keep selected pins across filters and pages; deduplicate by object/revision, not by title.
+3. On an ordinary page failure, retain successful rows, selected pins and the failed cursor so Retry repeats that page. A stale cursor or authority-sequence mismatch invalidates the old continuation and starts a fresh first page. Keep the old successful rows, marked stale, until that fresh page succeeds; then replace the result list atomically. Late responses from another filter, binding or query generation cannot replace current choices.
+4. Verify every selected pin and digest before preview, copy or access setup. Unavailable selections must be retried or removed; never substitute the current head.
+5. Show the exact `agentspace-brief/v1` preview. Its groups index only selected pins. A selected project's optional goal excerpt is at most 280 code points; removing that project removes its title and excerpt.
+6. Invalidate preview and success/error feedback when the task, selection, binding or candidate chain changes. A copy failure retains choices and exposes retry.
 
-Preparation is in-memory state for one binding, retained through Settings/Import visits. It is not a saved document, recovery draft or restart promise. It preserves the underlying editor and reading return path. Explicitly opening an import result follows that reader instead of reopening the old preparation.
+Selection itself neither changes relationships nor grants access. Preparation is in-memory state for one binding, retained through Settings/Import visits. It is not a saved document, recovery draft or restart promise. It preserves the underlying editor and reading return path. Explicitly opening an import result follows that reader instead of reopening the old preparation.
 
 Set up agent access carries selected object IDs to the form, including objects outside its first directory page. Preserve prior human choices or a known one-time configuration; Use selected material explicitly replaces a selection. The person checks scope and capabilities and chooses Create access.
 

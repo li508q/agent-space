@@ -28,7 +28,19 @@ Consulta las versiones aceptadas y sus fuentes. El trabajo sigue siendo comprens
 
 ## Empieza en local
 
-La aplicación de escritorio funciona en **macOS Apple Silicon**. Usa la versión de Node de [`.nvmrc`](.nvmrc) y ejecuta:
+La aplicación funciona en **Mac con Apple Silicon y macOS 13 o posterior**.
+
+[Descarga la aplicación para Mac](https://github.com/li508q/agent-space/releases/latest) y `SHA256SUMS`. En la carpeta de descargas, verifica el ZIP antes de descomprimirlo:
+
+```sh
+shasum -a 256 -c SHA256SUMS
+```
+
+Coloca `AgentSpace.app` en una carpeta local fija y ábrela. Incluye su entorno de ejecución; no necesitas instalar Node ni tener una cuenta de un proveedor de modelos. La descarga tiene firma ad-hoc y no está notarizada por Apple. Consulta la [instalación y seguridad de macOS](docs/DESKTOP.md#install-the-desktop).
+
+### Ejecutar desde el código fuente
+
+Usa la versión de Node de [`.nvmrc`](.nvmrc) y ejecuta:
 
 ```sh
 git clone https://github.com/li508q/agent-space.git

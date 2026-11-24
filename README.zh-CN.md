@@ -28,7 +28,19 @@
 
 ## 开始使用
 
-桌面版运行于 **macOS Apple Silicon**。使用 [`.nvmrc`](.nvmrc) 指定的 Node 版本，然后执行：
+桌面版适用于 **搭载 Apple Silicon、运行 macOS 13 或更新版本的 Mac**。
+
+[下载 Mac 应用](https://github.com/li508q/agent-space/releases/latest)和 `SHA256SUMS`。在下载目录中先校验 ZIP，再解压：
+
+```sh
+shasum -a 256 -c SHA256SUMS
+```
+
+将 `AgentSpace.app` 放到准备长期使用的本地文件夹后打开。应用内置运行时，无需另装 Node 或拥有模型账号。下载包采用 ad-hoc 签名，未经 Apple 公证。参见[安装与 macOS 安全提示](docs/DESKTOP.md#install-the-desktop)。
+
+### 从源码运行
+
+使用 [`.nvmrc`](.nvmrc) 指定的 Node 版本，然后执行：
 
 ```sh
 git clone https://github.com/li508q/agent-space.git

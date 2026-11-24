@@ -4,6 +4,16 @@
 
 AgentSpace keeps your writing, project material and agent proposals in a local space. You can read, edit, organize and recover work without a model account.
 
+## Install the app
+
+AgentSpace requires **Apple Silicon and macOS 13 or later**. Download the macOS arm64 ZIP and `SHA256SUMS` from [GitHub Releases](https://github.com/li508q/agent-space/releases/latest). Keep both files in the same folder and verify the ZIP before extracting it:
+
+```sh
+shasum -a 256 -c SHA256SUMS
+```
+
+The app includes its runtime; direct use needs neither a Node installation nor a model account. Downloads use ad-hoc signing, without a Developer ID signature or Apple notarization. If macOS blocks the app, check its source and checksum, then follow [Apple's instructions for Open Anyway](https://support.apple.com/en-us/102445). AgentSpace does not change macOS security settings.
+
 ## Open or create a space
 
 Choose **Create space** for a new local folder, **Open space** for an existing AgentSpace folder, or **Open example space** to try synthetic material stored separately from your work. The header identifies the selected space.
@@ -23,7 +33,7 @@ Use **Library** to browse, search and filter saved material, or choose **New mat
 Open **Import existing material** from Continue, the space menu or an empty Library view without filters.
 
 1. Choose files or a folder.
-2. Inspect the preview: text copies, proposed project groups, external references, skipped items and scan limits.
+2. Inspect the preview: text copies, source locations, proposed project groups, external references, skipped items and scan limits.
 3. Confirm your choices, then inspect each item's result.
 
 Valid UTF-8 Markdown and plain text become editable managed copies with origin information. Original files remain unchanged. Repositories and other native formats can be explicit external references; their contents are not copied, run or synchronized. The optional **Knowledge, projects and repositories** profile suggests project groups and repository references.
@@ -54,19 +64,24 @@ Relationships can **Follow current** content or point to a **Pinned version**. A
 
 In the source reader, **Edit current original** opens the current managed object. For example, reading version 1 while editing current version 2 produces version 3 on the same object; version 1 and its citations remain intact. Existing unsaved edits stay in their editor with their original base and any conflict visible. **Return to reading** returns to the cited version and calling position. An archived or unavailable current original does not remove readable retained history. This action edits the managed copy, not an external source file.
 
-**Copy saved context** copies this item's saved title, body, fields, links, version details and space information. Selecting part of the body includes that text instead of the full body. Linked document bodies are not included. For a task brief with several version references, use context preparation below.
+At the end of the document or source reader, expand **Context details**, which is initially collapsed. **Copy saved context** copies this item's saved title, body, fields, links, version details and space information. Selecting part of the body in the editor includes that text instead of the full body. Linked document bodies are not included. For a task brief with several version references, use context preparation below.
+
+Imported copies and external references show **Recorded location** after the body and in Details. This is the location recorded in the version you are reading, including a historical version. **Copy location** copies that text; it does not open or run anything, confirm that the original exists, or synchronize it. Imported copies remain separate from their originals. If no location was recorded, copying is unavailable. Material without an external origin has no location section.
 
 ## Prepare context for an agent
 
 From a saved document or the source reader, choose **Prepare context**.
 
 1. Optionally describe the task in up to 1,000 Unicode code points.
-2. Select up to **20 unique saved-version references**. The starting item is selected initially. Candidates come from that version's direct links and, for a project, its current active material. Load more within these groups as needed.
-3. Open **Inspect brief and references**, check the visible text, then **Copy brief and references**.
+2. Select up to **20 unique saved-version references** across all groups. Only the starting item is selected initially. Its direct links and, for a project, current active material appear in separate groups. Load more within a group as needed.
+3. Expand **Add material from the space** to combine other projects, areas of your work and independent material. Search by literal text and filter by type and active, archived or all material. Results show current saved versions; selecting a result fixes that exact version. Changing the query or refreshing does not replace selected versions. **Selected from earlier results** keeps choices that are outside the original groups visible for removal, even when search is collapsed.
+4. Open **Inspect brief and references**. AgentSpace checks every selected saved version again before previewing, copying or opening access setup. Inspect the visible text, then **Copy brief and references**.
+
+Search pages and loaded counts describe the current query, not the whole space. Use more results or **Refresh results** as needed. If a refresh or next page fails, successfully loaded rows and your selections remain; retry before treating those results as current. Direct links, current project material and space search remain distinct sources of candidates. They do not reconstruct a complete historical project snapshot.
 
 The brief contains the task and fixed references, plus up to 280 characters of the starting project's goal when that project is selected. Deselecting it removes its title and excerpt. Linked document bodies are not recursively included. An unavailable selection needs retry or removal; it is never replaced with a newer version.
 
-Copy success means the text reached the clipboard. It does not create a grant or confirm an agent received it. Preparation stays in memory while this space is open, including visits to Settings or Import; it is not a saved document or a draft recoverable after restart.
+Selecting material does not create relationships or grant access. **Set up agent access** opens a separate form; only **Create access** issues the grant. Copy success means the text reached the clipboard, not that an agent received it. Preparation stays in memory while this space is open, including visits to Settings or Import; it is not a saved document or a draft recoverable after restart.
 
 ## Connect an agent with explicit access
 

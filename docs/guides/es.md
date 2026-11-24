@@ -4,6 +4,16 @@
 
 AgentSpace reúne tus textos, material de proyectos y propuestas de agentes en un espacio local. Puedes leer, editar, organizar y recuperar trabajo sin una cuenta de un proveedor de modelos.
 
+## Instalar la aplicación
+
+Necesitas **Apple Silicon y macOS 13 o posterior**. Descarga el ZIP para macOS arm64 y `SHA256SUMS` desde [GitHub Releases](https://github.com/li508q/agent-space/releases/latest). Guarda ambos en la misma carpeta y verifica el ZIP antes de extraerlo:
+
+```sh
+shasum -a 256 -c SHA256SUMS
+```
+
+La aplicación incluye su entorno de ejecución; el uso directo no requiere instalar Node ni tener una cuenta de un proveedor de modelos. La descarga tiene firma ad-hoc, sin firma Developer ID ni notarización de Apple. Si macOS la bloquea, comprueba su origen y suma de verificación y consulta las [instrucciones de Apple para Abrir igualmente](https://support.apple.com/en-us/102445). AgentSpace no cambia los ajustes de seguridad de macOS.
+
 ## Crear o abrir un espacio
 
 Elige **Crear espacio** para una carpeta local nueva, **Abrir espacio** para una carpeta de AgentSpace existente o **Abrir espacio de ejemplo** para probar material ficticio guardado por separado de tu trabajo. El encabezado identifica el espacio seleccionado.
@@ -23,7 +33,7 @@ Usa **Biblioteca** para explorar, buscar y filtrar material guardado, o elige **
 Abre **Importar material existente** desde Continuar, el menú del espacio o una vista vacía de Biblioteca sin filtros.
 
 1. Selecciona archivos o una carpeta.
-2. Comprueba la vista previa: copias de texto, grupos de proyectos, referencias externas, elementos omitidos y límites del recorrido.
+2. Comprueba la vista previa: copias de texto, ubicaciones de origen, grupos de proyectos, referencias externas, elementos omitidos y límites del recorrido.
 3. Confirma la selección y consulta el resultado de cada elemento.
 
 Markdown y texto plano en UTF-8 válido se convierten en copias gestionadas editables con información de origen. Los archivos originales no cambian. Los repositorios y otros formatos pueden seleccionarse como referencias externas; su contenido no se copia, ejecuta ni sincroniza. El perfil **Conocimiento, proyectos y repositorios** ayuda a sugerir grupos de proyectos y referencias a repositorios; es opcional.
@@ -54,19 +64,24 @@ Las relaciones pueden **Seguir versión actual** o apuntar a una **Versión fija
 
 En el lector de fuentes, **Editar original actual** abre la versión actual del mismo objeto gestionado. Por ejemplo, leer la versión 1 y editar la versión 2 actual crea la versión 3 del mismo objeto; la versión 1 y sus citas no cambian. Si ya hay ediciones sin guardar, permanecen en su editor con su versión de base y cualquier conflicto visibles. **Volver a la lectura** recupera la versión citada y la posición anterior. Que el original actual esté archivado o no disponible no elimina el historial que siga siendo legible. Esta acción edita la copia gestionada, no el archivo de origen externo.
 
-**Copiar contexto guardado** copia el título, el cuerpo, los campos, los enlaces y los datos de versión y espacio de este elemento guardado. Si seleccionas parte del cuerpo, se incluye esa selección en lugar del cuerpo completo. No incluye el cuerpo de los documentos enlazados. Para reunir referencias a varias versiones y explicar una tarea, usa la preparación de contexto que se describe a continuación.
+Al final del documento o del lector de fuentes, despliega **Detalles del contexto**, que aparece cerrado inicialmente. **Copiar contexto guardado** copia el título, el cuerpo, los campos, los enlaces y los datos de versión y espacio de este elemento guardado. Si seleccionas parte del cuerpo en el editor, se incluye esa selección en lugar del cuerpo completo. No incluye el cuerpo de los documentos enlazados. Para reunir referencias a varias versiones y explicar una tarea, usa la preparación de contexto que se describe a continuación.
+
+Las copias importadas y las referencias externas muestran **Ubicación registrada** al final del cuerpo y en Detalles. Es la ubicación registrada en la versión que estás leyendo, también en una versión histórica. **Copiar ubicación** solo copia ese texto: no abre ni ejecuta el original, no comprueba que exista ni lo sincroniza. La copia importada se guarda por separado del original. Si no hay ubicación registrada, no se puede copiar. El material sin origen externo no muestra esta sección.
 
 ## Preparar contexto para un agente
 
 Desde un documento guardado o el lector de fuentes, elige **Preparar contexto**.
 
 1. Si lo necesitas, describe la tarea en hasta 1.000 puntos de código Unicode.
-2. Selecciona hasta **20 referencias únicas a versiones guardadas**. Al principio solo está seleccionado el elemento de partida. Los candidatos son los enlaces directos de esa versión y, si partes de un proyecto, su material activo actual. Puedes cargar más dentro de cada grupo.
-3. Abre **Revisar explicación y referencias**, comprueba el texto visible y usa **Copiar explicación y referencias**.
+2. Selecciona hasta **20 referencias únicas a versiones guardadas** entre todos los grupos. Al principio solo está seleccionado el elemento de partida. Sus enlaces directos y, si es un proyecto, su material activo actual aparecen en grupos separados. Puedes cargar más dentro de cada grupo.
+3. Despliega **Añadir material del espacio** para combinar otros proyectos, áreas de trabajo y material independiente. Busca texto literal y filtra por tipo y por material activo, archivado o todo el material. Los resultados muestran las versiones guardadas actuales; cada selección fija esa versión exacta. Cambiar la búsqueda o actualizarla no sustituye las versiones seleccionadas. **Versiones seleccionadas de resultados anteriores** conserva las elecciones ajenas a los grupos originales para que puedas quitarlas, incluso con la búsqueda cerrada.
+4. Abre **Revisar explicación y referencias**. AgentSpace comprueba de nuevo cada versión seleccionada antes de generar la vista previa, copiar o abrir los ajustes de acceso. Comprueba el texto visible y usa **Copiar explicación y referencias**.
+
+Las páginas y los recuentos describen la búsqueda actual, no todo el espacio. Carga más resultados o usa **Actualizar resultados** cuando lo necesites. Si falla la actualización o la página siguiente, se conservan las filas cargadas correctamente y tus selecciones; reintenta antes de tratarlas como resultados actuales. Los enlaces directos, el material actual del proyecto y la búsqueda del espacio se distinguen entre sí. No reconstruyen una instantánea histórica completa del proyecto.
 
 La explicación contiene la tarea y referencias fijadas. Si está seleccionado el proyecto de partida, puede incluir hasta 280 caracteres de su objetivo; al desmarcarlo se eliminan su título y extracto. No incorpora recursivamente los textos enlazados. Una selección no disponible requiere reintento o eliminación; nunca se sustituye por una versión nueva.
 
-El éxito de la copia significa que el texto llegó al portapapeles. No crea permisos ni confirma que un agente lo haya recibido. La preparación queda en memoria mientras el espacio está abierto, incluso al visitar Ajustes o Importar; no es un documento guardado ni un borrador recuperable tras reiniciar.
+Seleccionar material no crea relaciones ni concede acceso. **Configurar acceso de agentes** abre un formulario independiente; solo **Crear permiso de acceso** emite el permiso. El éxito de la copia significa que el texto llegó al portapapeles, no que un agente lo haya recibido. La preparación queda en memoria mientras el espacio está abierto, incluso al visitar Ajustes o Importar; no es un documento guardado ni un borrador recuperable tras reiniciar.
 
 ## Conectar un agente con permisos explícitos
 

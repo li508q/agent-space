@@ -58,6 +58,6 @@ SC-09, broader personal planning and application/service execution, is outside t
 
 ## Current limits
 
-The desktop prepares up to 20 saved references from the starting version, its direct links and queried project material. It does not provide an arbitrary cross-project selection basket. Recorded external locations have no direct-copy control in the current desktop. Literal search, bounded traversal and per-object version review do not provide automatic semantic maintenance or source-freshness certification.
+Context preparation combines up to 20 distinct saved object/revision pins from the starting version, its links, project material and queries across the space. Selection is temporary, preserves exact revisions and does not create relationships or grants. Recorded locations are inspectable, copyable provenance from the displayed revision; they do not prove existence or synchronization. Literal search, bounded traversal and per-object version review do not provide automatic semantic maintenance or source-freshness certification.
 
 Cloud teams, general chat, workflow orchestration, arbitrary app execution and full spreadsheet compatibility are outside this product scope. Distribution and physical-device verification limits are listed in [Testing](TESTING.md).

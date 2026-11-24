@@ -28,7 +28,19 @@ Inspect accepted versions and their sources. The work remains understandable bey
 
 ## Start locally
 
-The desktop runs on **macOS Apple Silicon**. Use the Node version in [`.nvmrc`](.nvmrc), then:
+The desktop runs on **Apple Silicon with macOS 13 or later**.
+
+[Download the Mac app](https://github.com/li508q/agent-space/releases/latest), plus `SHA256SUMS`. In the download folder, verify the ZIP before extracting it:
+
+```sh
+shasum -a 256 -c SHA256SUMS
+```
+
+Move `AgentSpace.app` to a fixed local folder and open it. The app includes its runtime; no Node installation or model account is needed. Downloads use ad-hoc signing and are not notarized by Apple. See [installation and macOS security](docs/DESKTOP.md#install-the-desktop).
+
+### Build from source
+
+Use the Node version in [`.nvmrc`](.nvmrc), then:
 
 ```sh
 git clone https://github.com/li508q/agent-space.git

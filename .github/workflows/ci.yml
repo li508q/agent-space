@@ -38,7 +38,7 @@ jobs:
   macos:
     name: macOS · Native and package
     runs-on: macos-15
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -55,6 +55,9 @@ jobs:
         run: |
           npx tsx --test --test-concurrency=1 \
             tests/acceptance/native-workbench.e2e.ts \
+            tests/acceptance/native-local-ui.e2e.ts \
+            tests/acceptance/native-writing-details.e2e.ts \
+            tests/acceptance/native-context-selection.e2e.ts \
             tests/acceptance/native-navigation.e2e.ts \
             tests/acceptance/native-composition.e2e.ts \
             tests/acceptance/native-response-loss.e2e.ts \
@@ -70,7 +73,7 @@ jobs:
       - name: Packaged writing, reading and recovery
         run: |
           package_version=$(node -p "require('./package.json').version")
-          AGENTSPACE_TEST_EXECUTABLE="$PWD/release/AgentSpace-$package_version-macOS-arm64/AgentSpace.app/Contents/MacOS/AgentSpace" npx tsx --test --test-concurrency=1 tests/acceptance/native-composition.e2e.ts tests/acceptance/native-project-reading.e2e.ts tests/acceptance/native-change-discovery.e2e.ts tests/acceptance/native-knowledge-discovery.e2e.ts tests/acceptance/native-context-setup.e2e.ts tests/acceptance/native-context-focus.e2e.ts
+          AGENTSPACE_TEST_EXECUTABLE="$PWD/release/AgentSpace-$package_version-macOS-arm64/AgentSpace.app/Contents/MacOS/AgentSpace" npx tsx --test --test-concurrency=1 tests/acceptance/native-composition.e2e.ts tests/acceptance/native-local-ui.e2e.ts tests/acceptance/native-writing-details.e2e.ts tests/acceptance/native-context-selection.e2e.ts tests/acceptance/native-project-reading.e2e.ts tests/acceptance/native-change-discovery.e2e.ts tests/acceptance/native-knowledge-discovery.e2e.ts tests/acceptance/native-context-setup.e2e.ts tests/acceptance/native-context-focus.e2e.ts
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: AgentSpace-macOS-arm64

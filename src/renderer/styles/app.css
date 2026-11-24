@@ -15,6 +15,15 @@ button {
 }
 button svg {
   flex: 0 0 auto;
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+.lucide {
+  stroke-width: 1.75;
+}
+/* Keep the visible stroke consistent when an icon is scaled within its control. */
+.lucide > * {
+  vector-effect: non-scaling-stroke;
 }
 h1,
 h2,
@@ -46,24 +55,40 @@ small {
   font-size: var(--as-type-caption);
 }
 button.primary {
+  min-block-size: var(--as-primary-size);
   background: var(--as-accent);
   color: var(--as-color-paper);
   border-color: var(--as-accent);
 }
 button.primary:hover:not(:disabled) {
-  background: var(--as-color-ink);
+  background: var(--as-accent-hover);
+  border-color: var(--as-accent-hover);
+}
+button.primary:active:not(:disabled) {
+  background: var(--as-accent-pressed);
+  border-color: var(--as-accent-pressed);
+}
+button.primary:disabled {
+  background: var(--as-control-disabled-bg);
+  color: var(--as-control-disabled-text);
+  border-color: var(--as-color-divider);
 }
 .text-button {
   border: 0;
   padding: 0.2rem 0;
   min-block-size: 1.75rem;
-  color: var(--as-accent);
+  color: var(--as-link);
   background: transparent;
   justify-content: flex-start;
   text-decoration: underline;
   text-underline-offset: 0.18em;
 }
+.text-button:disabled {
+  background: transparent;
+}
 .icon-button {
+  background: transparent;
+  border-color: transparent;
   padding: 0.375rem;
   min-inline-size: 2rem;
   flex-shrink: 0;
@@ -92,8 +117,18 @@ button.primary:hover:not(:disabled) {
   gap: 0.75rem 1.5rem;
   padding: 0.65rem 1rem;
   border-block-end: 1px solid var(--as-color-divider);
-  background: var(--as-surface);
+  background: var(--as-chrome);
+  box-shadow: var(--as-chrome-highlight);
+  backdrop-filter: none;
   z-index: 5;
+}
+@supports (backdrop-filter: blur(1px)) {
+  @media (prefers-reduced-transparency: no-preference) and (prefers-contrast: no-preference) and (forced-colors: none) {
+    .app-header {
+      background: rgb(233 238 245 / 96%);
+      backdrop-filter: blur(12px);
+    }
+  }
 }
 .app-identity {
   display: flex;
@@ -149,9 +184,9 @@ button.primary:hover:not(:disabled) {
   padding: 0.75rem;
   inline-size: min(24rem, 90vw);
   background: var(--as-surface);
-  border: 1px solid var(--as-control-border);
+  border: 1px solid var(--as-color-divider);
   border-radius: var(--as-radius-control);
-  box-shadow: var(--as-shadow-dialog);
+  box-shadow: var(--as-shadow-popover);
   z-index: 20;
 }
 .app-content {
@@ -173,6 +208,7 @@ button.primary:hover:not(:disabled) {
   flex-direction: column;
   gap: 0.25rem;
   padding: 1rem 0.65rem;
+  background: var(--as-canvas);
   border-inline-end: 1px solid var(--as-color-divider);
   overflow: auto;
   min-inline-size: 0;
@@ -184,9 +220,15 @@ button.primary:hover:not(:disabled) {
   min-block-size: 2.5rem;
   padding: 0.55rem 0.7rem;
 }
+.workspace-nav > button svg,
+.nav-bottom > button svg {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+}
 .workspace-nav button[aria-current='page'] {
   background: var(--as-color-selection);
-  color: var(--as-accent);
+  color: var(--as-selection-text);
+  box-shadow: inset 3px 0 0 var(--as-accent);
   font-weight: 600;
 }
 .nav-count {
@@ -214,7 +256,7 @@ button.primary:hover:not(:disabled) {
   flex-direction: column;
   min-block-size: 0;
   min-inline-size: 0;
-  background: var(--as-surface);
+  background: var(--as-surface-subtle);
   border-inline-end: 1px solid var(--as-color-divider);
 }
 .material-list > header,
@@ -272,10 +314,12 @@ button.primary:hover:not(:disabled) {
   border-radius: 0;
   background: transparent;
   border-inline-start: 3px solid transparent;
-  padding: 0.85rem 1rem;
-  gap: 0.3rem;
+  min-block-size: 4rem;
+  padding: 0.65rem 1rem;
+  gap: var(--as-space-1);
 }
-.material-row.selected {
+.material-row.selected,
+.material-row.selected:hover:not(:disabled) {
   background: var(--as-color-selection);
   border-inline-start-color: var(--as-accent);
 }
@@ -351,12 +395,15 @@ button.primary:hover:not(:disabled) {
   display: none !important;
 }
 .document-header {
-  padding: 1rem var(--as-page-gutter) 0.85rem;
+  padding: 0.85rem var(--as-page-gutter) 0.75rem;
   border-block-end: 1px solid var(--as-color-divider);
   flex-shrink: 0;
 }
 .document-header h1 {
-  margin-block: 0.9rem 0.65rem;
+  margin-block: 0.65rem 0.45rem;
+}
+.document-header > p.secondary:last-child {
+  margin-block-end: 0;
 }
 @media (max-height: 640px) {
   .material-list > header {
@@ -375,7 +422,17 @@ button.primary:hover:not(:disabled) {
   }
 }
 .document-tools {
-  margin-block-end: 0.8rem;
+  margin-block-end: var(--as-space-2);
+}
+.document-tools button {
+  background: transparent;
+  border-color: transparent;
+}
+.document-tools button:hover:not(:disabled) {
+  background: var(--as-control-hover);
+}
+.document-tools button:active:not(:disabled) {
+  background: var(--as-control-pressed);
 }
 .document-title {
   font-size: var(--as-type-title);
@@ -392,13 +449,34 @@ button.primary:hover:not(:disabled) {
   font-weight: 500;
 }
 .save-row {
-  margin-block-start: 0.6rem;
+  margin-block-start: 0.4rem;
 }
 .save-row .as-actions {
   gap: 0.3rem;
 }
 .save-row button {
   font-size: var(--as-type-caption);
+}
+.save-row button[aria-pressed] {
+  background: var(--as-surface-subtle);
+  border-color: transparent;
+  transition-duration: var(--as-motion-selection);
+}
+.save-row button[aria-pressed='true'] {
+  background: var(--as-color-selection);
+  color: var(--as-selection-text);
+  border-color: var(--as-accent);
+  font-weight: 600;
+}
+.save-row button[aria-pressed='false']:hover:not(:disabled) {
+  background: var(--as-control-hover);
+}
+.save-row button[aria-pressed='false']:active:not(:disabled) {
+  background: var(--as-control-pressed);
+}
+.save-row button[aria-pressed]:disabled {
+  color: var(--as-control-disabled-text);
+  border-color: var(--as-color-divider);
 }
 .connection-summary {
   gap: 0.6rem;
@@ -643,7 +721,7 @@ button.primary:hover:not(:disabled) {
 .discard-prompt {
   margin-block-start: 1rem;
   padding: 0.85rem;
-  background: var(--as-canvas);
+  background: var(--as-warning-bg);
   border-inline-start: 3px solid var(--as-color-attention);
 }
 .target-results {
@@ -919,7 +997,7 @@ button.primary:hover:not(:disabled) {
   padding: 0.65rem 0.8rem;
   margin-block: 0.5rem;
   border-inline-start: 3px solid var(--as-color-danger);
-  background: var(--as-canvas);
+  background: var(--as-danger-bg);
 }
 .error-notice p {
   margin-block-end: 0.4rem;
@@ -937,7 +1015,7 @@ button.primary:hover:not(:disabled) {
   min-block-size: 0;
   display: flex;
   flex-direction: column;
-  background: var(--as-canvas);
+  background: var(--as-surface-subtle);
   border-inline-start: 1px solid var(--as-color-divider);
 }
 .context-scroll {
@@ -995,7 +1073,7 @@ button.primary:hover:not(:disabled) {
 }
 .review-scroll {
   flex: 1;
-  padding: 1.4rem var(--as-page-gutter) 2rem;
+  padding: 1rem var(--as-page-gutter) 2rem;
 }
 /* A short review has one scrollport, so fixed chrome cannot consume its body. */
 .review-pane.review-scroll {
@@ -1009,7 +1087,7 @@ button.primary:hover:not(:disabled) {
   overflow: visible;
 }
 .review-content {
-  padding: 1.4rem var(--as-page-gutter) 2rem;
+  padding: 1rem var(--as-page-gutter) 2rem;
 }
 .review-pane.review-scroll :is(button, a, summary) {
   scroll-margin-block: var(--as-space-2);
@@ -1019,23 +1097,34 @@ button.primary:hover:not(:disabled) {
 }
 .status-tag {
   padding: 0.15rem 0.4rem;
-  border: 1px solid currentColor;
-  border-radius: 0.25rem;
+  border: 1px solid var(--as-color-divider);
+  border-radius: 0.375rem;
+  color: var(--as-text-secondary);
+  background: var(--as-canvas);
   font-size: var(--as-type-caption);
 }
 .status-tag.applied {
   color: var(--as-color-green);
+  background: var(--as-success-bg);
+  border-color: currentColor;
 }
 .status-tag.conflicted {
-  color: var(--as-color-attention);
+  color: var(--as-color-danger);
+  background: var(--as-danger-bg);
+  border-color: currentColor;
 }
 .proposal-reason,
 .proposal-sources {
-  padding-block-end: 1rem;
-  margin-block-end: 1rem;
+  padding-block-end: 0.75rem;
+  margin-block-end: 0.75rem;
   border-block-end: 1px solid var(--as-color-divider);
 }
+.proposal-reason h2,
+.proposal-sources h2 {
+  margin-block-end: 0.5rem;
+}
 .proposal-reason p {
+  margin-block-end: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -1068,12 +1157,12 @@ button.primary:hover:not(:disabled) {
 .removed {
   border-inline-start: 3px solid var(--as-color-danger);
   color: var(--as-color-danger);
-  background: #fff5f3;
+  background: var(--as-danger-bg);
 }
 .added {
   border-inline-start: 3px solid var(--as-color-green);
   color: var(--as-color-green);
-  background: #f1f8f4;
+  background: var(--as-success-bg);
 }
 .unchanged {
   color: var(--as-text-secondary);
@@ -1176,7 +1265,7 @@ button.primary:hover:not(:disabled) {
   box-shadow: var(--as-shadow-dialog);
 }
 .modal::backdrop {
-  background: rgb(32 41 54 / 35%);
+  background: var(--as-scrim);
 }
 .modal > header {
   display: flex;
@@ -1184,6 +1273,7 @@ button.primary:hover:not(:disabled) {
   align-items: center;
   gap: 1rem;
   padding: 1rem 1.25rem;
+  background: var(--as-surface-subtle);
   border-block-end: 1px solid var(--as-color-divider);
 }
 .modal > header h2 {
@@ -1402,7 +1492,7 @@ button.primary:hover:not(:disabled) {
 .closing-notice {
   padding: 0.6rem 1rem;
   border-block-end: 1px solid var(--as-control-border);
-  background: var(--as-color-selection);
+  background: var(--as-info-bg);
   color: var(--as-text);
 }
 
@@ -1413,6 +1503,8 @@ button.primary:hover:not(:disabled) {
 }
 .discovery-controls [aria-pressed='true'] {
   border-color: var(--as-accent);
+  background: var(--as-color-selection);
+  color: var(--as-selection-text);
   font-weight: 600;
 }
 .proposal-group {

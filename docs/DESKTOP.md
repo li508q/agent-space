@@ -2,6 +2,22 @@
 
 The desktop uses the same `Space` and `HumanServices` authority as the agent adapter. A person can create, open, edit and review local material without a provider account or API key. The packaged application includes its own Node runtime.
 
+## Install the desktop
+
+Download the macOS arm64 ZIP and `SHA256SUMS` from [GitHub Releases](https://github.com/li508q/agent-space/releases/latest). The package declares macOS 13 as its minimum and requires Apple Silicon. It contains its own runtime; direct use requires neither a Node installation nor a model account.
+
+Keep the ZIP and checksum file together and verify before extracting:
+
+```sh
+shasum -a 256 -c SHA256SUMS
+```
+
+Move `AgentSpace.app` to a fixed local folder, then open it. Create a space, open an existing one or try the separate example. Preserve the space folder when replacing the application. If an agent host is already configured, update its executable path when the application moves.
+
+The download has an ad-hoc signature and no Apple notarization. If macOS blocks it, check the source and checksum, then consult [Apple's instructions for opening an unnotarized application](https://support.apple.com/en-us/102445). AgentSpace does not change macOS security settings. Downloaded-copy Gatekeeper acceptance is separate from the local signing and native checks below.
+
+Each release includes a verification report and `RELEASE.json` identifying the source commit, build inputs, runtime and artifact hashes. These checks bind an inspected build to its source; they do not establish byte-for-byte reproducible archives.
+
 ## Runtime and development
 
 Use the committed npm lockfile and a supported exact Node version. `.nvmrc` selects `22.22.3`; `package.json` also permits `24.22.3`. Dependency and Electron pins are in `package.json` and `package-lock.json`.
