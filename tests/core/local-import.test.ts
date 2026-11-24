@@ -58,6 +58,44 @@ function step(h: HumanServices, m: ImportManifest, position: number) {
   });
 }
 
+test('import preview distinguishes identical names with recorded source locations within its byte budget', async (t) => {
+  const f = fixture(t);
+  const paths = ['First area', 'Second area'].map((area) => {
+    const directory = join(f.root, area, '项目 café');
+    mkdirSync(directory, { recursive: true });
+    const path = join(directory, 'notes.md');
+    writeFileSync(path, `# ${area}\nIndependent source`);
+    return path;
+  });
+  const plan = ok(
+    await scanImport({
+      selections: paths.map((path) => ({ path })),
+      profileId: 'plain-files/v1',
+    }),
+  );
+  const before = structuredClone(plan);
+  const locations: Array<string | null> = [];
+  let offset = 0;
+  do {
+    const page = readPreview(plan, offset, 2048);
+    assert.equal(page.planDigest, plan.digest);
+    assert.equal(page.returnedBytes, Buffer.byteLength(JSON.stringify({ ok: true, value: page })));
+    assert.ok(page.returnedBytes <= 2048);
+    for (const entry of page.entries) {
+      assert.equal(entry.relativePath, 'notes.md');
+      assert.equal(entry.sourceLocation, plan.sources.find((s) => s.entry.id === entry.id)!.path);
+      locations.push(entry.sourceLocation);
+    }
+    offset = page.nextCursor ? Number(page.nextCursor) : -1;
+  } while (offset >= 0);
+  assert.deepEqual(locations, paths);
+  assert.deepEqual(plan, before);
+  assert.deepEqual(
+    paths.map((path) => readFileSync(path, 'utf8')),
+    ['# First area\nIndependent source', '# Second area\nIndependent source'],
+  );
+});
+
 test('legacy folder preview is bounded, source read only; confirmed import resumes and deduplicates without overwriting later edits', async (t) => {
   const f = fixture(t);
   const source = join(f.root, 'incoming');

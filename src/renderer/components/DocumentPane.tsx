@@ -9,6 +9,7 @@ import { t, titleText } from '../i18n/index.js';
 import { ErrorNotice, fieldText, ObjectMetadata, SafeMarkdown, useLocale } from '../ui.js';
 import { MarkdownEditor, type MarkdownEditorHandle } from './MarkdownEditor.js';
 import { CopySavedContext } from './CopySavedContext.js';
+import { RecordedLocation } from './RecordedLocation.js';
 import { LinkedMaterial } from './LinkedMaterial.js';
 import { ProjectOverview, projectSection } from './ProjectOverview.js';
 
@@ -292,18 +293,6 @@ export function DocumentPane({
             )}
           </div>
         )}
-        <CopySavedContext
-          api={api}
-          session={session}
-          object={state.object}
-          disabled={editor.dirty || state.composing || state.locked}
-          selection={() => markdown.current?.selectedText() ?? null}
-          stillCurrent={() =>
-            editor.getSnapshot().generation === state.generation &&
-            !editor.dirty &&
-            !editor.getSnapshot().composing
-          }
-        />
         <ErrorNotice
           code={state.error}
           onRetry={() => {
@@ -470,6 +459,19 @@ export function DocumentPane({
               onOpen={onOpen}
             />
           )}
+          {state.object && <RecordedLocation api={api} session={session} object={state.object} />}
+          <CopySavedContext
+            api={api}
+            session={session}
+            object={state.object}
+            disabled={editor.dirty || state.composing || state.locked}
+            selection={() => markdown.current?.selectedText() ?? null}
+            stillCurrent={() =>
+              editor.getSnapshot().generation === state.generation &&
+              !editor.dirty &&
+              !editor.getSnapshot().composing
+            }
+          />
         </div>
       </div>
     </section>

@@ -1,6 +1,23 @@
 import type { LocaleErrorDictionary } from '../../contracts/errors.js';
 
 export const en = Object.freeze({
+  'context.details': 'Context details',
+  'location.title': 'Recorded location',
+  'location.importedNotice':
+    'Imported copy. Its content is stored in this space and is not synchronized with the original.',
+  'location.externalNotice':
+    'This material is managed separately. The recorded location does not confirm that it is available.',
+  'location.version': 'Location in version {version}',
+  'location.missing': 'No location was recorded.',
+  'location.copy': 'Copy location',
+  'contextPrep.addFromSpace': 'Add material from the space',
+  'contextPrep.queryScope':
+    'Find saved material across this space. Text searches are literal. Results show current versions; selections keep their exact saved versions.',
+  'contextPrep.findMaterial': 'Search saved material',
+  'contextPrep.queryEmpty': 'No material in these loaded results.',
+  'contextPrep.refreshResults': 'Refresh results',
+  'import.sourceLocation': 'Original source location',
+  'import.openExisting': 'Open existing item',
   'contextPrep.title': 'Prepare context',
   'contextPrep.intro':
     'Check the saved versions you want to share, then copy a brief or set up agent access.',

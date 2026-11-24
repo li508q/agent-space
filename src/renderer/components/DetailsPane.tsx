@@ -19,6 +19,7 @@ import {
 } from '../ui.js';
 import { ProposalPermissions } from './ProposalPermissions.js';
 import { IncomingLinks } from './IncomingLinks.js';
+import { RecordedLocation } from './RecordedLocation.js';
 
 export function DetailsPane({
   api,
@@ -214,6 +215,15 @@ export function DetailsPane({
             objectId={state.objectId}
             refresh={refresh}
             onOpen={onOpen}
+          />
+        )}
+        {state.object && (
+          <RecordedLocation
+            api={api}
+            session={session}
+            object={state.object}
+            disabled={hidden}
+            testId="details-recorded-location"
           />
         )}
         {state.object && (

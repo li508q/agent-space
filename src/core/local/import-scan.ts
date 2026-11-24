@@ -324,7 +324,8 @@ export function readPreview(
     returnedBytes: 0,
   };
   for (let i = offset; i < plan.sources.length; i++) {
-    const entry = plan.sources[i]!.entry;
+    const source = plan.sources[i]!;
+    const entry = { ...source.entry, sourceLocation: source.path };
     const previousGroups = page.groups;
     page.entries.push(entry);
     const needed = new Set(page.entries.flatMap((e) => (e.groupId ? [e.groupId] : [])));

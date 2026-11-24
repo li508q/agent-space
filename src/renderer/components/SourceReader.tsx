@@ -8,6 +8,7 @@ import { t, titleText } from '../i18n/index.js';
 import { bound } from '../state/binding.js';
 import { ErrorNotice, ObjectMetadata, SafeMarkdown, useLocale } from '../ui.js';
 import { CopySavedContext } from './CopySavedContext.js';
+import { RecordedLocation } from './RecordedLocation.js';
 import { AcceptedEvidence } from './AcceptedEvidence.js';
 
 export function SourceReader({
@@ -161,14 +162,6 @@ export function SourceReader({
             )}
           </p>
         )}
-        {view && (
-          <CopySavedContext
-            api={api}
-            session={session}
-            object={view.object}
-            testId={hidden ? false : 'copy-source-context'}
-          />
-        )}
       </header>
       {view && (
         <div className="document-scroll as-scroll-region">
@@ -181,6 +174,20 @@ export function SourceReader({
               session={session}
               content={view.object.content}
               onOpen={onOpen}
+            />
+            <RecordedLocation
+              api={api}
+              session={session}
+              object={view.object}
+              disabled={hidden || editingBusy}
+              testId={hidden ? false : 'source-recorded-location'}
+            />
+            <CopySavedContext
+              api={api}
+              session={session}
+              object={view.object}
+              disabled={hidden || editingBusy}
+              testId={hidden ? false : 'copy-source-context'}
             />
             <details onToggle={(event) => setEvidenceOpen(event.currentTarget.open)}>
               <summary>{t(locale, 'evidence.title')}</summary>

@@ -1,6 +1,23 @@
 import type { Dictionary } from './types.js';
 
 export const ja = Object.freeze({
+  'context.details': 'コンテキストの詳細',
+  'location.title': '記録された場所',
+  'location.importedNotice':
+    '取り込んだコピーです。内容はスペース内に保存され、元の資料とは同期しません。',
+  'location.externalNotice':
+    'この資料はスペースとは別に管理されています。記録された場所が現在利用できるかどうかは確認していません。',
+  'location.version': '第{version}版に記録された場所',
+  'location.missing': '場所は記録されていません。',
+  'location.copy': '場所をコピー',
+  'contextPrep.addFromSpace': 'スペースから資料を追加',
+  'contextPrep.queryScope':
+    'スペース内の保存済み資料を文字列で検索できます。結果には現在の版が表示され、選択した版は固定されます。',
+  'contextPrep.findMaterial': '保存済み資料を検索',
+  'contextPrep.queryEmpty': '読み込み済みの結果に資料はありません。',
+  'contextPrep.refreshResults': '結果を更新',
+  'import.sourceLocation': '元の資料の場所',
+  'import.openExisting': '既存の項目を開く',
   'contextPrep.title': 'コンテキストを準備',
   'contextPrep.intro':
     '共有する保存済みバージョンを確認し、短い説明をコピーするか、エージェントのアクセスを設定します。',

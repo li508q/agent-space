@@ -1,6 +1,21 @@
 import type { Dictionary } from './types.js';
 
 export const zhCN = Object.freeze({
+  'context.details': '上下文详情',
+  'location.title': '记录的位置',
+  'location.importedNotice': '这是导入副本。内容保存在空间中，不与原件同步。',
+  'location.externalNotice': '这份资料由外部单独管理；位置记录不代表它当前可访问。',
+  'location.version': '第 {version} 版记录的位置',
+  'location.missing': '没有记录位置。',
+  'location.copy': '复制位置',
+  'contextPrep.addFromSpace': '从空间添加资料',
+  'contextPrep.queryScope':
+    '在整个空间查找已保存的资料，按文字匹配。结果显示当前版本，选中后固定该保存版本。',
+  'contextPrep.findMaterial': '查找已保存的资料',
+  'contextPrep.queryEmpty': '这些已加载的结果中没有资料。',
+  'contextPrep.refreshResults': '刷新结果',
+  'import.sourceLocation': '原件位置',
+  'import.openExisting': '打开现有条目',
   'contextPrep.title': '准备上下文',
   'contextPrep.intro': '检查要共享的保存版本，再复制简短说明或设置 Agent 接入。',
   'contextPrep.task': '简短任务（可选）',

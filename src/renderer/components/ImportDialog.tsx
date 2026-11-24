@@ -511,6 +511,12 @@ export function ImportDialog({
                       data-testid={`import-entry-${entry.id}`}
                     >
                       <h4 className="as-wrap">{entry.relativePath}</h4>
+                      {entry.sourceLocation && (
+                        <details className="import-source-location">
+                          <summary>{t(locale, 'import.sourceLocation')}</summary>
+                          <code className="as-wrap">{entry.sourceLocation}</code>
+                        </details>
+                      )}
                       {entry.issue && (
                         <p className="secondary">{t(locale, `importIssue.${entry.issue}`)}</p>
                       )}
@@ -694,7 +700,9 @@ export function ImportDialog({
                   disabled={busy || uncertain || dirty || !!page}
                   onClick={() => onOpen(item.originalRef!)}
                 >
-                  {t(locale, 'common.openNamed', { title: item.title || item.relativePath })}
+                  {item.state === 'reused'
+                    ? t(locale, 'import.openExisting')
+                    : t(locale, 'common.openNamed', { title: item.title || item.relativePath })}
                 </button>
               )}
             </div>

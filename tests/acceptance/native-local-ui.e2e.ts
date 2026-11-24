@@ -283,6 +283,7 @@ test(
       assert.equal(await history.getByRole('alert').count(), 0);
       const clipboard = await installClipboardFixture(n, 'local-ui-saved-context');
       try {
+        await n.page.getByTestId('copy-saved-context-details').locator('summary').click();
         await n.page.getByTestId('copy-saved-context').click();
         const note = JSON.parse(await clipboard.readText());
         assert.equal(note.scope, 'one-saved-object');
@@ -304,6 +305,7 @@ test(
         await n.page.getByTestId('nav-library').click();
         await n.page.getByTestId(`object-row-${f.ids.sample}`).click();
         await n.page.getByTestId('record-fields').waitFor();
+        await n.page.getByTestId('copy-saved-context-details').locator('summary').click();
         await n.page.getByTestId('copy-saved-context').click();
         const record = JSON.parse(await clipboard.readText());
         assert.equal(record.object.id, f.ids.sample);

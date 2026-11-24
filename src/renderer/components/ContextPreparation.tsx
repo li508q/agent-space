@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { DesktopApi, SpaceSession } from '../../contracts/app.js';
-import type { ObjectSnapshot } from '../../contracts/core.js';
+import type { Kind, ObjectSnapshot } from '../../contracts/core.js';
+import type { HumanQueryInput } from '../../contracts/local.js';
 import type { ErrorCode } from '../../contracts/errors.js';
 import { t, titleText } from '../i18n/index.js';
 import { bound } from '../state/binding.js';
@@ -24,7 +25,9 @@ import {
 import { ErrorNotice, Modal, useLocale } from '../ui.js';
 
 /** Reveal the focused context control with its label and same-dialog description. */
-export function revealContextChoice(input: HTMLInputElement | HTMLTextAreaElement) {
+export function revealContextChoice(
+  input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
+) {
   if (!input.matches(':focus-visible')) return;
   const dialog = input.closest('dialog');
   if (!dialog) return;
@@ -86,6 +89,7 @@ export function ContextPreparation({
     live = useRef(true),
     seedEpoch = useRef(0),
     memberEpoch = useRef(0),
+    queryEpoch = useRef(0),
     actionEpoch = useRef(0);
   const taskPointer = useRef(false);
   scope.current = key;
@@ -108,6 +112,29 @@ export function ContextPreparation({
     null,
   );
   const failedMemberCursor = useRef<string | undefined>(undefined);
+  const [queryOpen, setQueryOpen] = useState(false),
+    [queryText, setQueryText] = useState(''),
+    [queryKind, setQueryKind] = useState<Kind | ''>(''),
+    [queryLifecycle, setQueryLifecycle] = useState<'active' | 'archived' | 'all'>('active'),
+    [queryComposing, setQueryComposing] = useState(false),
+    [queryItems, setQueryItems] = useState<ContextReference[]>([]),
+    [queryResultKey, setQueryResultKey] = useState<string | null>(null),
+    [queryNext, setQueryNext] = useState<string | null>(null),
+    [queryLoading, setQueryLoading] = useState(false),
+    [queryStale, setQueryStale] = useState(false),
+    [queryError, setQueryError] = useState<ErrorCode | null>(null);
+  const queryKey = JSON.stringify([key, queryText, queryKind, queryLifecycle]);
+  const queryScope = useRef(queryKey),
+    queryVisible = useRef(queryOpen);
+  queryScope.current = queryKey;
+  queryVisible.current = queryOpen;
+  const queryChain = useRef<{
+      key: string;
+      authority: number;
+      scope: string;
+      cursor: string | null;
+    } | null>(null),
+    failedQueryCursor = useRef<string | undefined>(undefined);
   const [checking, setChecking] = useState(false),
     [error, setError] = useState<ErrorCode | null>(null),
     [copied, setCopied] = useState(false),
@@ -121,12 +148,14 @@ export function ContextPreparation({
       live.current = false;
       seedEpoch.current++;
       memberEpoch.current++;
+      queryEpoch.current++;
       actionEpoch.current++;
     };
   }, []);
   useEffect(() => {
     seedEpoch.current++;
     memberEpoch.current++;
+    queryEpoch.current++;
     actionEpoch.current++;
     loadedSeed.current = null;
     memberChain.current = null;
@@ -146,18 +175,144 @@ export function ContextPreparation({
     setCopied(false);
     setError(null);
     setLimitReached(false);
+    setQueryOpen(false);
+    setQueryText('');
+    setQueryKind('');
+    setQueryLifecycle('active');
+    setQueryComposing(false);
+    setQueryItems([]);
+    setQueryResultKey(null);
+    setQueryNext(null);
+    setQueryLoading(false);
+    setQueryStale(false);
+    setQueryError(null);
+    queryChain.current = null;
+    failedQueryCursor.current = undefined;
   }, [key]);
   useEffect(() => {
     if (!open) {
       seedEpoch.current++;
       memberEpoch.current++;
+      queryEpoch.current++;
       actionEpoch.current++;
       setSeedLoading(false);
       setMemberLoading(false);
+      setQueryLoading(false);
       setChecking(false);
     } else if (seed && loadedSeed.current !== key) void loadSeed();
     else if (seed?.kind === 'project' && memberChain.current === null) void loadMembers();
   }, [key, open]);
+  useEffect(() => {
+    if (queryOpen) invalidateSelection();
+    queryEpoch.current++;
+    queryChain.current = null;
+    failedQueryCursor.current = undefined;
+    setQueryItems([]);
+    setQueryResultKey(null);
+    setQueryNext(null);
+    setQueryError(null);
+    setQueryLoading(false);
+    setQueryStale(false);
+    if (!open || !queryOpen || queryComposing) return;
+    const timer = setTimeout(() => {
+      void loadQuery();
+    }, 150);
+    return () => {
+      clearTimeout(timer);
+      queryEpoch.current++;
+    };
+  }, [queryKey, open, queryOpen, queryComposing]);
+
+  async function loadQuery(next?: string) {
+    if (!seed || !open || !queryVisible.current || queryComposing) return;
+    if (next && (queryChain.current?.key !== queryKey || queryChain.current.cursor !== next))
+      return;
+    const ticket = ++queryEpoch.current,
+      expected = queryKey,
+      expectedSeed = key;
+    const current = () =>
+      live.current &&
+      visible.current &&
+      queryVisible.current &&
+      scope.current === expectedSeed &&
+      queryScope.current === expected &&
+      ticket === queryEpoch.current;
+    setQueryLoading(true);
+    setQueryError(null);
+    failedQueryCursor.current = next;
+    if (!next) {
+      queryChain.current = null;
+      setQueryNext(null);
+    }
+    const filter: HumanQueryInput['filter'] = {
+      lifecycle: queryLifecycle,
+      ...(queryKind ? { kind: queryKind } : {}),
+      ...(queryText ? { text: queryText } : {}),
+    };
+    try {
+      const result = await api.query(
+        bound(session, {
+          filter,
+          limit: contextLimits.references,
+          maxBytes: contextLimits.pageBytes,
+          ...(next ? { cursor: next } : {}),
+        }),
+      );
+      if (!current()) return;
+      if (!result.ok) {
+        setQueryError(result.error.code);
+        if (next && result.error.code === 'CURSOR_STALE') {
+          invalidateSelection();
+          setQueryStale(true);
+          queryChain.current = null;
+          setQueryNext(null);
+          failedQueryCursor.current = undefined;
+          void loadQuery();
+        }
+        return;
+      }
+      const page = result.value;
+      if (
+        next &&
+        (queryChain.current?.authority !== page.authoritySequence ||
+          queryChain.current.scope !== page.scope.digest)
+      ) {
+        invalidateSelection();
+        setQueryStale(true);
+        queryChain.current = null;
+        setQueryNext(null);
+        failedQueryCursor.current = undefined;
+        void loadQuery();
+        return;
+      }
+      const rows = page.items.map(summaryReference);
+      invalidateSelection();
+      setQueryStale(false);
+      setQueryResultKey(expected);
+      setQueryItems((old) =>
+        next
+          ? [
+              ...old,
+              ...rows.filter(
+                (row) => !old.some((item) => referenceKey(item.ref) === referenceKey(row.ref)),
+              ),
+            ]
+          : rows,
+      );
+      setQueryNext(page.nextCursor);
+      queryChain.current = {
+        key: expected,
+        authority: page.authoritySequence,
+        scope: page.scope.digest,
+        cursor: page.nextCursor,
+      };
+      failedQueryCursor.current = undefined;
+    } catch {
+      if (current()) setQueryError('OPERATION_UNKNOWN');
+    } finally {
+      if (current()) setQueryLoading(false);
+    }
+  }
 
   async function loadSeed() {
     if (!seed || !open) return;
@@ -310,7 +465,7 @@ export function ContextPreparation({
     setTask(isComposing ? value : codepoints(value, contextLimits.task));
   }
   async function prepare(action: 'preview' | 'copy' | 'access') {
-    if (!seed || composing || selected.length === 0 || !open) return;
+    if (!seed || composing || queryComposing || selected.length === 0 || !open) return;
     const ticket = ++actionEpoch.current,
       expectedKey = key,
       choices = [...selected],
@@ -363,6 +518,7 @@ export function ContextPreparation({
   }
   if (!seed || !open) return null;
   const seedReference = contextReference(seed),
+    queryRows = queryResultKey === queryKey ? queryItems : [],
     visibleKeys = new Set([
       referenceKey(seedReference.ref),
       ...direct.flatMap((item) => (item.reference ? [referenceKey(item.reference.ref)] : [])),
@@ -370,7 +526,7 @@ export function ContextPreparation({
     ]),
     retained = selected.filter((item) => !visibleKeys.has(referenceKey(item.ref))),
     unavailable = selected.some((item) => referenceErrors[referenceKey(item.ref)]),
-    disabled = checking || composing || selected.length === 0 || unavailable;
+    disabled = checking || composing || queryComposing || selected.length === 0 || unavailable;
 
   function row(
     reference: ContextReference,
@@ -517,6 +673,121 @@ export function ContextPreparation({
           {retained.map((reference) => row(reference, 'retained'))}
         </section>
       )}
+      <details
+        className="context-query"
+        data-testid="context-space-query"
+        open={queryOpen}
+        onToggle={(event) => {
+          const next = event.currentTarget.open;
+          if (next !== queryOpen) {
+            invalidateSelection();
+            queryEpoch.current++;
+            setQueryOpen(next);
+            setQueryLoading(false);
+          }
+        }}
+      >
+        <summary>{t(locale, 'contextPrep.addFromSpace')}</summary>
+        <p className="secondary" id={`${instance}-query-scope`}>
+          {t(locale, 'contextPrep.queryScope')}
+        </p>
+        <div className="context-query-controls">
+          <label>
+            {t(locale, 'contextPrep.findMaterial')}
+            <input
+              data-testid="context-query-text"
+              value={queryText}
+              maxLength={200}
+              aria-describedby={`${instance}-query-scope`}
+              onFocus={(event) => revealContextChoice(event.currentTarget)}
+              onCompositionStart={() => setQueryComposing(true)}
+              onCompositionEnd={() => setQueryComposing(false)}
+              onChange={(event) => {
+                invalidateSelection();
+                setQueryText(event.currentTarget.value);
+              }}
+            />
+          </label>
+          <label>
+            {t(locale, 'ui.type')}
+            <select
+              data-testid="context-query-kind"
+              value={queryKind}
+              onFocus={(event) => revealContextChoice(event.currentTarget)}
+              onChange={(event) => {
+                invalidateSelection();
+                setQueryKind(event.currentTarget.value as Kind | '');
+              }}
+            >
+              <option value="">{t(locale, 'ui.allMaterial')}</option>
+              {(['document', 'project', 'record', 'asset'] as const).map((kind) => (
+                <option key={kind} value={kind}>
+                  {t(locale, `contextPrep.kind.${kind}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {t(locale, 'lifecycle.filter')}
+            <select
+              data-testid="context-query-lifecycle"
+              value={queryLifecycle}
+              onFocus={(event) => revealContextChoice(event.currentTarget)}
+              onChange={(event) => {
+                invalidateSelection();
+                setQueryLifecycle(event.currentTarget.value as typeof queryLifecycle);
+              }}
+            >
+              <option value="active">{t(locale, 'lifecycle.active')}</option>
+              <option value="archived">{t(locale, 'ui.archived')}</option>
+              <option value="all">{t(locale, 'lifecycle.all')}</option>
+            </select>
+          </label>
+        </div>
+        <div className="as-actions">
+          <button
+            data-testid="context-query-refresh"
+            disabled={queryLoading || queryComposing}
+            onClick={() => {
+              invalidateSelection();
+              void loadQuery();
+            }}
+          >
+            {t(locale, 'contextPrep.refreshResults')}
+          </button>
+          <span>{t(locale, 'contextPrep.loaded', { count: queryRows.length })}</span>
+        </div>
+        {queryRows.map((reference) => row(reference, 'space'))}
+        {!queryLoading && !queryError && queryRows.length === 0 && (
+          <p>{t(locale, 'contextPrep.queryEmpty')}</p>
+        )}
+        {queryStale && (
+          <ErrorNotice
+            code="CURSOR_STALE"
+            onRetry={() => {
+              void loadQuery();
+            }}
+          />
+        )}
+        <ErrorNotice
+          code={queryError === 'CURSOR_STALE' && queryStale ? null : queryError}
+          onRetry={() => {
+            void loadQuery(failedQueryCursor.current);
+          }}
+        />
+        {queryResultKey === queryKey && queryNext && (
+          <button
+            data-testid="context-query-more"
+            disabled={queryLoading || queryComposing}
+            onClick={() => {
+              void loadQuery(queryNext);
+            }}
+          >
+            {t(locale, 'ui.moreResults')}
+          </button>
+        )}
+        {queryLoading && <p role="status">{t(locale, 'ui.loading')}</p>}
+      </details>
       {unavailable && <p className="attention">{t(locale, 'contextPrep.unavailableSelection')}</p>}
       <p className="secondary">{t(locale, 'contextPrep.scope')}</p>
       <details
@@ -531,7 +802,7 @@ export function ContextPreparation({
         {preview === null && !checking && (
           <button
             onClick={() => void prepare('preview')}
-            disabled={composing || selected.length === 0}
+            disabled={composing || queryComposing || selected.length === 0}
           >
             {t(locale, 'contextPrep.preview')}
           </button>
@@ -559,7 +830,11 @@ export function ContextPreparation({
         >
           {t(locale, 'agent.setup')}
         </button>
-        <button data-testid="context-import" disabled={composing} onClick={onImport}>
+        <button
+          data-testid="context-import"
+          disabled={composing || queryComposing}
+          onClick={onImport}
+        >
           {t(locale, 'contextPrep.import')}
         </button>
       </div>

@@ -137,7 +137,8 @@ export type ImportPreviewPage = {
   rootLabels: string[];
   rootCount: number;
   groups: z.infer<typeof PreviewGroupSchema>[];
-  entries: PreviewEntry[];
+  /** Display-only locations from the digest-checked plan; never renderer input. */
+  entries: Array<PreviewEntry & { sourceLocation: string | null }>;
   summary: ScanSummary;
   nextCursor: string | null;
   returnedBytes: number;

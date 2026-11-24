@@ -1,6 +1,23 @@
 import type { Dictionary } from './types.js';
 
 export const ko = Object.freeze({
+  'context.details': '컨텍스트 상세 정보',
+  'location.title': '기록된 위치',
+  'location.importedNotice':
+    '가져온 사본입니다. 내용은 이 스페이스에 저장되며 원본과 동기화되지 않습니다.',
+  'location.externalNotice':
+    '이 자료는 별도로 관리됩니다. 기록된 위치가 현재 접근 가능한지는 확인하지 않습니다.',
+  'location.version': '버전 {version}에 기록된 위치',
+  'location.missing': '기록된 위치가 없습니다.',
+  'location.copy': '위치 복사',
+  'contextPrep.addFromSpace': '스페이스에서 자료 추가',
+  'contextPrep.queryScope':
+    '스페이스의 저장된 자료를 문자열로 검색합니다. 결과에는 현재 버전이 표시되며 선택한 버전은 고정됩니다.',
+  'contextPrep.findMaterial': '저장된 자료 검색',
+  'contextPrep.queryEmpty': '불러온 결과에 자료가 없습니다.',
+  'contextPrep.refreshResults': '결과 새로 고침',
+  'import.sourceLocation': '원본 위치',
+  'import.openExisting': '기존 항목 열기',
   'contextPrep.title': '컨텍스트 준비',
   'contextPrep.intro':
     '공유할 저장 버전을 확인한 다음 짧은 설명을 복사하거나 에이전트 접근을 설정하세요.',

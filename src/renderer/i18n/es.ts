@@ -1,6 +1,23 @@
 import type { Dictionary } from './types.js';
 
 export const es = Object.freeze({
+  'context.details': 'Detalles del contexto',
+  'location.title': 'Ubicación registrada',
+  'location.importedNotice':
+    'Es una copia importada. El contenido se guarda en este espacio y no se sincroniza con el original.',
+  'location.externalNotice':
+    'Este material se gestiona por separado. La ubicación registrada no confirma que siga disponible.',
+  'location.version': 'Ubicación de la versión {version}',
+  'location.missing': 'No se registró ninguna ubicación.',
+  'location.copy': 'Copiar ubicación',
+  'contextPrep.addFromSpace': 'Añadir material del espacio',
+  'contextPrep.queryScope':
+    'Busca material guardado en todo el espacio mediante texto literal. Los resultados muestran las versiones actuales; las versiones seleccionadas quedan fijadas.',
+  'contextPrep.findMaterial': 'Buscar material guardado',
+  'contextPrep.queryEmpty': 'No hay material en estos resultados cargados.',
+  'contextPrep.refreshResults': 'Actualizar resultados',
+  'import.sourceLocation': 'Ubicación del original',
+  'import.openExisting': 'Abrir elemento existente',
   'contextPrep.title': 'Preparar contexto',
   'contextPrep.intro':
     'Comprueba las versiones guardadas que quieres compartir y copia una explicación breve o configura el acceso del agente.',

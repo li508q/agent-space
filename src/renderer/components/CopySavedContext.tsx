@@ -1,10 +1,9 @@
-import { useState } from 'react';
 import type { DesktopApi, SpaceSession } from '../../contracts/app.js';
 import type { ObjectSnapshot } from '../../contracts/core.js';
-import type { ErrorCode } from '../../contracts/errors.js';
 import { savedContext } from '../state/local.js';
 import { t } from '../i18n/index.js';
 import { ErrorNotice, useLocale } from '../ui.js';
+import { useCopyText } from './useCopyText.js';
 
 export function CopySavedContext({
   api,
@@ -24,44 +23,57 @@ export function CopySavedContext({
   testId?: string | false;
 }) {
   const locale = useLocale();
-  const [error, setError] = useState<ErrorCode | null>(null),
-    [copied, setCopied] = useState<string | null>(null);
-  const identity = object ? `${object.id}:${object.revision}` : null;
+  const identity = object
+    ? JSON.stringify([
+        session.bindingId,
+        session.status.spaceId,
+        session.status.instanceId,
+        object.id,
+        object.revision,
+        object.digest,
+      ])
+    : null;
+  const receipt = useCopyText(api, identity, !!object && !disabled);
   async function copy() {
     if (!object || disabled || (stillCurrent && !stillCurrent())) return;
+    const selectionAtRequest = selection?.() ?? null;
+    const requestStillCurrent = () =>
+      (!stillCurrent || stillCurrent()) && (selection?.() ?? null) === selectionAtRequest;
     let text: string;
     try {
-      text = savedContext(session, object, selection?.() ?? null);
+      text = savedContext(session, object, selectionAtRequest);
     } catch {
-      setError('SPACE_MISMATCH');
+      receipt.fail('SPACE_MISMATCH');
       return;
     }
-    const result = await api.copyText({ text }).catch(() => null);
-    if (result?.ok) {
-      setCopied(identity);
-      setError(null);
-    } else setError(result && !result.ok ? result.error.code : 'OPERATION_UNKNOWN');
+    await receipt.copy(text, requestStillCurrent);
   }
   return (
     <div className="copy-saved-context">
-      <div className="as-actions">
-        <button
-          disabled={!object || disabled}
-          data-testid={testId || undefined}
-          onClick={() => {
-            void copy();
-          }}
-        >
-          {t(locale, 'context.copySaved')}
-        </button>
-        {copied && copied === identity && !disabled && (
-          <span role="status">{t(locale, 'common.copied')}</span>
-        )}
-      </div>
-      <small className="secondary">
-        {t(locale, disabled ? 'context.saveBeforeCopy' : 'context.singleScope')}
-      </small>
-      <ErrorNotice code={error} />
+      <details data-testid={testId ? `${testId}-details` : undefined} className="context-details">
+        <summary>{t(locale, 'context.details')}</summary>
+        <div className="as-actions">
+          <button
+            disabled={!object || disabled || receipt.busy}
+            data-testid={testId || undefined}
+            onClick={() => {
+              void copy();
+            }}
+          >
+            {t(locale, 'context.copySaved')}
+          </button>
+          {receipt.copied && <span role="status">{t(locale, 'common.copied')}</span>}
+        </div>
+        <small className="secondary">
+          {t(locale, disabled ? 'context.saveBeforeCopy' : 'context.singleScope')}
+        </small>
+      </details>
+      <ErrorNotice
+        code={receipt.error}
+        onRetry={() => {
+          void copy();
+        }}
+      />
     </div>
   );
 }
