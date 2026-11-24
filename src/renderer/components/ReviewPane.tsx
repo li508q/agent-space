@@ -299,7 +299,7 @@ export function ReviewPane({
                   : 'proposal.currentUnchanged',
           )}
         </p>
-        {stale && unresolved && (
+        {((stale && unresolved) || outcome?.outcome === 'conflicted') && (
           <p className="attention" role="status">
             {t(locale, 'proposal.originalChanged')}
           </p>
@@ -311,9 +311,6 @@ export function ReviewPane({
             else setRetry((value) => value + 1);
           }}
         />
-        {outcome?.outcome === 'conflicted' && (
-          <p className="attention">{t(locale, 'proposal.originalChanged')}</p>
-        )}
         {proposal.status === 'applied' && proposal.resultRevision !== null && (
           <div className="as-actions">
             <button
