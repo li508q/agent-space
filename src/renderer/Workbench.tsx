@@ -918,6 +918,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     const media = window.matchMedia('(max-width: 1099px)');
     const listener = () => setNarrow(media.matches);
     media.addEventListener('change', listener);
+    listener();
     return () => media.removeEventListener('change', listener);
   }, []);
   useEffect(() => {

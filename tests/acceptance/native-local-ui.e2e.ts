@@ -168,6 +168,97 @@ test(
 );
 
 test(
+  'compact layout reconciles a stale initial media snapshot when observation begins',
+  { skip: process.platform !== 'darwin', timeout: 60_000 },
+  async () => {
+    const f = createAcceptanceFixture();
+    const n = await launchNative({
+      entry: root,
+      userData: join(f.root, 'Initial media snapshot profile'),
+    });
+    let installed = false;
+    try {
+      await n.focus();
+      await n.setWindowBounds({ width: 980, height: 688 });
+      await n.page.evaluate(() => {
+        const original = window.matchMedia;
+        const query = '(max-width: 1099px)';
+        if (!original.call(window, query).matches)
+          throw new Error('The actual native viewport must be narrow.');
+        let reads = 0;
+        // Only the first snapshot is stale; native geometry, events and subscriptions stay real.
+        window.matchMedia = (value) => {
+          const media = original.call(window, value);
+          if (value !== query || reads++ !== 0) return media;
+          return new Proxy(media, {
+            get(target, key) {
+              if (key === 'matches') return false;
+              const value = Reflect.get(target, key, target);
+              return typeof value === 'function' ? value.bind(target) : value;
+            },
+          });
+        };
+        (
+          globalThis as unknown as { __initialMediaSnapshot: { restore(): number } }
+        ).__initialMediaSnapshot = {
+          restore() {
+            window.matchMedia = original;
+            delete (globalThis as unknown as { __initialMediaSnapshot?: unknown })
+              .__initialMediaSnapshot;
+            return reads;
+          },
+        };
+      });
+      installed = true;
+      await n.chooseNextFolder(f.directory);
+      await n.page.getByTestId('open-space').click();
+      await n.page.getByTestId('workbench').waitFor();
+      await n.page.waitForFunction(
+        () =>
+          document.querySelector('[data-testid="workbench"]')?.getAttribute('data-compact') ===
+          'true',
+      );
+      assert.equal(await n.page.getByTestId('desktop-app').getAttribute('data-scale'), '1');
+      const reads = await n.page.evaluate(() =>
+        (
+          globalThis as unknown as { __initialMediaSnapshot: { restore(): number } }
+        ).__initialMediaSnapshot.restore(),
+      );
+      installed = false;
+      assert.ok(reads >= 2, 'Initial render and observation must both read the media query.');
+      assert.equal(
+        await n.page.evaluate(() => window.matchMedia('(max-width: 1099px)').matches),
+        true,
+      );
+      const geometry = await n.logWindow('reconciled-initial-media-snapshot');
+      assert.ok(geometry.css.width <= 1099);
+      await n.page.getByTestId('nav-library').click();
+      await n.page.getByTestId(`object-row-${f.ids.retryPolicy}`).click();
+      await n.page.locator('#history-button').click();
+      const history = n.page.getByTestId('history-pane'),
+        locale = (await n.page.locator('html').getAttribute('lang')) as Locale;
+      await history.waitFor();
+      await history
+        .locator('header')
+        .getByRole('button', { name: t(locale, 'common.close'), exact: true })
+        .click();
+      await history.waitFor({ state: 'detached' });
+      await n.page.getByTestId('document-pane').waitFor({ state: 'visible' });
+      assert.deepEqual(n.pageErrors, []);
+    } finally {
+      if (installed)
+        await n.page.evaluate(() =>
+          (
+            globalThis as unknown as { __initialMediaSnapshot: { restore(): number } }
+          ).__initialMediaSnapshot.restore(),
+        );
+      await n.close();
+      f.dispose();
+    }
+  },
+);
+
+test(
   'visible history keeps accepted reasons and old evidence pins, while copied context stays one exact saved object',
   { skip: process.platform !== 'darwin', timeout: 60_000 },
   async () => {
@@ -245,9 +336,7 @@ test(
       await n.focus();
       await n.chooseNextFolder(f.directory);
       await n.page.getByTestId('open-space').click();
-      await n.application.evaluate(({ BrowserWindow }) =>
-        BrowserWindow.getAllWindows()[0]!.setBounds({ width: 1380, height: 900 }),
-      );
+      await n.setWindowBounds({ width: 1380, height: 900 });
       const locale = (await n.page.locator('html').getAttribute('lang')) as Locale;
       await n.page.getByTestId('nav-library').click();
       await n.page.getByTestId(`object-row-${f.ids.retryPolicy}`).click();
@@ -281,6 +370,12 @@ test(
         .getByText(t(locale, 'evidence.noAgentDeclaration'), { exact: true })
         .waitFor();
       assert.equal(await history.getByRole('alert').count(), 0);
+      await history
+        .locator('header')
+        .getByRole('button', { name: t(locale, 'common.close'), exact: true })
+        .click();
+      await history.waitFor({ state: 'detached' });
+      await n.page.getByTestId('document-pane').waitFor({ state: 'visible' });
       const clipboard = await installClipboardFixture(n, 'local-ui-saved-context');
       try {
         await n.page.getByTestId('copy-saved-context-details').locator('summary').click();
