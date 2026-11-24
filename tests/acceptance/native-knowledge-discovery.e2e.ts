@@ -807,9 +807,31 @@ test(
           .getByTestId('editor-transition')
           .getByRole('button', { name: t('es', 'common.cancel'), exact: true })
           .click();
-        await release(native);
+        await native.page.evaluate(
+          () =>
+            new Promise<void>((resolve) =>
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+            ),
+        );
         await tabTo(native, 'source-back');
+        const cancelReturn = await focusGeometry(native);
+        requireFocus(cancelReturn);
+        await release(native);
+        await native.page.evaluate(
+          () =>
+            new Promise<void>((resolve) =>
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+            ),
+        );
+        assert.equal(
+          await native.page.evaluate(() => document.activeElement?.getAttribute('data-testid')),
+          'source-back',
+          'The cancelled opening reply must preserve the newer keyboard target.',
+        );
+        requireFocus(await focusGeometry(native));
         await native.page.keyboard.press('Enter');
+        await reader.waitFor({ state: 'hidden' });
+        await pane.waitFor({ state: 'visible' });
         const refreshText = t('es', 'knowledge.refresh');
         await pane.getByRole('button', { name: refreshText, exact: true }).waitFor();
         await tabTo(native, refreshText);

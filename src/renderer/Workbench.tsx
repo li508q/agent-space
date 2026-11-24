@@ -1283,6 +1283,30 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
     };
     requestAnimationFrame(restore);
   }
+  function restoreReaderEditFocus(trigger: string | null, requestControl?: HTMLElement) {
+    if (!trigger || navigation.pending || navigation.locked) return;
+    const target = document.getElementById(trigger),
+      focused = document.activeElement,
+      route = readerRouteEpoch.current;
+    if (!target || (focused !== document.body && focused !== (requestControl ?? target))) return;
+    requestAnimationFrame(() => {
+      const active = document.activeElement,
+        requestToBody =
+          focused === requestControl && !focused?.isConnected && active === document.body;
+      if (
+        !alive.current ||
+        navigation.pending ||
+        navigation.locked ||
+        route !== readerRouteEpoch.current ||
+        (active !== focused && !requestToBody) ||
+        document.querySelector('dialog[open]') ||
+        !target.getClientRects().length ||
+        target.matches(':disabled')
+      )
+        return;
+      target.focus({ preventScroll: true });
+    });
+  }
   function editCurrentFromReader(entry: ReaderEntry, trigger: string) {
     if (
       navigation.pending ||
@@ -1291,6 +1315,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       readers.at(-1)?.entryId !== entry.entryId
     )
       return;
+    const route = readerRouteEpoch.current;
     readerEditTrigger.current = trigger;
     void protect(async (ticket) => {
       const original = editorRef.current;
@@ -1312,17 +1337,16 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
       setReaderEditing(true);
       setExistingReaderDraft(own.dirty);
       setWritingRequest((value) => value + 1);
-    }).then(() =>
-      requestAnimationFrame(() => {
-        const button = document.getElementById(trigger);
-        if (button?.getClientRects().length) button.focus({ preventScroll: true });
-      }),
-    );
+    }).then(() => {
+      if (route === readerRouteEpoch.current) restoreReaderEditFocus(trigger);
+    });
   }
   function returnToReading() {
     if (navigation.pending || navigation.locked) return;
     const current = editorRef.current;
     const route = readerRouteEpoch.current;
+    const requestControl =
+      document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     void (current?.afterComposition() ?? Promise.resolve()).then(() => {
       if (
         !alive.current ||
@@ -1334,9 +1358,7 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
         return;
       setReaderEditing(false);
       readerRouteEpoch.current++;
-      requestAnimationFrame(() =>
-        document.getElementById(readerEditTrigger.current ?? '')?.focus({ preventScroll: true }),
-      );
+      restoreReaderEditFocus(readerEditTrigger.current, requestControl);
     });
   }
   function backFromReference() {
@@ -2078,13 +2100,9 @@ export const Workbench = forwardRef<WorkbenchHandle, Props>(function Workbench(
                 </span>
                 {navigation.cancellable && (
                   <button
-                    onClick={() => {
+                    onClick={(event) => {
                       navigation.cancelOpening();
-                      requestAnimationFrame(() =>
-                        document
-                          .getElementById(readerEditTrigger.current ?? '')
-                          ?.focus({ preventScroll: true }),
-                      );
+                      restoreReaderEditFocus(readerEditTrigger.current, event.currentTarget);
                     }}
                   >
                     {t(locale, 'common.cancel')}
