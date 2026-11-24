@@ -133,9 +133,18 @@ export function ActivityPane({
       positions.current.changes = { top: 0, trigger: '' };
       void windows.changes.refresh();
     } else if (selected.getSnapshot().lower === null) void selected.load();
+    const scroll = document.querySelector('[data-testid="activity-pane"]'),
+      scheduledFocus = document.activeElement,
+      scheduledTop = scroll?.scrollTop;
     const frame = requestAnimationFrame(() => {
-      const scroll = document.querySelector('[data-testid="activity-pane"]');
-      if (scroll) scroll.scrollTop = positions.current[tab].top;
+      if (
+        !scroll?.isConnected ||
+        document.querySelector('[data-testid="activity-pane"]') !== scroll ||
+        document.activeElement !== scheduledFocus ||
+        scroll.scrollTop !== scheduledTop
+      )
+        return;
+      scroll.scrollTop = positions.current[tab].top;
       if (positions.current[tab].trigger)
         document.getElementById(positions.current[tab].trigger)?.focus({ preventScroll: true });
     });

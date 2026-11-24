@@ -241,7 +241,11 @@ type Fault = {
   draftFailure: boolean;
   readFailure: boolean;
   holdId: string | null;
-  readSkips: number;
+  readBarrier: {
+    objectId: string;
+    closed: boolean;
+    pending: (() => void)[];
+  } | null;
   held: boolean;
   release: (() => void) | null;
   creates: number;
@@ -285,7 +289,7 @@ async function installFault(native: NativeHarness) {
       draftFailure: false,
       readFailure: false,
       holdId: null,
-      readSkips: 0,
+      readBarrier: null,
       held: false,
       release: null,
       creates: 0,
@@ -330,15 +334,26 @@ async function installFault(native: NativeHarness) {
           }
           return { ok: false, error: { code: 'STORAGE_BUSY', retryable: true } };
         }
+        const barrier = fault.readBarrier;
+        if (
+          method === 'readObject' &&
+          barrier &&
+          !barrier.closed &&
+          request.input.objectId === barrier.objectId &&
+          request.input.revision === undefined
+        ) {
+          const result = await handler(event, request);
+          if (!barrier.closed)
+            await new Promise<void>((resolve) => {
+              barrier.pending.push(resolve);
+            });
+          return result;
+        }
         if (
           method === 'readObject' &&
           request.input.objectId === fault.holdId &&
           request.input.revision === undefined
         ) {
-          if (fault.readSkips > 0) {
-            fault.readSkips--;
-            return handler(event, request);
-          }
           if (fault.readFailure)
             return { ok: false, error: { code: 'NOT_FOUND', retryable: false } };
           const result = await handler(event, request);
@@ -1570,6 +1585,12 @@ async function waitHeld(native: NativeHarness) {
 async function releaseFault(native: NativeHarness) {
   await native.application.evaluate(() => {
     const fault = (globalThis as unknown as FaultMain).__projectReadingFault;
+    if (fault.readBarrier) {
+      const barrier = fault.readBarrier;
+      barrier.closed = true;
+      fault.readBarrier = null;
+      for (const release of barrier.pending.splice(0)) release();
+    }
     fault.release?.();
     fault.release = null;
   });
@@ -1922,28 +1943,24 @@ test(
       await native.page.getByTestId('return-to-reading').click();
       await native.application.evaluate((_electron, objectId) => {
         const fault = (globalThis as unknown as FaultMain).__projectReadingFault;
-        fault.holdId = objectId;
-        // The failed stale-save retry first refreshes current-head metadata.
-        // Hold the following current-original opening request for cancellation.
-        fault.readSkips = 1;
+        // Keep all real current-object replies pending, including concurrent head refreshes.
+        fault.readBarrier = { objectId, closed: false, pending: [] };
       }, fixture.k1.id);
       await reader.getByTestId('source-edit-current').click();
-      await native.page.waitForFunction(
-        () => document.querySelector('[data-testid="editor-transition"]') !== null,
-      );
-      let held = false;
-      for (let attempt = 0; attempt < 100 && !held; attempt++) {
-        held = await native.application.evaluate(
-          () => (globalThis as unknown as FaultMain).__projectReadingFault.held,
-        );
-        if (!held) await delay(20);
-      }
-      assert.equal(held, true);
       const locale = (await native.page.locator('html').getAttribute('lang')) as Locale;
-      await native.page
+      const cancel = native.page
         .getByTestId('editor-transition')
-        .getByRole('button', { name: t(locale, 'common.cancel'), exact: true })
-        .click();
+        .getByRole('button', { name: t(locale, 'common.cancel'), exact: true });
+      await cancel.waitFor();
+      assert.ok(
+        await native.application.evaluate(
+          () =>
+            ((globalThis as unknown as FaultMain).__projectReadingFault.readBarrier?.pending
+              .length ?? 0) > 0,
+        ),
+        'The cancellable opening must have real target-object replies pending.',
+      );
+      await cancel.click();
       await reader.waitFor();
       await native.page.getByTestId('settings-button').click();
       const settings = native.page.getByTestId('settings-dialog');
@@ -2010,6 +2027,7 @@ test(
       );
       assert.deepEqual(native.pageErrors, []);
     } finally {
+      await releaseFault(native).catch(() => {});
       await native.application
         .evaluate(() => {
           const fault = (globalThis as unknown as FaultMain).__projectReadingFault;
