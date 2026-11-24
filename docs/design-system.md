@@ -33,7 +33,7 @@ Use local system fonts with locale-appropriate CJK fallbacks. UI text is 14px; p
 - Use semantic controls, explicit labels and complete focus paint. Fixed chrome must not cover text, caret, diff or focused actions.
 - Trap modal focus and restore its trigger on close. Preserve input and selection through language changes; defer destructive transitions during composition.
 - Distinguish unsaved, saving, saved, failed, unknown and retained-draft states. Keep recovery actions beside persistent errors.
-- Limit motion to short color/state feedback: 80ms for controls and 120ms for selected modes. Reduced motion is static. Do not animate the position or opacity of focused dialogs, panes or inputs.
+- Primary actions switch foreground and background immediately in every state. Other controls use 80ms color feedback; selected modes use 120ms. Reduced motion is static. Do not animate the position or opacity of focused dialogs, panes or inputs.
 - Default to opaque surfaces. Only the application header may gain restrained blur when supported and transparency/contrast preferences permit it. Reduced transparency, unsupported queries and forced colors retain opaque surfaces. Prose, diff, warnings and menus remain opaque; this is not a claim of native Liquid Glass.
 - Use a percentage only for an observed positive total. Otherwise show the reported stage/count. Prepared context and copied configuration do not imply an external task's progress.
 

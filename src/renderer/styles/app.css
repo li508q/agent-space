@@ -55,6 +55,8 @@ small {
   font-size: var(--as-type-caption);
 }
 button.primary {
+  /* Foreground and background change together when the action becomes available. */
+  transition: none;
   min-block-size: var(--as-primary-size);
   background: var(--as-accent);
   color: var(--as-color-paper);
