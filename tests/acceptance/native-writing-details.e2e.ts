@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { ObjectSnapshot } from '../../src/contracts/core.js';
+import type { Failure } from '../../src/contracts/errors.js';
 import { supportedLocales, t } from '../../src/renderer/i18n/index.js';
 import { createAcceptanceFixture, requireSuccess as ok } from './fixtures.js';
 import { installClipboardFixture } from './clipboard-fixture.js';
@@ -99,7 +100,10 @@ async function installFaults(native: NativeHarness) {
       ipcMain.removeHandler(channel);
       ipcMain.handle(channel, async (event, request) => {
         if (state.failWrites && !channel.endsWith(':copyText'))
-          return { ok: false, error: { code: 'IO_ERROR', retryable: true } };
+          return {
+            ok: false,
+            error: { code: 'STORAGE_FAILURE', retryable: true },
+          } satisfies Failure;
         const result = await handler(event, request);
         if (channel.endsWith(':copyText')) {
           if (state.holdCopy) {
@@ -405,9 +409,20 @@ test(
       await native.application.evaluate(() => {
         (globalThis as unknown as Faults).__writingDetailsFault.failWrites = true;
       });
+      const beforeFailure = await writingState(native);
+      assert.equal(beforeFailure.draftError, null);
       await native.page
         .getByTestId('markdown-input')
         .fill('Later unsaved 中文 日本語 한국어 café input.');
+      const untilDraftFailure = Date.now() + 5_000;
+      let retainedFailure = await writingState(native);
+      while (retainedFailure.draftError !== 'STORAGE_FAILURE') {
+        assert.ok(Date.now() < untilDraftFailure, 'The scheduled draft retention must fail first.');
+        await delay(20);
+        retainedFailure = await writingState(native);
+      }
+      assert.equal(retainedFailure.body, 'Later unsaved 中文 日本語 한국어 café input.');
+      assert.ok(retainedFailure.generation > beforeFailure.generation);
       await native.page.getByTestId('save-now').click();
       await native.page.waitForFunction(
         () => document.querySelectorAll('[data-testid="document-pane"] [role="alert"]').length >= 2,
@@ -415,7 +430,7 @@ test(
       const failed = await writingState(native),
         input = await native.page.getByTestId('markdown-input').elementHandle();
       assert.equal(failed.saveState, 'error');
-      assert.equal(failed.draftError, 'IO_ERROR');
+      assert.equal(failed.draftError, 'STORAGE_FAILURE');
       for (let index = 0; index < 2; index++) await details.locator('summary').click();
       assert.deepEqual(await writingState(native), failed);
       assert.equal(await input!.evaluate((element) => element.isConnected), true);

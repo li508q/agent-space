@@ -5,6 +5,35 @@ import { t } from '../i18n/index.js';
 import { ErrorNotice, useLocale } from '../ui.js';
 import { useCopyText } from './useCopyText.js';
 
+/** Reveal keyboard focus inside the visible part of the body scrollport. */
+function revealLocationCopy(button: HTMLButtonElement) {
+  if (document.activeElement !== button || !button.matches(':focus-visible')) return;
+  const port = button.closest<HTMLElement>('.as-scroll-region');
+  if (!port) return;
+  const clip = { top: 0, bottom: innerHeight };
+  for (
+    let parent: HTMLElement | null = button.parentElement;
+    parent;
+    parent = parent.parentElement
+  ) {
+    const style = getComputedStyle(parent);
+    if (!/auto|scroll|hidden|clip/.test(style.overflowY)) continue;
+    const rect = parent.getBoundingClientRect();
+    clip.top = Math.max(clip.top, rect.top + (parseFloat(style.borderTopWidth) || 0));
+    clip.bottom = Math.min(clip.bottom, rect.bottom - (parseFloat(style.borderBottomWidth) || 0));
+  }
+  const rect = button.getBoundingClientRect(),
+    style = getComputedStyle(button),
+    outset = Math.max(
+      0,
+      (parseFloat(style.outlineWidth) || 0) + (parseFloat(style.outlineOffset) || 0),
+    );
+  if (rect.height + 2 * outset > clip.bottom - clip.top) return;
+  if (rect.top - outset < clip.top) port.scrollTop += Math.floor(rect.top - outset - clip.top);
+  else if (rect.bottom + outset > clip.bottom)
+    port.scrollTop += Math.ceil(rect.bottom + outset - clip.bottom);
+}
+
 export function RecordedLocation({
   api,
   session,
@@ -60,6 +89,11 @@ export function RecordedLocation({
         <button
           data-testid={testId ? `${testId}-copy` : undefined}
           disabled={!bound || !locator || disabled || copy.busy}
+          onFocus={(event) => {
+            const button = event.currentTarget;
+            revealLocationCopy(button);
+            requestAnimationFrame(() => revealLocationCopy(button));
+          }}
           onClick={() => {
             void copy.copy(locator);
           }}

@@ -24,7 +24,12 @@ export async function readableControl(target: Locator) {
           .filter((part): part is HTMLElement => !!part),
       ],
       clip = { top: 0, left: 0, right: innerWidth, bottom: innerHeight };
-    for (let parent: HTMLElement | null = input; parent; parent = parent.parentElement) {
+    // Native control overflow clips its value, not its external label or focus ring.
+    for (
+      let parent: HTMLElement | null = input.parentElement;
+      parent;
+      parent = parent.parentElement
+    ) {
       const style = getComputedStyle(parent),
         rect = parent.getBoundingClientRect();
       if (/auto|scroll|hidden|clip/.test(style.overflowY)) {

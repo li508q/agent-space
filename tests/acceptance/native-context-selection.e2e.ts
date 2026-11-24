@@ -334,12 +334,12 @@ test(
         (globalThis as unknown as QueryFaults).__contextSelectionFault.failMore = true;
       });
       await preparation.getByTestId('context-query-more').click();
-      const unknown = query
+      const readFailure = query
         .getByTestId('error-notice')
-        .filter({ hasText: t('en', 'error.OPERATION_UNKNOWN') });
-      await unknown.waitFor();
+        .filter({ hasText: t('en', 'error.STORAGE_FAILURE') });
+      await readFailure.waitFor();
       assert.equal(await query.locator('input[data-testid^="context-space-"]').count(), 20);
-      await unknown.getByRole('button', { name: t('en', 'common.retry'), exact: true }).click();
+      await readFailure.getByRole('button', { name: t('en', 'common.retry'), exact: true }).click();
       await native.page.getByTestId(`context-space-${f.notes[23]!.id}:1`).waitFor();
       await preparation.getByTestId('context-query-refresh').click();
       await native.page.waitForFunction(
@@ -362,12 +362,12 @@ test(
         (globalThis as unknown as QueryFaults).__contextSelectionFault.failHomeAfterStale = true;
       });
       await preparation.getByTestId('context-query-more').click();
-      await unknown.waitFor();
+      await readFailure.waitFor();
       assert.equal(await query.locator('input[data-testid^="context-space-"]').count(), 20);
       assert.equal(await query.getByTestId(`context-space-${f.notes[1]!.id}:1`).isChecked(), true);
       await query.getByText(t('en', 'error.CURSOR_STALE'), { exact: true }).waitFor();
       assert.equal(await preparation.getByTestId('context-query-more').count(), 0);
-      await unknown.getByRole('button', { name: t('en', 'common.retry'), exact: true }).click();
+      await readFailure.getByRole('button', { name: t('en', 'common.retry'), exact: true }).click();
       await native.page.getByTestId(`context-space-${later.id}:2`).waitFor();
       assert.equal(
         await preparation.getByTestId(`context-retained-${later.id}:1`).isChecked(),
@@ -411,6 +411,7 @@ test(
         .locator('..')
         .locator('..');
       await retained.getByTestId('error-notice').waitFor();
+      await retained.getByText(t('en', 'error.STORAGE_FAILURE'), { exact: true }).waitFor();
       assert.equal(await preparation.getByTestId('copy-context-brief').isDisabled(), true);
       assert.equal(await preparation.getByTestId('context-agent-access').isDisabled(), true);
       assert.equal(await clipboard.readText(), '');
@@ -422,7 +423,7 @@ test(
       await preparation.getByTestId('copy-context-brief').click();
       const copyError = preparation
         .getByTestId('error-notice')
-        .filter({ hasText: t('en', 'error.OPERATION_UNKNOWN') });
+        .filter({ hasText: t('en', 'error.STORAGE_FAILURE') });
       await copyError.waitFor();
       assert.equal(
         await preparation.getByTestId('context-task').inputValue(),
