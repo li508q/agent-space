@@ -70,7 +70,15 @@ test('native coordinator only accepts chooser handles, binds previews to each ac
   );
   assert.ok(preview);
   assert.equal(preview.page.entries.length, 1);
-  assert.ok(!JSON.stringify(preview).includes(f.root));
+  assert.equal(preview.page.entries[0]!.sourceLocation, join(f.root, 'source.md'));
+  const undisclosed = {
+    ...preview,
+    page: {
+      ...preview.page,
+      entries: preview.page.entries.map((entry) => ({ ...entry, sourceLocation: null })),
+    },
+  };
+  assert.ok(!JSON.stringify(undisclosed).includes(f.root));
   const request: z.infer<typeof ConfirmImportHandleSchema> = {
     handle: preview.handle,
     operationKey: 'confirm',
@@ -83,6 +91,12 @@ test('native coordinator only accepts chooser handles, binds previews to each ac
       useAssetIds: [],
     })),
   };
+  const injected = f.local.confirmImport(
+    bound(f.session, { ...request, sourceLocation: join(f.root, 'unselected.md') }),
+  );
+  assert.equal(injected.ok, false);
+  if (!injected.ok) assert.equal(injected.error.code, 'INVALID_INPUT');
+  assert.equal(ok(f.workspace.human!.status()).authoritySequence, 0);
   const created = ok(f.local.confirmImport(bound(f.session, request)));
   await f.local.idle();
   const result = ok(
